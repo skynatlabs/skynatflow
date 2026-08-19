@@ -2,6 +2,7 @@
 // One address book for customers, suppliers, and staff — role is a field,
 // not a separate table, per the strategic report's core-object design.
 
+import { randomBytes } from "crypto";
 import { PartyRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
@@ -53,4 +54,20 @@ export async function customerHistory(tenantId: string, partyId: string) {
   ]);
 
   return { party, transactions, events };
+}
+
+// Customer portal — Soler's proven token-login pattern (no password, just
+// a link), generalized onto the shared Party model. Lazily generated the
+// first time a link is requested, then stable for that party going forward.
+export async function getOrCreatePortalToken(partyId: string): Promise<string> {
+  const party = await prisma.party.findUniqueOrThrow({ where: { id: partyId } });
+  if (party.portalToken) return party.portalToken;
+
+  const token = randomBytes(24).toString("base64url");
+  await prisma.party.update({ where: { id: partyId }, data: { portalToken: token } });
+  return token;
+}
+
+export async function findPartyByPortalToken(token: string) {
+  return prisma.party.findUnique({ where: { portalToken: token } });
 }

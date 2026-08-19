@@ -1,12 +1,7 @@
-// Phase 8 hardening — a real per-role permission check, not a comment
-// promising one later. Every mutating Business Graph API call should be
-// wrapped with this once it's called from a request handler with a known
-// actor (owner UI action, mobile app request, or AI tool-call).
-//
-// This does NOT yet replace the Phase 0 Auth.js checkpoint — there's still
-// no session -> user resolution wired in, so nothing calls this for real
-// yet. What's here is the enforcement primitive itself, ready to wire in
-// the moment sessions exist, rather than leaving that as a TODO comment.
+// Phase 8 hardening — a real per-role permission check, wired into every
+// mutating server action via requireTenantAccess() + assertCan() (see
+// src/lib/auth/tenant-access.ts, which resolves the session to a real
+// Membership role before any of these are checked).
 
 export type Role = "OWNER" | "STAFF" | "DRIVER" | "REP" | "TECHNICIAN";
 
@@ -17,7 +12,9 @@ export type Capability =
   | "payment:record"
   | "delivery:log"
   | "connection:invite"
-  | "connection:accept";
+  | "connection:accept"
+  | "task:manage"
+  | "staff:manage";
 
 const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   OWNER: [
@@ -28,11 +25,13 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     "delivery:log",
     "connection:invite",
     "connection:accept",
+    "task:manage",
+    "staff:manage",
   ],
-  STAFF: ["quote:create", "quote:send", "invoice:create", "payment:record"],
-  REP: ["quote:create", "quote:send"],
-  DRIVER: ["delivery:log"],
-  TECHNICIAN: ["delivery:log", "quote:create"],
+  STAFF: ["quote:create", "quote:send", "invoice:create", "payment:record", "task:manage"],
+  REP: ["quote:create", "quote:send", "task:manage"],
+  DRIVER: ["delivery:log", "task:manage"],
+  TECHNICIAN: ["delivery:log", "quote:create", "task:manage"],
 };
 
 export class AccessDeniedError extends Error {

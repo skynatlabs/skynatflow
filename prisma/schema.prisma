@@ -138,6 +138,10 @@ model Party {
   phone     String? // WhatsApp-reachable number, E.164
   email     String?
   notes     String?
+  // Customer portal — a token-login link (Soler's proven pattern,
+  // generalized onto the shared Party model), no password needed. Lazily
+  // generated the first time a portal link is requested for this party.
+  portalToken String? @unique
   createdAt DateTime  @default(now())
 
   transactions Transaction[]
@@ -183,6 +187,13 @@ model Transaction {
   createdAt   DateTime           @default(now())
   dueAt       DateTime?
   respondedAt DateTime?          // when the customer last replied/acted — drives the follow-up engine
+  signatureDataUrl String?       // customer's e-signature on quote acceptance, captured via the portal
+  // Quote-open tracking (Soler's hot-lead pattern): a customer opening the
+  // portal link for a quote is a buying signal, tracked independent of
+  // whether they've responded yet.
+  openCount     Int       @default(0)
+  firstOpenedAt DateTime?
+  lastOpenedAt  DateTime?
 
   itemLines TransactionLine[]
 

@@ -1,8 +1,12 @@
 // Staff/roles management (per your "user roles for staff under business"
 // request). Built on the Membership model: one login, any role, on any
-// number of businesses.
+// number of businesses. Inviting/removing is OWNER-only (enforced in
+// actions.ts); this page hides those controls from non-owners so they
+// don't hit a permission error trying to use them.
 
 import { prisma } from "@/lib/db";
+import { requireTenantAccess } from "@/lib/auth/tenant-access";
+import { can } from "@/lib/core/access";
 import { inviteStaffAction, removeStaffAction } from "./actions";
 
 const inputClass =
@@ -15,6 +19,9 @@ export default async function StaffPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  const access = await requireTenantAccess(tenantId);
+  const canManage = can(access.role, "staff:manage");
+
   const memberships = await prisma.membership.findMany({
     where: { tenantId },
     include: { user: true },
@@ -25,37 +32,39 @@ export default async function StaffPage({
     <main className="mx-auto max-w-2xl p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Staff &amp; roles</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-        Add anyone by email — if they already have a login on the platform
-        (say, they own another workspace), this just adds them here with the
-        role you pick.
+        {canManage
+          ? "Add anyone by email — if they already have a login on the platform (say, they own another workspace), this just adds them here with the role you pick."
+          : "Only the workspace owner can add or remove team members."}
       </p>
 
-      <form action={inviteStaffAction} className="kb-card mt-6 space-y-3 p-6">
-        <input type="hidden" name="tenantId" value={tenantId} />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="block text-sm font-medium text-[var(--kb-text)]">Name</label>
-            <input name="name" className={inputClass} />
+      {canManage && (
+        <form action={inviteStaffAction} className="kb-card mt-6 space-y-3 p-6">
+          <input type="hidden" name="tenantId" value={tenantId} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-[var(--kb-text)]">Name</label>
+              <input name="name" className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[var(--kb-text)]">Email</label>
+              <input name="email" type="email" required className={inputClass} />
+            </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--kb-text)]">Email</label>
-            <input name="email" type="email" required className={inputClass} />
+            <label className="block text-sm font-medium text-[var(--kb-text)]">Role</label>
+            <select name="role" defaultValue="STAFF" className={inputClass}>
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-[var(--kb-text)]">Role</label>
-          <select name="role" defaultValue="STAFF" className={inputClass}>
-            {ROLES.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button type="submit" className="kb-pill kb-pill-primary">
-          Add to team
-        </button>
-      </form>
+          <button type="submit" className="kb-pill kb-pill-primary">
+            Add to team
+          </button>
+        </form>
+      )}
 
       <ul className="kb-card mt-6 divide-y divide-[var(--kb-panel-border)]">
         {memberships.map((m) => (
@@ -74,7 +83,7 @@ export default async function StaffPage({
               >
                 {m.role}
               </span>
-              {m.role !== "OWNER" && (
+              {canManage && m.role !== "OWNER" && (
                 <form action={removeStaffAction}>
                   <input type="hidden" name="tenantId" value={tenantId} />
                   <input type="hidden" name="membershipId" value={m.id} />

@@ -5,9 +5,19 @@ import { prisma } from "@/lib/db";
 import { createParty } from "@/lib/core/parties";
 import { createQuote, sendQuote } from "@/lib/core/money";
 import { PartyRole } from "@prisma/client";
+import { requireTenantAccess } from "@/lib/auth/tenant-access";
+import { assertCan } from "@/lib/core/access";
+import { recordAudit } from "@/lib/core/audit";
 
 export async function createQuoteAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
+
+  // Confirms the signed-in user actually has a membership on this tenant
+  // (not just a tenantId typed into a hidden field), and gets their real
+  // role for the capability check below.
+  const access = await requireTenantAccess(tenantId);
+  assertCan(access.role, "quote:create");
+
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
 
   const customerName = String(formData.get("customerName") ?? "").trim();
@@ -42,6 +52,16 @@ export async function createQuoteAction(formData: FormData) {
   });
 
   await sendQuote(quote.id);
+
+  await recordAudit({
+    tenantId: tenant.id,
+    actorType: "user",
+    actorId: access.userId,
+    capability: "quote:create",
+    targetType: "Transaction",
+    targetId: quote.id,
+    metadata: { amountCents: quote.amountCents, customerId: customer.id },
+  });
 
   redirect(`/dashboard/${tenant.id}/customers/${customer.id}`);
 }

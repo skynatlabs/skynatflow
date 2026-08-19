@@ -1,0 +1,103 @@
+// Quote view + e-signature acceptance — Soler's proven quote-signing UX,
+// generalized onto the shared Transaction model. Every load of this page
+// by the customer is also a tracked "open" (strategic report's hot-lead
+// pattern) — this is a real buying signal the owner should see.
+
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { findPartyByPortalToken } from "@/lib/core/parties";
+import { trackQuoteOpen, prisma } from "@/lib/core/money";
+import { maybeAlertHotLead } from "@/lib/core/notifications";
+import { SignatureCapture } from "./SignatureCapture";
+
+export const dynamic = "force-dynamic";
+
+function money(cents: number) {
+  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
+}
+
+export default async function PortalQuotePage({
+  params,
+}: {
+  params: Promise<{ token: string; quoteId: string }>;
+}) {
+  const { token, quoteId } = await params;
+  const party = await findPartyByPortalToken(token);
+  if (!party) notFound();
+
+  const quoteCheck = await prisma.transaction.findUnique({ where: { id: quoteId } });
+  if (!quoteCheck || quoteCheck.partyId !== party.id || quoteCheck.type !== "QUOTE") {
+    notFound();
+  }
+
+  // Track this view, then check whether it just crossed the hot-lead
+  // threshold — same "fire once, on open #2" behavior as Soler's alert.
+  await trackQuoteOpen(quoteId);
+  await maybeAlertHotLead(quoteId);
+
+  const quote = await prisma.transaction.findUniqueOrThrow({
+    where: { id: quoteId },
+    include: { itemLines: { include: { item: true } }, tenant: true },
+  });
+
+  const isDecided = quote.status === "ACCEPTED" || quote.status === "DECLINED";
+
+  return (
+    <div className="kb-shell min-h-screen p-8" data-theme="light">
+      <main className="mx-auto max-w-lg">
+        <Link href={`/portal/${token}`} className="text-xs text-[var(--kb-text-dim)]">
+          &larr; Back
+        </Link>
+        <p className="mt-2 text-sm text-[var(--kb-text-dim)]">{quote.tenant.name}</p>
+        <h1 className="text-2xl font-bold text-[var(--kb-text)]">Quote for {party.name}</h1>
+
+        <div className="kb-card mt-6 p-6">
+          <ul className="divide-y divide-[var(--kb-panel-border)]">
+            {quote.itemLines.map((l) => (
+              <li key={l.id} className="flex justify-between py-2 text-sm">
+                <span className="text-[var(--kb-text)]">
+                  {l.quantity} &times; {l.item.name}
+                </span>
+                <span className="text-[var(--kb-text)]">{money(l.quantity * l.unitPriceCents)}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 flex justify-between border-t border-[var(--kb-panel-border)] pt-3">
+            <span className="font-semibold text-[var(--kb-text)]">Total</span>
+            <span className="font-bold text-[var(--kb-text)]">{money(quote.amountCents)}</span>
+          </div>
+        </div>
+
+        <div className="kb-card mt-4 p-6">
+          {quote.status === "ACCEPTED" ? (
+            <div>
+              <p className="text-sm font-semibold text-[var(--kb-tint-mint-ink)]">
+                ✓ Accepted{quote.respondedAt ? ` on ${quote.respondedAt.toLocaleDateString()}` : ""}
+              </p>
+              {quote.signatureDataUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={quote.signatureDataUrl}
+                  alt="Your signature"
+                  className="mt-3 h-24 rounded-lg border border-[var(--kb-panel-border)] bg-white"
+                />
+              )}
+            </div>
+          ) : quote.status === "DECLINED" ? (
+            <p className="text-sm font-semibold text-[var(--kb-tint-peach-ink)]">
+              You declined this quote.
+            </p>
+          ) : (
+            <SignatureCapture token={token} quoteId={quoteId} />
+          )}
+        </div>
+
+        {!isDecided && (
+          <p className="mt-3 text-xs text-[var(--kb-text-dim)]">
+            Questions? Reply on WhatsApp and {quote.tenant.name} will get back to you.
+          </p>
+        )}
+      </main>
+    </div>
+  );
+}

@@ -71,6 +71,45 @@ export async function recordResponse(
   });
 }
 
+// Quote-open tracking (Soler's hot-lead pattern) — called when a customer
+// opens their portal link for a quote. This is a buying signal independent
+// of whether they've actually responded yet: a quote opened twice is a
+// customer actively considering it, worth the owner's personal attention.
+// Fires the hot-lead alert exactly once, the moment openCount crosses 2 —
+// same "fire once, on the threshold crossing" pattern as Soler's
+// AutomationService::onQuoteOpened.
+export async function trackQuoteOpen(quoteId: string) {
+  const before = await prisma.transaction.findUniqueOrThrow({ where: { id: quoteId } });
+  const now = new Date();
+
+  return prisma.transaction.update({
+    where: { id: quoteId },
+    data: {
+      openCount: { increment: 1 },
+      firstOpenedAt: before.firstOpenedAt ?? now,
+      lastOpenedAt: now,
+    },
+  });
+}
+
+// Customer accepts a quote from the portal, with an e-signature (base64
+// data URL from a canvas capture) — Soler's proven quote-signing UX,
+// generalized. Records the response and stores the signature on the same
+// transaction row, no separate document model needed.
+export async function acceptQuoteWithSignature(params: {
+  quoteId: string;
+  signatureDataUrl: string;
+}) {
+  return prisma.transaction.update({
+    where: { id: params.quoteId },
+    data: {
+      status: TransactionStatus.ACCEPTED,
+      respondedAt: new Date(),
+      signatureDataUrl: params.signatureDataUrl,
+    },
+  });
+}
+
 // Converts an accepted quote into an invoice. The invoice is a new,
 // independent ledger row pointing back at the quote via parentId — the
 // quote itself is never mutated. This is what keeps the ledger append-only
