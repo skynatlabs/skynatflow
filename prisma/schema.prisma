@@ -1,0 +1,297 @@
+// KasiBiz core data model — one shared engine, many niche "skins".
+// Party / Item / Transaction / Event, per the strategic report's architecture.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7: connection URL lives in prisma.config.ts (for Migrate) and is
+// passed via an adapter to the PrismaClient constructor (src/lib/db.ts) —
+// it's no longer valid inside the schema's datasource block.
+datasource db {
+  provider = "postgresql"
+}
+
+enum PartyRole {
+  CUSTOMER
+  SUPPLIER
+  STAFF
+  PATIENT // Medical niche — appointment/visit tracking only, no clinical/health data fields
+}
+
+enum TransactionType {
+  QUOTE
+  INVOICE
+  PAYMENT
+  STOCK_ADJUSTMENT
+  REFUND
+}
+
+enum TransactionStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum EventType {
+  SITE_VISIT
+  DELIVERY
+  INSTALL
+  STOCK_TRANSFER
+  FOLLOW_UP_SENT
+  CONSULTATION // Medical niche — an appointment/visit record, non-clinical
+  ORDER_PLACED // Ecommerce niche — order confirmed, ahead of fulfillment
+}
+
+enum NicheSkin {
+  CORPORATE
+  SERVICES
+  LOGISTICS
+  MEDICAL
+  RETAIL
+  WHOLESALE
+  ECOMMERCE
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+model Tenant {
+  id        String    @id @default(cuid())
+  name      String
+  niche     NicheSkin @default(SERVICES)
+  createdAt DateTime  @default(now())
+
+  memberships  Membership[]
+  parties      Party[]
+  items        Item[]
+  transactions Transaction[]
+  events       Event[]
+  tasks        Task[]
+
+  connectionsAsSupplier WholesaleConnection[] @relation("SupplierConnections")
+  connectionsAsBuyer    WholesaleConnection[] @relation("BuyerConnections")
+
+  @@map("tenants")
+}
+
+// A login is global, not scoped to one business — one email, one password,
+// any number of businesses. isSuperAdmin is the platform operator's own
+// account type: it can see and act across every tenant regardless of
+// membership, for support and cross-business oversight. This is distinct
+// from an OWNER membership, which only grants access to that one business.
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String?
+  phone        String? // WhatsApp-reachable — where the daily briefing goes
+  passwordHash String? // null = account exists (e.g. added by a staff invite) but hasn't been claimed with a password yet
+  isSuperAdmin Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+
+  memberships Membership[]
+
+  @@map("users")
+}
+
+// Join table: which businesses a login can access, and what they can do in
+// each one. The same person can be OWNER of one business and STAFF of
+// another — e.g. a wholesaler's owner who is also a retailer's buyer-side
+// contact. Role granularity (OWNER/STAFF/DRIVER/REP/TECHNICIAN) matches the
+// Role type in src/lib/core/access.ts.
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  role      String   @default("OWNER") // OWNER | STAFF | DRIVER | REP | TECHNICIAN
+  createdAt DateTime @default(now())
+
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+  @@index([userId])
+  @@map("memberships")
+}
+
+// People: customers, suppliers, staff — one address book, one table.
+model Party {
+  id        String    @id @default(cuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  role      PartyRole
+  name      String
+  phone     String? // WhatsApp-reachable number, E.164
+  email     String?
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  transactions Transaction[]
+  events       Event[]
+
+  @@index([tenantId])
+  @@index([tenantId, phone])
+  @@map("parties")
+}
+
+// Items: stock, services, catalog entries — shared across retail/wholesale/services.
+model Item {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  name          String
+  sku           String?
+  unitPriceCents Int
+  stockQty      Int?     // null = service line item, not stock-tracked
+  reorderPoint  Int?
+  createdAt     DateTime @default(now())
+
+  transactionLines TransactionLine[]
+
+  @@index([tenantId])
+  @@map("items")
+}
+
+// Money: append-only ledger. Quotes, invoices, payments — one typed table,
+// never mutated after creation, only superseded by a new row referencing it.
+model Transaction {
+  id          String             @id @default(cuid())
+  tenantId    String
+  tenant      Tenant             @relation(fields: [tenantId], references: [id])
+  partyId     String
+  party       Party              @relation(fields: [partyId], references: [id])
+  type        TransactionType
+  status      TransactionStatus  @default(DRAFT)
+  amountCents Int
+  parentId    String?            // e.g. an INVOICE points back at the QUOTE it came from
+  parent      Transaction?       @relation("TransactionLineage", fields: [parentId], references: [id])
+  children    Transaction[]      @relation("TransactionLineage")
+  createdAt   DateTime           @default(now())
+  dueAt       DateTime?
+  respondedAt DateTime?          // when the customer last replied/acted — drives the follow-up engine
+
+  itemLines TransactionLine[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, type, status])
+  @@map("transactions")
+}
+
+model TransactionLine {
+  id            String      @id @default(cuid())
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  itemId        String
+  item          Item        @relation(fields: [itemId], references: [id])
+  quantity      Int
+  unitPriceCents Int
+
+  @@index([transactionId])
+  @@map("transaction_lines")
+}
+
+// Movement: deliveries, site visits, installs, stock transfers, follow-ups sent.
+model Event {
+  id            String    @id @default(cuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  partyId       String?
+  party         Party?    @relation(fields: [partyId], references: [id])
+  transactionId String?   // which quote/invoice this event relates to, e.g. a FOLLOW_UP_SENT
+  type          EventType
+  notes         String?
+  photoUrl      String?
+  signedByUrl   String?
+  gpsLat        Float?
+  gpsLng        Float?
+  createdAt     DateTime  @default(now())
+
+  @@index([tenantId])
+  @@index([transactionId])
+  @@map("events")
+}
+
+// Cross-tenant connection: lets a WHOLESALE-niche tenant and a RETAIL-niche
+// (or any) tenant trade directly inside the app, per the strategic report's
+// Section 11 — the wholesaler-retailer network layer. Orders placed across
+// a connection still just create ordinary Transaction rows on each side;
+// this model only tracks who's allowed to trade with whom and on what terms.
+model WholesaleConnection {
+  id               String           @id @default(cuid())
+  supplierTenantId String
+  supplierTenant   Tenant           @relation("SupplierConnections", fields: [supplierTenantId], references: [id])
+  buyerTenantId    String
+  buyerTenant      Tenant           @relation("BuyerConnections", fields: [buyerTenantId], references: [id])
+  status           ConnectionStatus @default(PENDING)
+  // Optional discount off the supplier's standard item price for this buyer —
+  // the tiered/contract pricing requirement from the strategic report's
+  // wholesale section, kept simple (a flat percentage) rather than
+  // per-item tiers, which is a natural Phase 9 extension once real
+  // wholesale customers ask for it.
+  discountPercent  Float?
+  createdAt        DateTime         @default(now())
+
+  @@unique([supplierTenantId, buyerTenantId])
+  @@index([supplierTenantId])
+  @@index([buyerTenantId])
+  @@map("wholesale_connections")
+}
+
+// Phase 8 hardening: every mutating action through the Business Graph API
+// leaves a trace here — who (actor), what (capability), on what (target),
+// and when. This is the audit trail that makes AI-taken actions reviewable,
+// per the trust/reversibility principle in the strategic report (6.4).
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  actorType  String // "user" | "ai" | "system"
+  actorId    String? // User.id when actorType is "user"
+  capability String // e.g. "quote:create"
+  targetType String // e.g. "Transaction"
+  targetId   String
+  metadata   String? // small JSON blob, kept as text to avoid a Json-type dependency
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}
+
+// Team task/project management — deliberately simple (one flat list, three
+// states) rather than a full project-management suite, per the "must be
+// easy to use" instruction. Real workflow automation happens through the
+// AI/follow-up engine (src/lib/ai, src/app/api/cron), not a visual
+// rule-builder here — consistent with the platform's AI-first stance
+// against Zapier-style no-code builders that still require developer-style
+// thinking to configure.
+model Task {
+  id          String     @id @default(cuid())
+  tenantId    String
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  assigneeId  String? // Membership.id — assigned to a specific person's role on this tenant
+  partyId     String? // optional link to the customer/deal this task is about
+  dueAt       DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("tasks")
+}

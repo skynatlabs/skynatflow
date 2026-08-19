@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Dashboard brand theme — light, airy, and a little playful rather than
+   dense/serious: a soft grey-lavender canvas, white rounded cards with a
+   gentle shadow (no glass blur — that reads as heavy in a light theme),
+   a dark navy sidebar for contrast, one confident coral accent for primary
+   actions, and a small set of pastel tints for stat tiles so the page has
+   color without turning into a rainbow. */
+.kb-shell {
+  --kb-bg: #eef1fa;
+  --kb-panel: #ffffff;
+  --kb-panel-border: #e8eaf3;
+  --kb-text: #1c2333;
+  --kb-text-dim: #8891a8;
+  --kb-accent-a: #ff6a3d; /* coral — primary actions, the one bold color */
+  --kb-accent-b: #6c7bff; /* soft violet — secondary accent, charts */
+  --kb-navy: #12172b;
+  --kb-navy-soft: #1c2340;
+
+  /* Pastel tint set for stat tiles — muted, not neon, so nothing fights
+     for attention. Each has a matching -ink variant for its text/icon. */
+  --kb-tint-blue: #e8f0ff;
+  --kb-tint-blue-ink: #3d6fe0;
+  --kb-tint-yellow: #fff6dd;
+  --kb-tint-yellow-ink: #d99a1f;
+  --kb-tint-peach: #ffe9e0;
+  --kb-tint-peach-ink: #ff6a3d;
+  --kb-tint-violet: #f0edff;
+  --kb-tint-violet-ink: #6c5ce7;
+  --kb-tint-mint: #e2f9ee;
+  --kb-tint-mint-ink: #16a870;
+
+  background: var(--kb-bg);
+  color: var(--kb-text);
+  min-height: 100vh;
+}
+
+/* Dark mode: same structure, inverted — navy canvas instead of navy-only
+   sidebar, tints deepened rather than dropped so it still feels colorful
+   rather than going monochrome. */
+.kb-shell[data-theme="dark"] {
+  --kb-bg: #0d1120;
+  --kb-panel: #161b30;
+  --kb-panel-border: #262c48;
+  --kb-text: #eef1fa;
+  --kb-text-dim: #8891a8;
+  --kb-navy: #090c18;
+  --kb-navy-soft: #12172b;
+
+  --kb-tint-blue: #1c2a4d;
+  --kb-tint-blue-ink: #7ba3ff;
+  --kb-tint-yellow: #3a2f14;
+  --kb-tint-yellow-ink: #f0c04d;
+  --kb-tint-peach: #3a2018;
+  --kb-tint-peach-ink: #ff8a63;
+  --kb-tint-violet: #241f45;
+  --kb-tint-violet-ink: #a89bff;
+  --kb-tint-mint: #123626;
+  --kb-tint-mint-ink: #3ddb96;
+}
+
+/* Cards: soft shadow, generous radius, no border-heavy "glass" look. */
+.kb-card {
+  background: var(--kb-panel);
+  border: 1px solid var(--kb-panel-border);
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(20, 25, 50, 0.04), 0 8px 24px -12px rgba(20, 25, 50, 0.10);
+}
+
+/* Kept as an alias so existing markup using .kb-glass doesn't need touching
+   everywhere at once — same look as .kb-card now. */
+.kb-glass {
+  background: var(--kb-panel);
+  border: 1px solid var(--kb-panel-border);
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(20, 25, 50, 0.04), 0 8px 24px -12px rgba(20, 25, 50, 0.10);
+}
+
+.kb-gradient-text {
+  background: linear-gradient(90deg, var(--kb-accent-a), var(--kb-accent-b));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Pill buttons — the primary interactive shape across the dashboard. */
+.kb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.kb-pill:hover {
+  transform: translateY(-1px);
+}
+.kb-pill-primary {
+  background: var(--kb-accent-a);
+  color: white;
+  box-shadow: 0 6px 16px -4px rgba(255, 106, 61, 0.5);
+}
+.kb-pill-ghost {
+  background: var(--kb-panel);
+  border: 1px solid var(--kb-panel-border);
+  color: var(--kb-text);
+}
+
+/* Pastel stat tile — pick a --kb-tint-* pair per instance via inline style
+   or one of the .kb-tint-* helper classes below. */
+.kb-tile {
+  border-radius: 20px;
+  padding: 20px;
+  overflow: hidden;
+}
+.kb-tint-blue { background: var(--kb-tint-blue); color: var(--kb-tint-blue-ink); }
+.kb-tint-yellow { background: var(--kb-tint-yellow); color: var(--kb-tint-yellow-ink); }
+.kb-tint-peach { background: var(--kb-tint-peach); color: var(--kb-tint-peach-ink); }
+.kb-tint-violet { background: var(--kb-tint-violet); color: var(--kb-tint-violet-ink); }
+.kb-tint-mint { background: var(--kb-tint-mint); color: var(--kb-tint-mint-ink); }
