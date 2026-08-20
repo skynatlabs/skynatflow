@@ -9,6 +9,18 @@ Seven verticals live side by side on the same engine — Corporate, Services,
 Logistics, Medical, Retail, Wholesale, Ecommerce — chosen at onboarding, so
 performance can be compared across industries before committing to one.
 
+**New here?** Read [`HANDOVER.md`](./HANDOVER.md) first — current live status,
+demo logins, and what's genuinely still open, in one place.
+
+## Surfaces
+
+- **Web** (this repo) — the owner dashboard, onboarding, and the customer
+  portal. Deployed on Vercel.
+- **Desktop** (`apps/desktop/`) — a thin Electron shell around the web app,
+  built and launch-tested on Apple Silicon. See its own README.
+- **Mobile / driver app** (`apps/driver/`) — Expo/React Native, Android
+  native project builds via Gradle. See its own README.
+
 ## Stack
 
 Next.js (App Router) + TypeScript, Prisma 7 (driver-adapter pattern) +
