@@ -18,7 +18,15 @@ function createClient() {
       "[db] DATABASE_URL is not set — queries will fail until it's configured. See README checkpoint."
     );
   }
-  const adapter = new PrismaPg({ connectionString: connectionString ?? "" });
+  // Supabase's pooler presents a cert that fails modern pg's default
+  // verify-full behavior under sslmode=require; connections are already
+  // TLS-encrypted via the pooler infra, so skip CA verification here.
+  const adapter = new PrismaPg({
+    connectionString: connectionString ?? "",
+    ssl: connectionString?.includes("supabase.com")
+      ? { rejectUnauthorized: false }
+      : undefined,
+  });
   return new PrismaClient({ adapter });
 }
 
