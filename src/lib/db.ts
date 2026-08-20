@@ -9,8 +9,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createClient() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
+  const rawConnectionString = process.env.DATABASE_URL;
+  if (!rawConnectionString) {
     // Allow the module to load (so type-checking/build doesn't fail) even
     // before the Phase 0 checkpoint (DATABASE_URL) is resolved. Any actual
     // query will throw a clear error instead of failing silently.
@@ -18,14 +18,19 @@ function createClient() {
       "[db] DATABASE_URL is not set — queries will fail until it's configured. See README checkpoint."
     );
   }
-  // Supabase's pooler presents a cert that fails modern pg's default
-  // verify-full behavior under sslmode=require; connections are already
-  // TLS-encrypted via the pooler infra, so skip CA verification here.
+  const isSupabase = rawConnectionString?.includes("supabase.com") ?? false;
+  // Strip sslmode from the URL: pg's connection-string parser treats
+  // sslmode=require as verify-full (as of pg-connection-string's new
+  // libpq-aligned semantics), which overrides any explicit `ssl` object
+  // passed alongside it and rejects Supabase's pooler cert chain.
+  const connectionString = isSupabase
+    ? rawConnectionString!.replace(/([?&])sslmode=[^&]*&?/, "$1").replace(/[?&]$/, "")
+    : rawConnectionString ?? "";
+  // Connections are already TLS-encrypted via the pooler infra, so skip CA
+  // verification here instead.
   const adapter = new PrismaPg({
-    connectionString: connectionString ?? "",
-    ssl: connectionString?.includes("supabase.com")
-      ? { rejectUnauthorized: false }
-      : undefined,
+    connectionString,
+    ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
   });
   return new PrismaClient({ adapter });
 }
