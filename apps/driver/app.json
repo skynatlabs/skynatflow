@@ -1,17 +1,17 @@
 {
   "expo": {
-    "name": "One Platform Driver",
-    "slug": "one-platform-driver",
+    "name": "flow Driver",
+    "slug": "flow-driver",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "shop.skynat.oneplatform.driver"
+      "bundleIdentifier": "shop.skynat.flow.driver"
     },
     "android": {
-      "package": "shop.skynat.oneplatform.driver",
+      "package": "shop.skynat.flow.driver",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

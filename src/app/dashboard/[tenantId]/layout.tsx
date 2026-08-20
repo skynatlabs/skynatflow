@@ -6,6 +6,7 @@ import { nicheConfig } from "@/lib/niches/config";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthRequiredError, ForbiddenError, requireTenantAccess } from "@/lib/auth/tenant-access";
 import { logoutAction } from "@/app/logout/actions";
+import { FlowMark } from "@/components/FlowMark";
 import {
   HomeIcon,
   UsersIcon,
@@ -60,13 +61,8 @@ export default async function TenantShellLayout({
       >
         <div>
           <div className="flex items-center gap-2 px-2">
-            <span
-              className="grid h-8 w-8 place-items-center rounded-xl text-sm font-black text-white"
-              style={{ background: "linear-gradient(135deg, var(--kb-accent-a), var(--kb-accent-b))" }}
-            >
-              O
-            </span>
-            <span className="text-base font-bold text-white">One Platform</span>
+            <FlowMark size={28} />
+            <span className="text-lg font-bold text-white">flow</span>
           </div>
 
           <div className="mt-7 rounded-2xl px-3 py-3" style={{ background: "var(--kb-navy-soft)" }}>

@@ -5,6 +5,7 @@
 
 import Link from "next/link";
 import { NICHE_CONFIGS } from "@/lib/niches/config";
+import { FlowMark } from "@/components/FlowMark";
 import {
   QuoteIcon,
   BoxIcon,
@@ -64,13 +65,8 @@ export default function MarketingHome() {
       <header className="sticky top-0 z-10 border-b border-[var(--kb-panel-border)] bg-[var(--kb-bg)]/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
-            <span
-              className="grid h-8 w-8 place-items-center rounded-xl text-sm font-black text-white"
-              style={{ background: "linear-gradient(135deg, var(--kb-accent-a), var(--kb-accent-b))" }}
-            >
-              O
-            </span>
-            <span className="text-base font-bold text-[var(--kb-text)]">One Platform</span>
+            <FlowMark size={30} />
+            <span className="text-lg font-bold text-[var(--kb-text)]">flow</span>
           </div>
           <nav className="hidden items-center gap-8 text-sm font-medium text-[var(--kb-text-dim)] sm:flex">
             <a href="#features" className="hover:text-[var(--kb-text)]">Product</a>
@@ -232,10 +228,7 @@ export default function MarketingHome() {
       {/* AI section — dark, like the reference's Brain² block */}
       <section id="ai" className="py-24" style={{ background: "var(--kb-navy)" }}>
         <div className="mx-auto max-w-4xl px-6 text-center">
-          <div
-            className="mx-auto grid h-14 w-14 place-items-center rounded-2xl"
-            style={{ background: "linear-gradient(135deg, var(--kb-accent-a), var(--kb-accent-b))" }}
-          >
+          <div className="kb-glossy mx-auto grid h-14 w-14 place-items-center">
             <SparkleIcon className="h-7 w-7 text-white" />
           </div>
           <h2 className="mt-6 text-4xl font-extrabold text-white">
@@ -288,13 +281,8 @@ export default function MarketingHome() {
       <footer className="border-t border-[var(--kb-panel-border)] py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-[var(--kb-text-dim)] sm:flex-row">
           <div className="flex items-center gap-2">
-            <span
-              className="grid h-6 w-6 place-items-center rounded-lg text-xs font-black text-white"
-              style={{ background: "linear-gradient(135deg, var(--kb-accent-a), var(--kb-accent-b))" }}
-            >
-              O
-            </span>
-            <span className="font-semibold text-[var(--kb-text)]">One Platform</span>
+            <FlowMark size={22} />
+            <span className="font-semibold text-[var(--kb-text)]">flow</span>
           </div>
           <p>&copy; {new Date().getFullYear()} Skynat. Built for SMEs, not scaled down from enterprise.</p>
         </div>

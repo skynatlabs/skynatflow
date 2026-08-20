@@ -1,8 +1,8 @@
 {
-  "name": "one-platform-desktop",
+  "name": "flow-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "One Platform desktop app — a native shell around the web dashboard, per the strategic report's desktop-app requirement.",
+  "description": "flow desktop app — a native shell around the web dashboard, per the strategic report's desktop-app requirement.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -16,8 +16,8 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "shop.skynat.oneplatform",
-    "productName": "One Platform",
+    "appId": "shop.skynat.flow",
+    "productName": "flow",
     "directories": {
       "output": "dist"
     },

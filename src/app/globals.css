@@ -38,6 +38,7 @@ body {
   --kb-text: #1c2333;
   --kb-text-dim: #8891a8;
   --kb-accent-a: #ff6a3d; /* coral — primary actions, the one bold color */
+  --kb-accent-mid: #ec4899; /* magenta — richens gradients, matches the Flow mark */
   --kb-accent-b: #6c7bff; /* soft violet — secondary accent, charts */
   --kb-navy: #12172b;
   --kb-navy-soft: #1c2340;
@@ -48,8 +49,8 @@ body {
   --kb-tint-blue-ink: #3d6fe0;
   --kb-tint-yellow: #fff6dd;
   --kb-tint-yellow-ink: #d99a1f;
-  --kb-tint-peach: #ffe9e0;
-  --kb-tint-peach-ink: #ff6a3d;
+  --kb-tint-peach: #ffe0ec;
+  --kb-tint-peach-ink: #e0245e;
   --kb-tint-violet: #f0edff;
   --kb-tint-violet-ink: #6c5ce7;
   --kb-tint-mint: #e2f9ee;
@@ -76,8 +77,8 @@ body {
   --kb-tint-blue-ink: #7ba3ff;
   --kb-tint-yellow: #3a2f14;
   --kb-tint-yellow-ink: #f0c04d;
-  --kb-tint-peach: #3a2018;
-  --kb-tint-peach-ink: #ff8a63;
+  --kb-tint-peach: #3a1628;
+  --kb-tint-peach-ink: #ff7aa8;
   --kb-tint-violet: #241f45;
   --kb-tint-violet-ink: #a89bff;
   --kb-tint-mint: #123626;
@@ -102,7 +103,7 @@ body {
 }
 
 .kb-gradient-text {
-  background: linear-gradient(90deg, var(--kb-accent-a), var(--kb-accent-b));
+  background: linear-gradient(90deg, var(--kb-accent-a), var(--kb-accent-mid), var(--kb-accent-b));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -123,14 +124,32 @@ body {
   transform: translateY(-1px);
 }
 .kb-pill-primary {
-  background: var(--kb-accent-a);
+  background: linear-gradient(120deg, var(--kb-accent-a), var(--kb-accent-mid));
   color: white;
-  box-shadow: 0 6px 16px -4px rgba(255, 106, 61, 0.5);
+  box-shadow: 0 8px 20px -6px rgba(236, 72, 153, 0.5);
 }
 .kb-pill-ghost {
   background: var(--kb-panel);
   border: 1px solid var(--kb-panel-border);
   color: var(--kb-text);
+}
+
+/* Glossy gradient panel — richer, saturated depth for hero/feature
+   surfaces that should pop rather than blend into the pastel tiles. */
+.kb-glossy {
+  position: relative;
+  border-radius: 20px;
+  background: linear-gradient(145deg, var(--kb-accent-a), var(--kb-accent-mid) 55%, var(--kb-accent-b));
+  color: white;
+  box-shadow: 0 16px 40px -12px rgba(139, 92, 246, 0.45);
+  overflow: hidden;
+}
+.kb-glossy::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 80% at 15% 0%, rgba(255, 255, 255, 0.35), transparent 55%);
+  pointer-events: none;
 }
 
 /* Pastel stat tile — pick a --kb-tint-* pair per instance via inline style

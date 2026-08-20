@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { NICHE_CONFIGS } from "@/lib/niches/config";
+import { FlowMark } from "@/components/FlowMark";
 import { createTenantAction } from "./actions";
 
 const inputClass =
@@ -26,12 +27,7 @@ export default async function OnboardingPage() {
     <div className="kb-shell flex min-h-screen items-center justify-center p-8" data-theme={theme}>
       <div className="w-full max-w-lg">
         <div className="flex items-center gap-2">
-          <span
-            className="grid h-9 w-9 place-items-center rounded-xl text-sm font-black text-white"
-            style={{ background: "linear-gradient(135deg, var(--kb-accent-a), var(--kb-accent-b))" }}
-          >
-            O
-          </span>
+          <FlowMark size={34} />
           <span className="kb-gradient-text text-2xl font-extrabold">Set up your workspace</span>
         </div>
         <p className="mt-2 text-sm text-[var(--kb-text-dim)]">

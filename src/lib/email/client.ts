@@ -47,7 +47,7 @@ export function staffInviteEmail(params: {
   return {
     subject: `You've been added to ${params.tenantName}`,
     html: `
-      <p>${inviter} added you to <strong>${params.tenantName}</strong> on One Platform as <strong>${params.role}</strong>.</p>
+      <p>${inviter} added you to <strong>${params.tenantName}</strong> on flow as <strong>${params.role}</strong>.</p>
       <p>Sign in with this email address to get started.</p>
     `,
   };

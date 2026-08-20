@@ -1,4 +1,4 @@
-# One Platform
+# flow
 
 AI-native, unified business OS for SMEs — CRM, quoting, invoicing, AR-chasing,
 inventory, delivery, cross-tenant wholesale trading, and a customer-facing

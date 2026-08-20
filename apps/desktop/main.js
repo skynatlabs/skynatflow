@@ -1,4 +1,4 @@
-// One Platform desktop shell — a thin native wrapper around the web
+// flow desktop shell — a thin native wrapper around the web
 // dashboard (per the strategic report's desktop-app requirement), not a
 // separate app with its own logic. The dashboard needs the Next.js server
 // + Postgres behind it regardless of surface, so this just points a real
@@ -9,7 +9,7 @@ const { app, BrowserWindow, shell, Menu } = require("electron");
 
 // Point this at your deployed URL once live (Vercel/Hostinger). Overridable
 // via env var so a packaged build can be pointed at prod without a rebuild.
-const TARGET_URL = process.env.ONE_PLATFORM_URL || "http://localhost:3000";
+const TARGET_URL = process.env.FLOW_APP_URL || "http://localhost:3000";
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -17,7 +17,7 @@ function createWindow() {
     height: 900,
     minWidth: 960,
     minHeight: 640,
-    title: "One Platform",
+    title: "flow",
     backgroundColor: "#eef1fa",
     webPreferences: {
       preload: __dirname + "/preload.js",
@@ -42,7 +42,7 @@ function createWindow() {
 
 const menuTemplate = [
   {
-    label: "One Platform",
+    label: "flow",
     submenu: [
       { role: "about" },
       { type: "separator" },
