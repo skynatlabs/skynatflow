@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/db";
 import { nicheConfig } from "@/lib/niches/config";
 import { listProducts } from "@/lib/core/catalog";
+import { listProposalTemplates } from "@/lib/core/templates";
 import { createQuoteAction } from "./actions";
 import { ProductPicker } from "./ProductPicker";
+import { TemplatePicker } from "./TemplatePicker";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
@@ -17,6 +19,7 @@ export default async function NewQuotePage({
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
   const niche = nicheConfig(tenant.niche);
   const products = await listProducts(tenantId);
+  const templates = await listProposalTemplates(tenantId);
 
   return (
     <main className="mx-auto max-w-md p-8">
@@ -50,6 +53,14 @@ export default async function NewQuotePage({
             </label>
           </div>
         </div>
+        <TemplatePicker
+          templates={templates.map((t) => ({
+            id: t.id,
+            name: t.name,
+            introText: t.introText,
+            scopeOfWork: t.scopeOfWork,
+          }))}
+        />
         <div>
           <label className={labelClass}>
             Intro <span className="text-[var(--kb-text-dim)]">(proposal only)</span>

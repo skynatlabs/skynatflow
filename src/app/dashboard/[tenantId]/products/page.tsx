@@ -24,6 +24,9 @@ export default async function ProductsPage({
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
+          <Link href={`/dashboard/${tenantId}/settings/templates`} className="kb-pill text-xs">
+            Proposal templates
+          </Link>
           <Link href={`/dashboard/${tenantId}/settings/export`} className="kb-pill text-xs">
             Export
           </Link>
