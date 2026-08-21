@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { recordPayment, recordRefund, convertToInvoice } from "@/lib/core/money";
+import { maybeSendReviewRequest } from "@/lib/core/reviews";
 import { createRecurringInvoice, setRecurringInvoiceActive } from "@/lib/core/recurring";
 import type { RecurrenceFrequency } from "@prisma/client";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
@@ -57,6 +58,9 @@ export async function recordPaymentAction(formData: FormData) {
   const amountCents = Math.round(amountRand * 100);
 
   await recordPayment({ invoiceId, amountCents });
+  // No-op unless this payment just pushed the invoice to fully PAID and
+  // the owner has a review link configured — safe to call unconditionally.
+  await maybeSendReviewRequest(invoiceId);
 
   await recordAudit({
     tenantId,

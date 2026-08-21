@@ -82,6 +82,7 @@ model Tenant {
   // Public booking page config: { enabled, workDays: [1-5], startHour,
   // endHour, slotMins }. Null/absent = booking page not set up yet.
   bookingConfig Json?
+  googleReviewUrl String? // customer-facing link sent in the post-payment review request
   createdAt DateTime  @default(now())
 
   memberships  Membership[]
@@ -210,6 +211,7 @@ model Transaction {
   // tampering with the quote is detectable by recomputing and comparing.
   acceptanceIp   String?
   acceptanceHash String?
+  reviewRequestSentAt DateTime? // fires once, the moment an invoice first reaches PAID
   // Quote presentation (BASIC vs PROPOSAL). Only meaningful on QUOTE rows;
   // introText/scopeOfWork are populated for PROPOSAL and shown above the
   // line items on both the web link and the PDF.

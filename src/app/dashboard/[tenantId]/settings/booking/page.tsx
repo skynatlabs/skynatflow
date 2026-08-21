@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getBookingConfig } from "@/lib/core/booking";
-import { saveBookingConfigAction } from "./actions";
+import { saveBookingConfigAction, saveReviewUrlAction } from "./actions";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -85,6 +85,30 @@ export default async function BookingSettingsPage({
           </div>
         </div>
 
+        <button type="submit" className="kb-pill kb-pill-primary w-full justify-center py-3">
+          Save
+        </button>
+      </form>
+
+      <h2 className="mt-8 text-lg font-semibold text-[var(--kb-text)]">Review requests</h2>
+      <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
+        The moment an invoice is fully paid, this link goes out on WhatsApp automatically — once
+        per invoice, no manual chasing.
+      </p>
+      <form action={saveReviewUrlAction} className="kb-card mt-4 space-y-3 p-6">
+        <input type="hidden" name="tenantId" value={tenantId} />
+        <div>
+          <label className="block text-sm font-medium text-[var(--kb-text)]">
+            Google review link
+          </label>
+          <input
+            name="googleReviewUrl"
+            type="url"
+            placeholder="https://g.page/r/..."
+            defaultValue={tenant.googleReviewUrl ?? ""}
+            className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+          />
+        </div>
         <button type="submit" className="kb-pill kb-pill-primary w-full justify-center py-3">
           Save
         </button>
