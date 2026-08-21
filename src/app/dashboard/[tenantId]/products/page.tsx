@@ -23,12 +23,14 @@ export default async function ProductsPage({
             typing the same item from scratch every time.
           </p>
         </div>
-        <Link
-          href={`/dashboard/${tenantId}/products/new`}
-          className="kb-pill kb-pill-primary shrink-0"
-        >
-          + Add product
-        </Link>
+        <div className="flex shrink-0 gap-2">
+          <Link href={`/dashboard/${tenantId}/settings/import`} className="kb-pill text-xs">
+            Import from Zoho/QuickBooks/etc.
+          </Link>
+          <Link href={`/dashboard/${tenantId}/products/new`} className="kb-pill kb-pill-primary">
+            + Add product
+          </Link>
+        </div>
       </div>
 
       {products.length === 0 ? (
