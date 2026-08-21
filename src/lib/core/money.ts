@@ -188,10 +188,12 @@ export async function recordPayment(params: {
   });
 
   const paidSoFar = await totalPaid(invoice.id);
+  const refundedSoFar = await totalRefunded(invoice.id);
+  const netPaid = paidSoFar - refundedSoFar;
   const newStatus =
-    paidSoFar >= invoice.amountCents
+    netPaid >= invoice.amountCents
       ? TransactionStatus.PAID
-      : paidSoFar > 0
+      : netPaid > 0
         ? TransactionStatus.PARTIALLY_PAID
         : invoice.status;
 
@@ -206,6 +208,63 @@ export async function totalPaid(invoiceId: string): Promise<number> {
     where: { parentId: invoiceId, type: TransactionType.PAYMENT },
   });
   return payments.reduce((sum, p) => sum + p.amountCents, 0);
+}
+
+export async function totalRefunded(invoiceId: string): Promise<number> {
+  const refunds = await prisma.transaction.findMany({
+    where: { parentId: invoiceId, type: TransactionType.REFUND },
+  });
+  return refunds.reduce((sum, r) => sum + r.amountCents, 0);
+}
+
+// Credit note / partial refund — a first-class ledger entry (REFUND was
+// already in the TransactionType enum, just never wired up to a real
+// function). Net position is always paid-minus-refunded, recomputed here
+// rather than mutated by hand, same derivation discipline as recordPayment.
+export async function recordRefund(params: {
+  invoiceId: string;
+  amountCents: number;
+  reason?: string;
+}) {
+  const invoice = await prisma.transaction.findUniqueOrThrow({
+    where: { id: params.invoiceId },
+  });
+
+  if (invoice.type !== TransactionType.INVOICE) {
+    throw new Error("Refunds can only be recorded against an INVOICE");
+  }
+
+  const alreadyPaid = await totalPaid(invoice.id);
+  const alreadyRefunded = await totalRefunded(invoice.id);
+  const netPaid = alreadyPaid - alreadyRefunded;
+  if (params.amountCents > netPaid) {
+    throw new Error("Refund amount exceeds the net amount paid on this invoice.");
+  }
+
+  await prisma.transaction.create({
+    data: {
+      tenantId: invoice.tenantId,
+      partyId: invoice.partyId,
+      type: TransactionType.REFUND,
+      status: TransactionStatus.PAID,
+      amountCents: params.amountCents,
+      parentId: invoice.id,
+      respondedAt: new Date(),
+    },
+  });
+
+  const newNetPaid = netPaid - params.amountCents;
+  const newStatus =
+    newNetPaid >= invoice.amountCents
+      ? TransactionStatus.PAID
+      : newNetPaid > 0
+        ? TransactionStatus.PARTIALLY_PAID
+        : TransactionStatus.SENT;
+
+  return prisma.transaction.update({
+    where: { id: invoice.id },
+    data: { status: newStatus },
+  });
 }
 
 export async function customerBalance(

@@ -4,6 +4,8 @@
 // enforced by the tenant layout (requireTenantAccess).
 
 import { customerHistory, getOrCreatePortalToken } from "@/lib/core/parties";
+import { totalPaid, totalRefunded } from "@/lib/core/money";
+import { convertToInvoiceAction, recordPaymentAction, recordRefundAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,16 @@ export default async function CustomerHistoryPage({
     customerHistory(tenantId, id),
     getOrCreatePortalToken(id),
   ]);
+
+  const invoicedQuoteIds = new Set(
+    transactions.filter((t) => t.type === "INVOICE" && t.parentId).map((t) => t.parentId as string)
+  );
+  const invoiceIds = transactions.filter((t) => t.type === "INVOICE").map((t) => t.id);
+  const netPaidByInvoice = new Map<string, number>();
+  for (const invoiceId of invoiceIds) {
+    const [paid, refunded] = await Promise.all([totalPaid(invoiceId), totalRefunded(invoiceId)]);
+    netPaidByInvoice.set(invoiceId, paid - refunded);
+  }
 
   return (
     <main className="mx-auto max-w-3xl p-8">
@@ -65,6 +77,60 @@ export default async function CustomerHistoryPage({
                       </span>
                     )}
                   </p>
+                )}
+                {t.type === "QUOTE" && t.status === "ACCEPTED" && !invoicedQuoteIds.has(t.id) && (
+                  <form action={convertToInvoiceAction} className="mt-2">
+                    <input type="hidden" name="tenantId" value={tenantId} />
+                    <input type="hidden" name="quoteId" value={t.id} />
+                    <input type="hidden" name="customerId" value={id} />
+                    <button type="submit" className="text-xs font-semibold hover:underline">
+                      Convert to invoice &rarr;
+                    </button>
+                  </form>
+                )}
+                {t.type === "INVOICE" && (
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <span className="text-xs text-[var(--kb-text-dim)]">
+                      Paid so far: {money(netPaidByInvoice.get(t.id) ?? 0)}
+                    </span>
+                    <form action={recordPaymentAction} className="flex items-center gap-1.5">
+                      <input type="hidden" name="tenantId" value={tenantId} />
+                      <input type="hidden" name="invoiceId" value={t.id} />
+                      <input type="hidden" name="customerId" value={id} />
+                      <input
+                        name="amountRand"
+                        type="number"
+                        step="0.01"
+                        placeholder="Amount"
+                        required
+                        className="w-24 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1 text-xs text-[var(--kb-text)]"
+                      />
+                      <button type="submit" className="text-xs font-semibold hover:underline">
+                        Record payment
+                      </button>
+                    </form>
+                    {(netPaidByInvoice.get(t.id) ?? 0) > 0 && (
+                      <form action={recordRefundAction} className="flex items-center gap-1.5">
+                        <input type="hidden" name="tenantId" value={tenantId} />
+                        <input type="hidden" name="invoiceId" value={t.id} />
+                        <input type="hidden" name="customerId" value={id} />
+                        <input
+                          name="amountRand"
+                          type="number"
+                          step="0.01"
+                          placeholder="Amount"
+                          required
+                          className="w-24 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1 text-xs text-[var(--kb-text)]"
+                        />
+                        <button
+                          type="submit"
+                          className="text-xs font-semibold text-[var(--kb-text-dim)] hover:underline"
+                        >
+                          Refund
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 )}
               </li>
             ))}
