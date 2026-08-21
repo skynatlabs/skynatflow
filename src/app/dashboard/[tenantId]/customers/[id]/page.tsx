@@ -6,6 +6,8 @@
 import { customerHistory, getOrCreatePortalToken } from "@/lib/core/parties";
 import { totalPaid, totalRefunded } from "@/lib/core/money";
 import { listRecurringInvoices } from "@/lib/core/recurring";
+import { listComments } from "@/lib/core/comments";
+import { addCustomerCommentAction } from "./comments-actions";
 import {
   convertToInvoiceAction,
   recordPaymentAction,
@@ -26,10 +28,11 @@ export default async function CustomerHistoryPage({
   params: Promise<{ tenantId: string; id: string }>;
 }) {
   const { tenantId, id } = await params;
-  const [{ party, transactions, events }, portalToken, allRecurring] = await Promise.all([
+  const [{ party, transactions, events }, portalToken, allRecurring, comments] = await Promise.all([
     customerHistory(tenantId, id),
     getOrCreatePortalToken(id),
     listRecurringInvoices(tenantId),
+    listComments(tenantId, "Party", id),
   ]);
   const recurringForCustomer = allRecurring.filter((r) => r.partyId === id);
 
@@ -252,6 +255,48 @@ export default async function CustomerHistoryPage({
             <li className="py-2 text-sm text-[var(--kb-text-dim)]">Nothing yet.</li>
           )}
         </ul>
+      </section>
+
+      <section className="kb-card mt-6 p-6">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-[var(--kb-text-dim)]">
+          Notes &amp; comments
+        </h2>
+        <ul className="mt-3 space-y-3">
+          {comments.map((c) => (
+            <li key={c.id} className="text-sm">
+              <p className="text-[var(--kb-text)]">
+                {c.body.split(/(@\w+)/g).map((part, i) =>
+                  part.startsWith("@") ? (
+                    <span key={i} className="font-semibold text-[var(--kb-accent-a)]">
+                      {part}
+                    </span>
+                  ) : (
+                    <span key={i}>{part}</span>
+                  )
+                )}
+              </p>
+              <p className="mt-0.5 text-xs text-[var(--kb-text-dim)]">
+                {c.authorName} · {c.createdAt.toLocaleString()}
+              </p>
+            </li>
+          ))}
+          {comments.length === 0 && (
+            <li className="text-sm text-[var(--kb-text-dim)]">No notes yet.</li>
+          )}
+        </ul>
+        <form action={addCustomerCommentAction} className="mt-4 flex gap-2">
+          <input type="hidden" name="tenantId" value={tenantId} />
+          <input type="hidden" name="customerId" value={id} />
+          <input
+            name="body"
+            required
+            placeholder="Add a note — @mention a teammate to flag them"
+            className="flex-1 rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2 text-sm text-[var(--kb-text)]"
+          />
+          <button type="submit" className="kb-pill kb-pill-primary text-xs">
+            Post
+          </button>
+        </form>
       </section>
     </main>
   );

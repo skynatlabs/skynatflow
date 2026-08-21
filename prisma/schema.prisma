@@ -92,6 +92,7 @@ model Tenant {
   events       Event[]
   tasks        Task[]
   recurringInvoices RecurringInvoice[]
+  comments      Comment[]
 
   connectionsAsSupplier WholesaleConnection[] @relation("SupplierConnections")
   connectionsAsBuyer    WholesaleConnection[] @relation("BuyerConnections")
@@ -337,6 +338,25 @@ model Task {
   @@index([tenantId])
   @@index([tenantId, status])
   @@map("tasks")
+}
+
+// Internal team comments on any record — a customer, a quote, a task —
+// polymorphic by (entityType, entityId) rather than a table per entity,
+// since the shape (who said what, when) never varies. @mentions are
+// stored as plain text (@Name) and rendered highlighted; no push
+// notification wiring yet, just visible to anyone viewing the record.
+model Comment {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  entityType String // "Party" | "Transaction" | "Task"
+  entityId   String
+  authorId   String // Membership.id
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, entityType, entityId])
+  @@map("comments")
 }
 
 enum RecurrenceFrequency {
