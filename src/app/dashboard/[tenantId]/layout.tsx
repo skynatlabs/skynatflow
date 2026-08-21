@@ -14,6 +14,7 @@ import {
   LinkIcon,
   CheckSquareIcon,
   UserCogIcon,
+  BoxIcon,
 } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,7 @@ export default async function TenantShellLayout({
   const nav = [
     { href: `/dashboard/${tenantId}`, label: "Home", icon: HomeIcon },
     { href: `/dashboard/${tenantId}/customers`, label: niche.customerLabel + "s", icon: UsersIcon },
+    { href: `/dashboard/${tenantId}/products`, label: "Products", icon: BoxIcon },
     { href: `/dashboard/${tenantId}/quotes/new`, label: "New Quote", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/connections`, label: "Connections", icon: LinkIcon },
     { href: `/dashboard/${tenantId}/tasks`, label: "Tasks", icon: CheckSquareIcon },

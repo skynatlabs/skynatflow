@@ -49,7 +49,37 @@ export default async function PortalQuotePage({
           &larr; Back
         </Link>
         <p className="mt-2 text-sm text-[var(--kb-text-dim)]">{quote.tenant.name}</p>
-        <h1 className="text-2xl font-bold text-[var(--kb-text)]">Quote for {party.name}</h1>
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-2xl font-bold text-[var(--kb-text)]">
+            {quote.quoteKind === "PROPOSAL" ? "Proposal" : "Quote"} for {party.name}
+          </h1>
+          <a
+            href={`/portal/${token}/quotes/${quoteId}/pdf`}
+            className="kb-pill shrink-0 text-xs"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Download PDF
+          </a>
+        </div>
+
+        {quote.quoteKind === "PROPOSAL" && (quote.introText || quote.scopeOfWork) && (
+          <div className="kb-card mt-4 space-y-4 p-6">
+            {quote.introText && (
+              <p className="whitespace-pre-wrap text-sm text-[var(--kb-text)]">{quote.introText}</p>
+            )}
+            {quote.scopeOfWork && (
+              <div>
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--kb-text-dim)]">
+                  Scope of work
+                </h2>
+                <p className="mt-1.5 whitespace-pre-wrap text-sm text-[var(--kb-text)]">
+                  {quote.scopeOfWork}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="kb-card mt-6 p-6">
           <ul className="divide-y divide-[var(--kb-panel-border)]">

@@ -138,3 +138,49 @@ priority order:
 8. **SSO, granular custom fields, integrations marketplace** — real, but
    correctly sequenced later, once there are customers big enough to need
    enterprise readiness (maps to the existing Phase 8 hardening track).
+
+## Competitive roadmap (Aug 2026) — what's building, what's parked
+
+Full research doc (70 researched items, GoHighLevel/ClickUp/Monday/Zoho
+benchmarking): see the published artifact from that session. Summary of
+what got triaged out of active build and why:
+
+**Deferred — needs a real business/banking partnership before any code is
+useful, not just missing an API key:**
+- Invoice financing ("get paid today for tomorrow's invoice") — needs a
+  lending partner or our own credit facility; building the UI first
+  would just be vaporware.
+- Same-day payout on card/EFT — needs a settlement/banking relationship
+  with the payment processor, not something we control from app code.
+- White-label reseller program — needs a pricing/legal/support model for
+  resellers before it's a feature, not a form.
+- Voice AI for inbound calls — needs a telephony contract (Twilio-class
+  provider + numbers per market) and per-market compliance; revisit once
+  there's a signal customers actually want it, not before.
+
+**Deprioritized — real ideas, but not where the value is for this stage:**
+- Franchise/multi-branch rollup — near-zero demand until we have
+  customers who actually run multiple branches; premature to build.
+- Data residency choice (EU/US/ZA) — only matters once a regulated
+  customer actually asks; building it speculatively is enterprise-tier
+  work with no current buyer.
+- Referral/affiliate program — a growth-marketing feature, not a product
+  one; revisit post-launch once there's a real user base to refer from.
+- Landing page/funnel builder — scope creep toward "replace all
+  software" (the ClickUp trap called out above); WhatsApp + the customer
+  portal already cover lead capture for our niches.
+- Natural-language search across the whole business — nice, but the
+  daily-briefing + leakage report already answer the questions owners
+  actually ask; revisit once usage data shows people want more.
+- Voice-to-quote in the field — cool, low daily-use value versus build
+  cost; the field app's photo/form capture already covers the job.
+- Unified inbox across every channel (WhatsApp + SMS + email + IG/FB DM)
+  — right direction, wrong order: build the two-way WhatsApp inbox and
+  the mail client first (both already scoped in Phase 2), then unify
+  once each channel actually works on its own.
+
+Everything else from the 70-item list is active — see the task list for
+the phase-by-phase build order. "Now" items build first with no external
+dependencies; "Next" items that need API keys (payment rails, Google
+Calendar, IMAP, Xero/QuickBooks, Zapier, WhatsApp Business API) are
+scoped but wait on the user supplying provider credentials.

@@ -14,7 +14,8 @@ export type Capability =
   | "connection:invite"
   | "connection:accept"
   | "task:manage"
-  | "staff:manage";
+  | "staff:manage"
+  | "product:manage";
 
 const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   OWNER: [
@@ -27,8 +28,16 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     "connection:accept",
     "task:manage",
     "staff:manage",
+    "product:manage",
   ],
-  STAFF: ["quote:create", "quote:send", "invoice:create", "payment:record", "task:manage"],
+  STAFF: [
+    "quote:create",
+    "quote:send",
+    "invoice:create",
+    "payment:record",
+    "task:manage",
+    "product:manage",
+  ],
   REP: ["quote:create", "quote:send", "task:manage"],
   DRIVER: ["delivery:log", "task:manage"],
   TECHNICIAN: ["delivery:log", "quote:create", "task:manage"],

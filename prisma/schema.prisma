@@ -27,6 +27,11 @@ enum TransactionType {
   REFUND
 }
 
+enum QuoteKind {
+  BASIC    // plain line-item quote, no narrative content
+  PROPOSAL // adds an intro + scope-of-work section above the line items
+}
+
 enum TransactionStatus {
   DRAFT
   SENT
@@ -160,6 +165,11 @@ model Item {
   name          String
   sku           String?
   unitPriceCents Int
+  costCents     Int?     // for margin reporting — optional, owner may not track cost
+  taxRatePercent Int?    // e.g. 15 for 15% VAT; null = no tax applied
+  category      String?
+  imageUrl      String?
+  isActive      Boolean  @default(true) // soft-hide from the catalog picker without deleting history
   stockQty      Int?     // null = service line item, not stock-tracked
   reorderPoint  Int?
   createdAt     DateTime @default(now())
@@ -167,6 +177,7 @@ model Item {
   transactionLines TransactionLine[]
 
   @@index([tenantId])
+  @@index([tenantId, isActive])
   @@map("items")
 }
 
@@ -188,6 +199,12 @@ model Transaction {
   dueAt       DateTime?
   respondedAt DateTime?          // when the customer last replied/acted — drives the follow-up engine
   signatureDataUrl String?       // customer's e-signature on quote acceptance, captured via the portal
+  // Quote presentation (BASIC vs PROPOSAL). Only meaningful on QUOTE rows;
+  // introText/scopeOfWork are populated for PROPOSAL and shown above the
+  // line items on both the web link and the PDF.
+  quoteKind   QuoteKind? @default(BASIC)
+  introText   String?
+  scopeOfWork String?
   // Quote-open tracking (Soler's hot-lead pattern): a customer opening the
   // portal link for a quote is a buying signal, tracked independent of
   // whether they've responded yet.

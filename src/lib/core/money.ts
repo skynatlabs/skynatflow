@@ -8,7 +8,7 @@
 //
 // Money-logic tests in tests/core/money.test.ts assert against this file.
 
-import { TransactionStatus, TransactionType } from "@prisma/client";
+import { QuoteKind, TransactionStatus, TransactionType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 export interface QuoteLineInput {
@@ -21,6 +21,9 @@ export async function createQuote(params: {
   tenantId: string;
   partyId: string;
   lines: QuoteLineInput[];
+  quoteKind?: QuoteKind;
+  introText?: string;
+  scopeOfWork?: string;
 }) {
   const amountCents = params.lines.reduce(
     (sum, l) => sum + l.quantity * l.unitPriceCents,
@@ -34,6 +37,9 @@ export async function createQuote(params: {
       type: TransactionType.QUOTE,
       status: TransactionStatus.DRAFT,
       amountCents,
+      quoteKind: params.quoteKind ?? QuoteKind.BASIC,
+      introText: params.introText,
+      scopeOfWork: params.scopeOfWork,
       itemLines: {
         create: params.lines.map((l) => ({
           itemId: l.itemId,
