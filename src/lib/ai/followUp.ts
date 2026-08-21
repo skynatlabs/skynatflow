@@ -47,3 +47,13 @@ export async function draftFollowUpMessage(params: {
 
   return text.trim();
 }
+
+// The tone rationale shown to the owner alongside the draft — deterministic
+// from touchNumber rather than a second AI call, since it just needs to be
+// honest about why this cadence was picked, not itself generated.
+export function followUpReasoning(touchNumber: number, type: string): string {
+  const doc = type === "QUOTE" ? "quote" : "invoice";
+  if (touchNumber === 1) return `First follow-up — gentle check-in, no response yet on this ${doc}.`;
+  if (touchNumber === 2) return `Second follow-up — a helpful nudge, still no reply after touch #1.`;
+  return `Follow-up #${touchNumber} — direct, respectful request for a decision after repeated silence.`;
+}

@@ -16,6 +16,7 @@ import {
   UserCogIcon,
   BoxIcon,
   ColumnsIcon,
+  SparkleIcon,
 } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +53,7 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}/products`, label: "Products", icon: BoxIcon },
     { href: `/dashboard/${tenantId}/quotes/new`, label: "New Quote", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/pipeline`, label: "Pipeline", icon: ColumnsIcon },
+    { href: `/dashboard/${tenantId}/ai-drafts`, label: "AI Drafts", icon: SparkleIcon },
     { href: `/dashboard/${tenantId}/connections`, label: "Connections", icon: LinkIcon },
     { href: `/dashboard/${tenantId}/tasks`, label: "Tasks", icon: CheckSquareIcon },
     { href: `/dashboard/${tenantId}/staff`, label: "Staff & Roles", icon: UserCogIcon },

@@ -1,14 +1,21 @@
 // Hit by Hostinger's Cron Jobs on a schedule (e.g. hourly). Finds every
 // quote/invoice gone quiet past its threshold, across every tenant, and
-// sends a follow-up. Uses the AI-drafted message (Phase 3) when
-// ANTHROPIC_API_KEY is configured; falls back to a plain template
-// otherwise, so this endpoint works before that checkpoint is resolved.
+// drafts a follow-up — but does NOT send it. This is the confirm-before-
+// send guardrail made real: every draft lands as a pending AiDraft row,
+// visible with its reasoning at /dashboard/[tenantId]/ai-drafts, and only
+// goes out once the owner clicks Approve. Uses the AI-drafted message
+// (Phase 3) when ANTHROPIC_API_KEY is configured; falls back to a plain
+// template otherwise, so this endpoint works before that checkpoint is
+// resolved.
 
 import { NextRequest, NextResponse } from "next/server";
 import { findStaleTransactions } from "@/lib/core/money";
-import { sendWhatsAppMessage } from "@/lib/whatsapp/client";
-import { logFollowUpSent, countFollowUpsSent } from "@/lib/core/movement";
-import { draftFollowUpMessage, type StaleTransactionWithParty } from "@/lib/ai/followUp";
+import { countFollowUpsSent } from "@/lib/core/movement";
+import {
+  draftFollowUpMessage,
+  followUpReasoning,
+  type StaleTransactionWithParty,
+} from "@/lib/ai/followUp";
 import { prisma } from "@/lib/db";
 
 function templateFollowUpMessage(type: string, amountCents: number) {
@@ -48,7 +55,7 @@ export async function GET(req: NextRequest) {
   }
 
   const tenants = await prisma.tenant.findMany();
-  let sent = 0;
+  let drafted = 0;
 
   for (const tenant of tenants) {
     const stale = await findStaleTransactions({
@@ -59,21 +66,30 @@ export async function GET(req: NextRequest) {
     for (const tx of stale) {
       if (!tx.party.phone) continue;
 
+      // Don't pile up a second pending draft for the same transaction —
+      // one open ask at a time, wait for the owner to act on it.
+      const existingPending = await prisma.aiDraft.findFirst({
+        where: { transactionId: tx.id, status: "PENDING" },
+      });
+      if (existingPending) continue;
+
       const touchNumber = (await countFollowUpsSent(tx.id)) + 1;
       const body = await composeFollowUpMessage(tx, touchNumber);
 
-      await sendWhatsAppMessage({ to: tx.party.phone, body });
-
-      await logFollowUpSent({
-        tenantId: tenant.id,
-        partyId: tx.party.id,
-        transactionId: tx.id,
-        notes: `Follow-up #${touchNumber} sent on ${tx.type} ${tx.id}`,
+      await prisma.aiDraft.create({
+        data: {
+          tenantId: tenant.id,
+          partyId: tx.party.id,
+          transactionId: tx.id,
+          touchNumber,
+          body,
+          reasoning: followUpReasoning(touchNumber, tx.type),
+        },
       });
 
-      sent++;
+      drafted++;
     }
   }
 
-  return NextResponse.json({ ok: true, followUpsSent: sent });
+  return NextResponse.json({ ok: true, followUpsDrafted: drafted });
 }

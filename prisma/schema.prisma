@@ -94,6 +94,7 @@ model Tenant {
   recurringInvoices RecurringInvoice[]
   comments      Comment[]
   proposalTemplates ProposalTemplate[]
+  aiDrafts      AiDraft[]
 
   connectionsAsSupplier WholesaleConnection[] @relation("SupplierConnections")
   connectionsAsBuyer    WholesaleConnection[] @relation("BuyerConnections")
@@ -161,6 +162,7 @@ model Party {
   transactions Transaction[]
   events       Event[]
   recurringInvoices RecurringInvoice[]
+  aiDrafts      AiDraft[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -376,6 +378,34 @@ model Comment {
 
   @@index([tenantId, entityType, entityId])
   @@map("comments")
+}
+
+enum AiDraftStatus {
+  PENDING
+  SENT
+  SKIPPED
+}
+
+// The confirm-before-send guardrail, made real: every AI-drafted
+// customer-facing message lands here first, with the reasoning behind its
+// tone visible, instead of being sent straight from the cron job. Nothing
+// leaves without a human clicking Approve (or Skip).
+model AiDraft {
+  id            String        @id @default(cuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  partyId       String
+  party         Party         @relation(fields: [partyId], references: [id])
+  transactionId String
+  touchNumber   Int
+  body          String
+  reasoning     String // one line: why this tone/timing was chosen
+  status        AiDraftStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  resolvedAt    DateTime?
+
+  @@index([tenantId, status])
+  @@map("ai_drafts")
 }
 
 enum RecurrenceFrequency {
