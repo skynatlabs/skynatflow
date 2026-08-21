@@ -328,4 +328,36 @@ export async function findStaleTransactions(params: {
   });
 }
 
+// Cash-sale quick capture — a walk-in transaction recorded in one step
+// instead of quote-then-invoice-then-payment. Still goes through
+// createQuote-esque line items and recordPayment underneath, so it's the
+// same ledger discipline, just collapsed into a single call for the
+// "customer is standing at the counter" case the roadmap calls for.
+export async function recordCashSale(params: {
+  tenantId: string;
+  partyId: string;
+  lines: QuoteLineInput[];
+}) {
+  const amountCents = params.lines.reduce((sum, l) => sum + l.quantity * l.unitPriceCents, 0);
+
+  const invoice = await prisma.transaction.create({
+    data: {
+      tenantId: params.tenantId,
+      partyId: params.partyId,
+      type: TransactionType.INVOICE,
+      status: TransactionStatus.SENT,
+      amountCents,
+      itemLines: {
+        create: params.lines.map((l) => ({
+          itemId: l.itemId,
+          quantity: l.quantity,
+          unitPriceCents: l.unitPriceCents,
+        })),
+      },
+    },
+  });
+
+  return recordPayment({ invoiceId: invoice.id, amountCents });
+}
+
 export { prisma };

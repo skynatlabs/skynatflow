@@ -21,6 +21,18 @@ export async function findPartyByPhone(tenantId: string, phone: string) {
   return prisma.party.findFirst({ where: { tenantId, phone } });
 }
 
+// One shared "Walk-in" record per tenant for cash sales where the customer
+// doesn't want to give their details — reused across sales rather than
+// creating a fresh nameless Party every time, per the cash-sale
+// quick-capture feature (no upfront customer record required).
+export async function getOrCreateWalkInParty(tenantId: string, role: PartyRole) {
+  const existing = await prisma.party.findFirst({
+    where: { tenantId, name: "Walk-in customer" },
+  });
+  if (existing) return existing;
+  return prisma.party.create({ data: { tenantId, role, name: "Walk-in customer" } });
+}
+
 // "Customer" in most niches, "Patient" in the medical niche — same query,
 // the caller passes whichever role that tenant's niche uses for its
 // end-customer-equivalent record. Both roles are included by default so

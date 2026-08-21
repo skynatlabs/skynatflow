@@ -8,8 +8,10 @@ const labelClass = "block text-sm font-medium text-[var(--kb-text)]";
 
 export function ProductPicker({
   products,
+  label = "What's the quote for",
 }: {
   products: { id: string; name: string; unitPriceCents: number }[];
+  label?: string;
 }) {
   const [itemName, setItemName] = useState("");
   const [priceRand, setPriceRand] = useState("");
@@ -29,7 +31,7 @@ export function ProductPicker({
   return (
     <>
       <div>
-        <label className={labelClass}>What&apos;s the quote for</label>
+        <label className={labelClass}>{label}</label>
         <input
           name="itemName"
           list="product-catalog"

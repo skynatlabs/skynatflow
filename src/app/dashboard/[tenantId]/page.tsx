@@ -106,9 +106,14 @@ export default async function TenantHomePage({
             Here&apos;s what&apos;s happening across your business right now.
           </p>
         </div>
-        <Link href={`/dashboard/${tenantId}/quotes/new`} className="kb-pill kb-pill-primary">
-          + New Quote
-        </Link>
+        <div className="flex gap-2">
+          <Link href={`/dashboard/${tenantId}/cash-sale`} className="kb-pill text-xs">
+            Cash sale
+          </Link>
+          <Link href={`/dashboard/${tenantId}/quotes/new`} className="kb-pill kb-pill-primary">
+            + New Quote
+          </Link>
+        </div>
       </div>
 
       {showTrialNudge && (
