@@ -5,7 +5,14 @@
 
 import { customerHistory, getOrCreatePortalToken } from "@/lib/core/parties";
 import { totalPaid, totalRefunded } from "@/lib/core/money";
-import { convertToInvoiceAction, recordPaymentAction, recordRefundAction } from "./actions";
+import { listRecurringInvoices } from "@/lib/core/recurring";
+import {
+  convertToInvoiceAction,
+  recordPaymentAction,
+  recordRefundAction,
+  createRecurringInvoiceAction,
+  toggleRecurringInvoiceAction,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +26,12 @@ export default async function CustomerHistoryPage({
   params: Promise<{ tenantId: string; id: string }>;
 }) {
   const { tenantId, id } = await params;
-  const [{ party, transactions, events }, portalToken] = await Promise.all([
+  const [{ party, transactions, events }, portalToken, allRecurring] = await Promise.all([
     customerHistory(tenantId, id),
     getOrCreatePortalToken(id),
+    listRecurringInvoices(tenantId),
   ]);
+  const recurringForCustomer = allRecurring.filter((r) => r.partyId === id);
 
   const invoicedQuoteIds = new Set(
     transactions.filter((t) => t.type === "INVOICE" && t.parentId).map((t) => t.parentId as string)
@@ -138,6 +147,94 @@ export default async function CustomerHistoryPage({
             <li className="py-2 text-sm text-[var(--kb-text-dim)]">Nothing yet.</li>
           )}
         </ul>
+      </section>
+
+      <section className="kb-card mt-6 p-6">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-[var(--kb-text-dim)]">
+          Recurring invoices
+        </h2>
+        <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
+          Auto-generates and sends on schedule — no manual re-billing.
+        </p>
+
+        <ul className="mt-3 divide-y divide-[var(--kb-panel-border)]">
+          {recurringForCustomer.map((r) => {
+            const lines = r.lines as unknown as { name: string; quantity: number; unitPriceCents: number }[];
+            const amount = lines.reduce((sum, l) => sum + l.quantity * l.unitPriceCents, 0);
+            return (
+              <li key={r.id} className="flex items-center justify-between py-2 text-sm">
+                <div>
+                  <p className="text-[var(--kb-text)]">
+                    {lines.map((l) => l.name).join(", ")} &mdash; {money(amount)} / {r.frequency.toLowerCase()}
+                  </p>
+                  <p className="text-xs text-[var(--kb-text-dim)]">
+                    {r.isActive ? `Next: ${r.nextRunAt.toLocaleDateString()}` : "Paused"}
+                  </p>
+                </div>
+                <form action={toggleRecurringInvoiceAction}>
+                  <input type="hidden" name="tenantId" value={tenantId} />
+                  <input type="hidden" name="customerId" value={id} />
+                  <input type="hidden" name="templateId" value={r.id} />
+                  <input type="hidden" name="nextActive" value={(!r.isActive).toString()} />
+                  <button type="submit" className="text-xs font-semibold hover:underline">
+                    {r.isActive ? "Pause" : "Resume"}
+                  </button>
+                </form>
+              </li>
+            );
+          })}
+          {recurringForCustomer.length === 0 && (
+            <li className="py-2 text-sm text-[var(--kb-text-dim)]">None set up.</li>
+          )}
+        </ul>
+
+        <form action={createRecurringInvoiceAction} className="mt-4 flex flex-wrap items-end gap-2">
+          <input type="hidden" name="tenantId" value={tenantId} />
+          <input type="hidden" name="customerId" value={id} />
+          <div>
+            <label className="block text-xs text-[var(--kb-text-dim)]">What for</label>
+            <input
+              name="itemName"
+              required
+              className="w-40 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1.5 text-xs text-[var(--kb-text)]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--kb-text-dim)]">Qty</label>
+            <input
+              name="quantity"
+              type="number"
+              defaultValue={1}
+              min={1}
+              className="w-16 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1.5 text-xs text-[var(--kb-text)]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--kb-text-dim)]">Price (ZAR)</label>
+            <input
+              name="priceRand"
+              type="number"
+              step="0.01"
+              required
+              className="w-24 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1.5 text-xs text-[var(--kb-text)]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--kb-text-dim)]">Every</label>
+            <select
+              name="frequency"
+              defaultValue="MONTHLY"
+              className="rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1.5 text-xs text-[var(--kb-text)]"
+            >
+              <option value="WEEKLY">Week</option>
+              <option value="MONTHLY">Month</option>
+              <option value="QUARTERLY">Quarter</option>
+            </select>
+          </div>
+          <button type="submit" className="kb-pill kb-pill-primary text-xs">
+            Set up
+          </button>
+        </form>
       </section>
 
       <section className="kb-card mt-6 p-6">

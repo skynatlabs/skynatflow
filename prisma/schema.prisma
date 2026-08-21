@@ -87,6 +87,7 @@ model Tenant {
   transactions Transaction[]
   events       Event[]
   tasks        Task[]
+  recurringInvoices RecurringInvoice[]
 
   connectionsAsSupplier WholesaleConnection[] @relation("SupplierConnections")
   connectionsAsBuyer    WholesaleConnection[] @relation("BuyerConnections")
@@ -151,6 +152,7 @@ model Party {
 
   transactions Transaction[]
   events       Event[]
+  recurringInvoices RecurringInvoice[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -328,4 +330,33 @@ model Task {
   @@index([tenantId])
   @@index([tenantId, status])
   @@map("tasks")
+}
+
+enum RecurrenceFrequency {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+// A standing instruction to auto-generate + send an invoice on a schedule
+// — line items are a snapshot (not live catalog references) so editing a
+// product later doesn't silently change a subscription's price. The cron
+// route is the only writer of nextRunAt; everything else just reads it.
+model RecurringInvoice {
+  id          String              @id @default(cuid())
+  tenantId    String
+  tenant      Tenant              @relation(fields: [tenantId], references: [id])
+  partyId     String
+  party       Party               @relation(fields: [partyId], references: [id])
+  frequency   RecurrenceFrequency
+  dueInDays   Int                 @default(14)
+  isActive    Boolean             @default(true)
+  lines       Json // snapshot: [{ itemId, name, quantity, unitPriceCents }]
+  nextRunAt   DateTime
+  lastRunAt   DateTime?
+  createdAt   DateTime            @default(now())
+
+  @@index([tenantId])
+  @@index([isActive, nextRunAt])
+  @@map("recurring_invoices")
 }
