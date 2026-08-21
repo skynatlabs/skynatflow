@@ -42,14 +42,36 @@ export default async function TenantHomePage({
   const { tenantId } = await params;
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
 
-  const [stale, customerCount, openInvoices, quotes] = await Promise.all([
+  const [stale, customerCount, openInvoices, quotes, productCount, membershipCount] = await Promise.all([
     findStaleTransactions({ tenantId, staleAfterDays: 3 }),
     prisma.party.count({ where: { tenantId, role: { in: ["CUSTOMER", "PATIENT"] } } }),
     prisma.transaction.findMany({
       where: { tenantId, type: "INVOICE", status: { in: ["SENT", "PARTIALLY_PAID"] } },
     }),
     prisma.transaction.findMany({ where: { tenantId, type: "QUOTE" } }),
+    prisma.item.count({ where: { tenantId } }),
+    prisma.membership.count({ where: { tenantId } }),
   ]);
+
+  // Guided setup checklist — visible momentum in the trial's first week,
+  // per the roadmap's "reduce time-to-value" framing. Hides itself once
+  // everything's done so it doesn't linger as clutter for established accounts.
+  const checklist = [
+    { label: "Add your first product or service", done: productCount > 0, href: `/dashboard/${tenantId}/products/new` },
+    { label: "Send your first quote", done: quotes.length > 0, href: `/dashboard/${tenantId}/quotes/new` },
+    { label: "Get your first customer", done: customerCount > 0, href: `/dashboard/${tenantId}/customers` },
+    { label: "Invite a teammate", done: membershipCount > 1, href: `/dashboard/${tenantId}/staff` },
+  ];
+  const checklistDone = checklist.filter((c) => c.done).length;
+  const showChecklist = checklistDone < checklist.length;
+
+  // Trial value nudge — the switching-cost-made-visible moment (roadmap
+  // item #49): once the account is a few days old and has real activity,
+  // show what's actually been tracked instead of an abstract "don't leave" ask.
+  const daysSinceSignup = Math.floor((Date.now() - tenant.createdAt.getTime()) / 86_400_000);
+  const totalQuotedCents = quotes.reduce((sum, q) => sum + q.amountCents, 0);
+  const hotLeadCount = quotes.filter((q) => q.openCount >= 2).length;
+  const showTrialNudge = daysSinceSignup >= 6 && (quotes.length > 0 || customerCount > 0);
 
   const staleTotalCents = stale.reduce((sum, t) => sum + t.amountCents, 0);
   const outstandingCents = openInvoices.reduce((sum, t) => sum + t.amountCents, 0);
@@ -88,6 +110,53 @@ export default async function TenantHomePage({
           + New Quote
         </Link>
       </div>
+
+      {showTrialNudge && (
+        <div className="kb-card mt-6 border border-[var(--kb-accent-a)]/30 bg-gradient-to-r from-[var(--kb-tint-violet)] to-[var(--kb-tint-blue)] p-5">
+          <p className="text-sm font-semibold text-[var(--kb-text)]">
+            {money(totalQuotedCents)} in quotes tracked, {customerCount} customer
+            {customerCount === 1 ? "" : "s"} on file
+            {hotLeadCount > 0 && `, ${hotLeadCount} hot lead${hotLeadCount === 1 ? "" : "s"} caught`}{" "}
+            since you started.
+          </p>
+          <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
+            That&apos;s everything the follow-up engine and hot-lead alerts have already caught for
+            you — automatically.
+          </p>
+        </div>
+      )}
+
+      {showChecklist && (
+        <div className="kb-card mt-6 p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-[var(--kb-text)]">Get set up</h2>
+            <span className="text-xs text-[var(--kb-text-dim)]">
+              {checklistDone}/{checklist.length} done
+            </span>
+          </div>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[var(--kb-panel-border)]">
+            <div
+              className="h-full rounded-full bg-[var(--kb-accent-a)] transition-all"
+              style={{ width: `${(checklistDone / checklist.length) * 100}%` }}
+            />
+          </div>
+          <ul className="mt-4 space-y-2">
+            {checklist.map((c) => (
+              <li key={c.label} className="flex items-center justify-between text-sm">
+                <span className={c.done ? "text-[var(--kb-text-dim)] line-through" : "text-[var(--kb-text)]"}>
+                  {c.done ? "✓ " : ""}
+                  {c.label}
+                </span>
+                {!c.done && (
+                  <Link href={c.href} className="text-xs font-semibold text-[var(--kb-accent-a)] hover:underline">
+                    Do it &rarr;
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <div className="kb-tile kb-tint-mint">
