@@ -19,9 +19,14 @@ export default async function CustomersPage({
     <main className="mx-auto max-w-3xl p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-[var(--kb-text)]">{niche.customerLabel}s</h1>
-        <Link href={`/dashboard/${tenantId}/quotes/new`} className="kb-pill kb-pill-primary">
-          + New quote
-        </Link>
+        <div className="flex gap-2">
+          <Link href={`/dashboard/${tenantId}/settings/booking`} className="kb-pill text-xs">
+            Booking page
+          </Link>
+          <Link href={`/dashboard/${tenantId}/quotes/new`} className="kb-pill kb-pill-primary">
+            + New quote
+          </Link>
+        </div>
       </div>
 
       {customers.length === 0 ? (

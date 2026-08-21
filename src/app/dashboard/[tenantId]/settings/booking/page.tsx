@@ -1,0 +1,94 @@
+import { prisma } from "@/lib/db";
+import { getBookingConfig } from "@/lib/core/booking";
+import { saveBookingConfigAction } from "./actions";
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export default async function BookingSettingsPage({
+  params,
+}: {
+  params: Promise<{ tenantId: string }>;
+}) {
+  const { tenantId } = await params;
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
+  const config = getBookingConfig(tenant);
+
+  return (
+    <main className="mx-auto max-w-md p-8">
+      <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Booking page</h1>
+      <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
+        A public link where customers pick their own appointment slot — no back-and-forth.
+      </p>
+
+      {config.enabled && (
+        <div className="kb-card mt-4 p-4">
+          <p className="text-xs text-[var(--kb-text-dim)]">Your booking link</p>
+          <code className="mt-1 block truncate rounded-lg bg-black/5 px-3 py-2 text-xs text-[var(--kb-text)]">
+            /book/{tenantId}
+          </code>
+        </div>
+      )}
+
+      <form action={saveBookingConfigAction} className="kb-card mt-4 space-y-4 p-6">
+        <input type="hidden" name="tenantId" value={tenantId} />
+
+        <label className="flex items-center gap-2 text-sm text-[var(--kb-text)]">
+          <input type="checkbox" name="enabled" defaultChecked={config.enabled} />
+          Enable the public booking page
+        </label>
+
+        <div>
+          <label className="block text-sm font-medium text-[var(--kb-text)]">Working days</label>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {DAY_LABELS.map((label, i) => (
+              <label key={i} className="flex items-center gap-1 text-xs text-[var(--kb-text)]">
+                <input type="checkbox" name="workDays" value={i} defaultChecked={config.workDays.includes(i)} />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-[var(--kb-text)]">Start hour</label>
+            <input
+              name="startHour"
+              type="number"
+              min={0}
+              max={23}
+              defaultValue={config.startHour}
+              className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-[var(--kb-text)]">End hour</label>
+            <input
+              name="endHour"
+              type="number"
+              min={0}
+              max={23}
+              defaultValue={config.endHour}
+              className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-[var(--kb-text)]">Slot (mins)</label>
+            <input
+              name="slotMins"
+              type="number"
+              min={15}
+              step={15}
+              defaultValue={config.slotMins}
+              className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+            />
+          </div>
+        </div>
+
+        <button type="submit" className="kb-pill kb-pill-primary w-full justify-center py-3">
+          Save
+        </button>
+      </form>
+    </main>
+  );
+}

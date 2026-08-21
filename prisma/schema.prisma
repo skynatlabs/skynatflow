@@ -79,6 +79,9 @@ model Tenant {
   id        String    @id @default(cuid())
   name      String
   niche     NicheSkin @default(SERVICES)
+  // Public booking page config: { enabled, workDays: [1-5], startHour,
+  // endHour, slotMins }. Null/absent = booking page not set up yet.
+  bookingConfig Json?
   createdAt DateTime  @default(now())
 
   memberships  Membership[]
@@ -255,10 +258,12 @@ model Event {
   signedByUrl   String?
   gpsLat        Float?
   gpsLng        Float?
+  scheduledAt   DateTime? // when this is a booked appointment (CONSULTATION/SITE_VISIT), the slot time — null for events logged after the fact
   createdAt     DateTime  @default(now())
 
   @@index([tenantId])
   @@index([transactionId])
+  @@index([tenantId, scheduledAt])
   @@map("events")
 }
 
