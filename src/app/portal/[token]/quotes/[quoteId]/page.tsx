@@ -9,6 +9,7 @@ import { findPartyByPortalToken } from "@/lib/core/parties";
 import { trackQuoteOpen, prisma } from "@/lib/core/money";
 import { maybeAlertHotLead } from "@/lib/core/notifications";
 import { SignatureCapture } from "./SignatureCapture";
+import { raiseDisputeAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -35,10 +36,16 @@ export default async function PortalQuotePage({
   await trackQuoteOpen(quoteId);
   await maybeAlertHotLead(quoteId);
 
-  const quote = await prisma.transaction.findUniqueOrThrow({
-    where: { id: quoteId },
-    include: { itemLines: { include: { item: true } }, tenant: true },
-  });
+  const [quote, openDispute] = await Promise.all([
+    prisma.transaction.findUniqueOrThrow({
+      where: { id: quoteId },
+      include: { itemLines: { include: { item: true } }, tenant: true },
+    }),
+    prisma.dispute.findFirst({
+      where: { transactionId: quoteId, status: "OPEN" },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
   const isDecided = quote.status === "ACCEPTED" || quote.status === "DECLINED";
 
@@ -134,6 +141,40 @@ export default async function PortalQuotePage({
             Questions? Reply on WhatsApp and {quote.tenant.name} will get back to you.
           </p>
         )}
+
+        <div className="kb-card mt-4 p-6">
+          {openDispute ? (
+            <div>
+              <p className="text-sm font-semibold text-[var(--kb-tint-peach-ink)]">
+                Your report is with {quote.tenant.name}
+              </p>
+              <p className="mt-1 text-xs text-[var(--kb-text-dim)]">&ldquo;{openDispute.message}&rdquo;</p>
+              <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
+                Sent {openDispute.createdAt.toLocaleDateString()} — they&apos;ll follow up with you.
+              </p>
+            </div>
+          ) : (
+            <details>
+              <summary className="cursor-pointer text-xs font-medium text-[var(--kb-text-dim)]">
+                Something not right with this {quote.quoteKind === "PROPOSAL" ? "proposal" : "quote"}?
+              </summary>
+              <form action={raiseDisputeAction} className="mt-3">
+                <input type="hidden" name="token" value={token} />
+                <input type="hidden" name="quoteId" value={quoteId} />
+                <textarea
+                  name="message"
+                  required
+                  rows={2}
+                  placeholder="Tell us what's wrong — wrong price, wrong item, anything."
+                  className="w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2 text-sm text-[var(--kb-text)]"
+                />
+                <button type="submit" className="kb-pill mt-2 text-xs">
+                  Send report
+                </button>
+              </form>
+            </details>
+          )}
+        </div>
       </main>
     </div>
   );

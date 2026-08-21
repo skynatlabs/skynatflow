@@ -95,6 +95,7 @@ model Tenant {
   comments      Comment[]
   proposalTemplates ProposalTemplate[]
   aiDrafts      AiDraft[]
+  disputes      Dispute[]
 
   connectionsAsSupplier WholesaleConnection[] @relation("SupplierConnections")
   connectionsAsBuyer    WholesaleConnection[] @relation("BuyerConnections")
@@ -163,6 +164,7 @@ model Party {
   events       Event[]
   recurringInvoices RecurringInvoice[]
   aiDrafts      AiDraft[]
+  disputes      Dispute[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -378,6 +380,33 @@ model Comment {
 
   @@index([tenantId, entityType, entityId])
   @@map("comments")
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+}
+
+// A real path for "this isn't right" — most CRMs have zero structured way
+// to handle pushback, which is exactly where trust is won or lost. Raised
+// by the customer from the portal, resolved by the owner from the
+// dashboard, tracked start to finish instead of living in a WhatsApp thread.
+model Dispute {
+  id             String        @id @default(cuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  transactionId  String
+  partyId        String
+  party          Party         @relation(fields: [partyId], references: [id])
+  message        String
+  status         DisputeStatus @default(OPEN)
+  resolutionNote String?
+  createdAt      DateTime      @default(now())
+  resolvedAt     DateTime?
+
+  @@index([tenantId, status])
+  @@index([transactionId])
+  @@map("disputes")
 }
 
 enum AiDraftStatus {

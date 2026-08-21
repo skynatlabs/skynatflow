@@ -49,3 +49,23 @@ export async function declineQuoteAction(formData: FormData) {
 
   revalidatePath(`/portal/${token}/quotes/${quoteId}`);
 }
+
+export async function raiseDisputeAction(formData: FormData) {
+  const token = String(formData.get("token") ?? "");
+  const quoteId = String(formData.get("quoteId") ?? "");
+  const message = String(formData.get("message") ?? "").trim();
+
+  const { party, quote } = await verifyOwnership(token, quoteId);
+  if (!message) throw new Error("Tell us what's wrong before submitting.");
+
+  await prisma.dispute.create({
+    data: {
+      tenantId: quote.tenantId,
+      transactionId: quoteId,
+      partyId: party.id,
+      message,
+    },
+  });
+
+  revalidatePath(`/portal/${token}/quotes/${quoteId}`);
+}
