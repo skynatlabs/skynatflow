@@ -59,3 +59,24 @@ export function assertCan(role: Role, capability: Capability): void {
 export function can(role: Role, capability: Capability): boolean {
   return ROLE_CAPABILITIES[role]?.includes(capability) ?? false;
 }
+
+export const ALL_ROLES: Role[] = ["OWNER", "STAFF", "REP", "TECHNICIAN", "DRIVER"];
+export const ALL_CAPABILITIES: Capability[] = [
+  "quote:create",
+  "quote:send",
+  "invoice:create",
+  "payment:record",
+  "delivery:log",
+  "connection:invite",
+  "connection:accept",
+  "task:manage",
+  "staff:manage",
+  "product:manage",
+];
+
+// Read-only view of the capability matrix — for the permissions settings
+// screen. The map itself stays a fixed table, not a per-tenant DB setting
+// (see the settings page's own note on why editable roles aren't built yet).
+export function capabilityMatrix(): Record<Role, Capability[]> {
+  return ROLE_CAPABILITIES;
+}

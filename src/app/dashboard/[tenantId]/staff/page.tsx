@@ -4,6 +4,7 @@
 // actions.ts); this page hides those controls from non-owners so they
 // don't hit a permission error trying to use them.
 
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { can } from "@/lib/core/access";
@@ -30,7 +31,12 @@ export default async function StaffPage({
 
   return (
     <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Staff &amp; roles</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Staff &amp; roles</h1>
+        <Link href={`/dashboard/${tenantId}/staff/permissions`} className="kb-pill text-xs">
+          What can each role do?
+        </Link>
+      </div>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         {canManage
           ? "Add anyone by email — if they already have a login on the platform (say, they own another workspace), this just adds them here with the role you pick."
