@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { findPartyByPortalToken } from "@/lib/core/parties";
 import { acceptQuoteWithSignature, recordResponse } from "@/lib/core/money";
 import { prisma } from "@/lib/db";
@@ -28,7 +29,13 @@ export async function acceptQuoteAction(formData: FormData) {
     throw new Error("A signature is required to accept.");
   }
 
-  await acceptQuoteWithSignature({ quoteId, signatureDataUrl });
+  const headerList = await headers();
+  const acceptanceIp =
+    headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    headerList.get("x-real-ip") ??
+    undefined;
+
+  await acceptQuoteWithSignature({ quoteId, signatureDataUrl, acceptanceIp });
 
   revalidatePath(`/portal/${token}/quotes/${quoteId}`);
 }

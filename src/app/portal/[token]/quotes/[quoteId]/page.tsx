@@ -112,6 +112,13 @@ export default async function PortalQuotePage({
                   className="mt-3 h-24 rounded-lg border border-[var(--kb-panel-border)] bg-white"
                 />
               )}
+              {quote.acceptanceHash && (
+                <div className="mt-3 rounded-lg bg-black/5 px-3 py-2 text-[10px] leading-relaxed text-[var(--kb-text-dim)]">
+                  <p>Signed record — this acceptance is bound to a verification hash.</p>
+                  <p className="mt-0.5 font-mono break-all">{quote.acceptanceHash}</p>
+                  {quote.acceptanceIp && <p className="mt-0.5">From {quote.acceptanceIp}</p>}
+                </div>
+              )}
             </div>
           ) : quote.status === "DECLINED" ? (
             <p className="text-sm font-semibold text-[var(--kb-tint-peach-ink)]">

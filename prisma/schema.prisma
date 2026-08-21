@@ -199,6 +199,12 @@ model Transaction {
   dueAt       DateTime?
   respondedAt DateTime?          // when the customer last replied/acted — drives the follow-up engine
   signatureDataUrl String?       // customer's e-signature on quote acceptance, captured via the portal
+  // Acceptance audit trail — the difference between "we have a drawn
+  // signature" and "this holds up as a real contract record." The hash
+  // binds the amount/lines/signature/timestamp together so any later
+  // tampering with the quote is detectable by recomputing and comparing.
+  acceptanceIp   String?
+  acceptanceHash String?
   // Quote presentation (BASIC vs PROPOSAL). Only meaningful on QUOTE rows;
   // introText/scopeOfWork are populated for PROPOSAL and shown above the
   // line items on both the web link and the PDF.

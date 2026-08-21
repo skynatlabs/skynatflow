@@ -105,13 +105,36 @@ export async function trackQuoteOpen(quoteId: string) {
 export async function acceptQuoteWithSignature(params: {
   quoteId: string;
   signatureDataUrl: string;
+  acceptanceIp?: string;
 }) {
+  const quote = await prisma.transaction.findUniqueOrThrow({ where: { id: params.quoteId } });
+  const respondedAt = new Date();
+
+  // SHA-256 over amount + signature + timestamp + IP, so re-hashing later
+  // and comparing against the stored value catches any tampering with the
+  // quote's amount or the recorded acceptance itself — this is what makes
+  // it an audit trail rather than just a picture of a signature.
+  const { createHash } = await import("node:crypto");
+  const acceptanceHash = createHash("sha256")
+    .update(
+      [
+        quote.id,
+        quote.amountCents,
+        params.signatureDataUrl,
+        respondedAt.toISOString(),
+        params.acceptanceIp ?? "",
+      ].join("|")
+    )
+    .digest("hex");
+
   return prisma.transaction.update({
     where: { id: params.quoteId },
     data: {
       status: TransactionStatus.ACCEPTED,
-      respondedAt: new Date(),
+      respondedAt,
       signatureDataUrl: params.signatureDataUrl,
+      acceptanceIp: params.acceptanceIp,
+      acceptanceHash,
     },
   });
 }
