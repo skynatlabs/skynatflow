@@ -22,12 +22,16 @@ export default async function PortalHomePage({
   const party = await findPartyByPortalToken(token);
   if (!party) notFound();
 
-  const [tenant, transactions] = await Promise.all([
+  const [tenant, transactions, events] = await Promise.all([
     prisma.tenant.findUniqueOrThrow({ where: { id: party.tenantId } }),
     prisma.transaction.findMany({
       where: { partyId: party.id, type: { in: ["QUOTE", "INVOICE"] } },
       orderBy: { createdAt: "desc" },
       include: { itemLines: { include: { item: true } } },
+    }),
+    prisma.event.findMany({
+      where: { partyId: party.id, photoUrl: { not: null } },
+      orderBy: { createdAt: "desc" },
     }),
   ]);
 
@@ -83,6 +87,23 @@ export default async function PortalHomePage({
             <li className="p-4 text-sm text-[var(--kb-text-dim)]">Nothing here yet.</li>
           )}
         </ul>
+
+        {events.length > 0 && (
+          <>
+            <h2 className="mt-8 text-sm font-semibold text-[var(--kb-text)]">Photo proof</h2>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {events.map((e) => (
+                <div key={e.id} className="kb-card overflow-hidden p-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={e.photoUrl!} alt={e.type} className="h-28 w-full object-cover" />
+                  <p className="p-2 text-[10px] text-[var(--kb-text-dim)]">
+                    {e.type.replace(/_/g, " ")} &middot; {e.createdAt.toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </main>
     </div>
   );

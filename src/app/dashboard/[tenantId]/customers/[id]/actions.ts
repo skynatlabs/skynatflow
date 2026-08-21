@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { recordPayment, recordRefund, convertToInvoice } from "@/lib/core/money";
 import { maybeSendReviewRequest } from "@/lib/core/reviews";
 import { createRecurringInvoice, setRecurringInvoiceActive } from "@/lib/core/recurring";
+import { logDelivery } from "@/lib/core/movement";
+import { EventType } from "@prisma/client";
 import type { RecurrenceFrequency } from "@prisma/client";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { assertCan } from "@/lib/core/access";
@@ -161,5 +163,36 @@ export async function toggleRecurringInvoiceAction(formData: FormData) {
   if (existing.tenantId !== tenantId) throw new Error("Not found.");
 
   await setRecurringInvoiceActive(templateId, nextActive);
+  revalidatePath(`/dashboard/${tenantId}/customers/${customerId}`);
+}
+
+export async function logPhotoEventAction(formData: FormData) {
+  const tenantId = String(formData.get("tenantId") ?? "");
+  const customerId = String(formData.get("customerId") ?? "");
+  const eventType = String(formData.get("eventType") ?? "SITE_VISIT") as EventType;
+  const notes = String(formData.get("notes") ?? "").trim();
+  const photoDataUrl = String(formData.get("photoDataUrl") ?? "").trim();
+
+  const access = await requireTenantAccess(tenantId);
+  assertCan(access.role, "delivery:log");
+
+  await logDelivery({
+    tenantId,
+    partyId: customerId,
+    type: eventType,
+    notes: notes || undefined,
+    photoUrl: photoDataUrl || undefined,
+  });
+
+  await recordAudit({
+    tenantId,
+    actorType: "user",
+    actorId: access.userId,
+    capability: "delivery:log",
+    targetType: "Party",
+    targetId: customerId,
+    metadata: { eventType, hasPhoto: !!photoDataUrl },
+  });
+
   revalidatePath(`/dashboard/${tenantId}/customers/${customerId}`);
 }

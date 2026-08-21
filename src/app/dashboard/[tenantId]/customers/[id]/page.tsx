@@ -8,12 +8,14 @@ import { totalPaid, totalRefunded } from "@/lib/core/money";
 import { listRecurringInvoices } from "@/lib/core/recurring";
 import { listComments } from "@/lib/core/comments";
 import { addCustomerCommentAction } from "./comments-actions";
+import { PhotoEventForm } from "./PhotoEventForm";
 import {
   convertToInvoiceAction,
   recordPaymentAction,
   recordRefundAction,
   createRecurringInvoiceAction,
   toggleRecurringInvoiceAction,
+  logPhotoEventAction,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -249,12 +251,21 @@ export default async function CustomerHistoryPage({
             <li key={e.id} className="py-2 text-sm">
               <span className="font-medium text-[var(--kb-text)]">{e.type}</span>
               {e.notes && <span className="text-[var(--kb-text-dim)]"> &mdash; {e.notes}</span>}
+              {e.photoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={e.photoUrl}
+                  alt="Proof"
+                  className="mt-2 h-24 rounded-lg border border-[var(--kb-panel-border)] object-cover"
+                />
+              )}
             </li>
           ))}
           {events.length === 0 && (
             <li className="py-2 text-sm text-[var(--kb-text-dim)]">Nothing yet.</li>
           )}
         </ul>
+        <PhotoEventForm action={logPhotoEventAction} tenantId={tenantId} customerId={id} />
       </section>
 
       <section className="kb-card mt-6 p-6">

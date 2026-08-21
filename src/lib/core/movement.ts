@@ -14,6 +14,7 @@ export async function logDelivery(params: {
   signedByUrl?: string;
   gpsLat?: number;
   gpsLng?: number;
+  type?: EventType; // defaults to DELIVERY — the driver app's own calls never pass this
   // If a QUOTE id is supplied and it's ACCEPTED, completing the delivery
   // auto-generates the invoice — this is the "proof of delivery triggers
   // the money engine" link described in the strategic report, Section 9.
@@ -23,7 +24,7 @@ export async function logDelivery(params: {
     data: {
       tenantId: params.tenantId,
       partyId: params.partyId,
-      type: EventType.DELIVERY,
+      type: params.type ?? EventType.DELIVERY,
       notes: params.notes,
       photoUrl: params.photoUrl,
       signedByUrl: params.signedByUrl,
