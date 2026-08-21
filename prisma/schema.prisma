@@ -113,6 +113,8 @@ model User {
   phone        String? // WhatsApp-reachable — where the daily briefing goes
   passwordHash String? // null = account exists (e.g. added by a staff invite) but hasn't been claimed with a password yet
   isSuperAdmin Boolean      @default(false)
+  totpSecret   String? // base32, set once 2FA setup is confirmed
+  totpEnabled  Boolean      @default(false)
   createdAt    DateTime     @default(now())
 
   memberships Membership[]

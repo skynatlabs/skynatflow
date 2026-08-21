@@ -99,6 +99,12 @@ export default async function TenantShellLayout({
         <div className="space-y-3">
           <ThemeToggle current={theme} />
           <Link
+            href="/account/security"
+            className="block px-2 text-xs text-white/40 hover:text-white/70"
+          >
+            2FA / security
+          </Link>
+          <Link
             href="/dashboard"
             className="block px-2 text-xs text-white/40 hover:text-white/70"
           >

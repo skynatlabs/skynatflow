@@ -27,6 +27,17 @@ export default async function LoginPage() {
             <label className="block text-sm font-medium text-[var(--kb-text)]">Password</label>
             <input name="password" type="password" required className={inputClass} />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-[var(--kb-text)]">
+              2FA code <span className="text-[var(--kb-text-dim)]">(only if you've enabled it)</span>
+            </label>
+            <input
+              name="totpToken"
+              inputMode="numeric"
+              placeholder="123456"
+              className={inputClass}
+            />
+          </div>
           <button type="submit" className="kb-pill kb-pill-primary w-full justify-center py-3">
             Sign in
           </button>
