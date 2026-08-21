@@ -9,6 +9,7 @@
 // resolved.
 
 import { NextRequest, NextResponse } from "next/server";
+import type { CollectionsTone } from "@prisma/client";
 import { findStaleTransactions } from "@/lib/core/money";
 import { countFollowUpsSent } from "@/lib/core/movement";
 import {
@@ -18,30 +19,37 @@ import {
 } from "@/lib/ai/followUp";
 import { prisma } from "@/lib/db";
 
-function templateFollowUpMessage(type: string, amountCents: number) {
+function templateFollowUpMessage(type: string, amountCents: number, tone: CollectionsTone) {
   const amount = (amountCents / 100).toLocaleString(undefined, {
     style: "currency",
     currency: "ZAR",
   });
+  const doc = type === "QUOTE" ? "quote" : "invoice";
+  if (tone === "FIRM") {
+    return type === "QUOTE"
+      ? `Hi — following up on the ${amount} quote we sent. Could you let us know your decision by end of week?`
+      : `Hi — your invoice for ${amount} is still outstanding. Please could you confirm when we can expect payment?`;
+  }
   return type === "QUOTE"
-    ? `Hi! Just checking in on the quote for ${amount} we sent over — happy to answer any questions, or adjust it if needed.`
-    : `Hi! This is a friendly reminder that your invoice for ${amount} is still outstanding. Let us know if you have any questions.`;
+    ? `Hi! Just checking in on the ${doc} for ${amount} we sent over — happy to answer any questions, or adjust it if needed.`
+    : `Hi! This is a friendly reminder that your ${doc} for ${amount} is still outstanding. Let us know if you have any questions.`;
 }
 
 async function composeFollowUpMessage(
   tx: StaleTransactionWithParty,
-  touchNumber: number
+  touchNumber: number,
+  tone: CollectionsTone
 ): Promise<string> {
   if (!process.env.ANTHROPIC_API_KEY) {
-    return templateFollowUpMessage(tx.type, tx.amountCents);
+    return templateFollowUpMessage(tx.type, tx.amountCents, tone);
   }
   try {
-    return await draftFollowUpMessage({ transaction: tx, touchNumber });
+    return await draftFollowUpMessage({ transaction: tx, touchNumber, tone });
   } catch (err) {
     // AI drafting failing should never block a follow-up from going out —
     // fall back to the template rather than silently skipping the customer.
     console.error("[follow-ups] AI draft failed, falling back to template:", err);
-    return templateFollowUpMessage(tx.type, tx.amountCents);
+    return templateFollowUpMessage(tx.type, tx.amountCents, tone);
   }
 }
 
@@ -74,7 +82,7 @@ export async function GET(req: NextRequest) {
       if (existingPending) continue;
 
       const touchNumber = (await countFollowUpsSent(tx.id)) + 1;
-      const body = await composeFollowUpMessage(tx, touchNumber);
+      const body = await composeFollowUpMessage(tx, touchNumber, tenant.collectionsTone);
 
       await prisma.aiDraft.create({
         data: {
@@ -83,7 +91,7 @@ export async function GET(req: NextRequest) {
           transactionId: tx.id,
           touchNumber,
           body,
-          reasoning: followUpReasoning(touchNumber, tx.type),
+          reasoning: followUpReasoning(touchNumber, tx.type, tenant.collectionsTone),
         },
       });
 

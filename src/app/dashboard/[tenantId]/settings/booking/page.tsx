@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getBookingConfig } from "@/lib/core/booking";
-import { saveBookingConfigAction, saveReviewUrlAction } from "./actions";
+import { saveBookingConfigAction, saveReviewUrlAction, saveCollectionsToneAction } from "./actions";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -108,6 +108,43 @@ export default async function BookingSettingsPage({
             defaultValue={tenant.googleReviewUrl ?? ""}
             className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
           />
+        </div>
+        <button type="submit" className="kb-pill kb-pill-primary w-full justify-center py-3">
+          Save
+        </button>
+      </form>
+
+      <h2 className="mt-8 text-lg font-semibold text-[var(--kb-text)]">Collections tone</h2>
+      <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
+        How firm the follow-up engine gets when chasing an unpaid invoice or unanswered quote.
+      </p>
+      <form action={saveCollectionsToneAction} className="kb-card mt-4 space-y-3 p-6">
+        <input type="hidden" name="tenantId" value={tenantId} />
+        <div className="space-y-2">
+          {(
+            [
+              { value: "GENTLE", label: "Gentle", desc: "Always warm, assumes good faith, never pressures — even by touch 5+." },
+              { value: "STANDARD", label: "Standard", desc: "Gradually escalates from a check-in to a direct, respectful ask." },
+              { value: "FIRM", label: "Firm", desc: "Gets to the point from touch 2 — direct and businesslike, still professional." },
+            ] as const
+          ).map((opt) => (
+            <label
+              key={opt.value}
+              className="flex cursor-pointer items-start gap-2 rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm has-[:checked]:border-[var(--kb-accent-a)]"
+            >
+              <input
+                type="radio"
+                name="collectionsTone"
+                value={opt.value}
+                defaultChecked={tenant.collectionsTone === opt.value}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block font-medium text-[var(--kb-text)]">{opt.label}</span>
+                <span className="block text-xs text-[var(--kb-text-dim)]">{opt.desc}</span>
+              </span>
+            </label>
+          ))}
         </div>
         <button type="submit" className="kb-pill kb-pill-primary w-full justify-center py-3">
           Save

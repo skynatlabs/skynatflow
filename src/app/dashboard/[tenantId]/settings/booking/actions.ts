@@ -23,6 +23,20 @@ export async function saveBookingConfigAction(formData: FormData) {
   revalidatePath(`/dashboard/${tenantId}/settings/booking`);
 }
 
+export async function saveCollectionsToneAction(formData: FormData) {
+  const tenantId = String(formData.get("tenantId") ?? "");
+  const access = await requireTenantAccess(tenantId);
+  assertCan(access.role, "staff:manage");
+
+  const collectionsTone = String(formData.get("collectionsTone") ?? "STANDARD") as
+    | "GENTLE"
+    | "STANDARD"
+    | "FIRM";
+
+  await prisma.tenant.update({ where: { id: tenantId }, data: { collectionsTone } });
+  revalidatePath(`/dashboard/${tenantId}/settings/booking`);
+}
+
 export async function saveReviewUrlAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);

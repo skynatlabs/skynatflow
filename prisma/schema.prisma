@@ -83,6 +83,10 @@ model Tenant {
   // endHour, slotMins }. Null/absent = booking page not set up yet.
   bookingConfig Json?
   googleReviewUrl String? // customer-facing link sent in the post-payment review request
+  // Owner-controlled empathy dial on the escalating follow-up engine —
+  // chase payment without torching the relationship. Applied to every
+  // touch's tone, not just the final one.
+  collectionsTone CollectionsTone @default(STANDARD)
   createdAt DateTime  @default(now())
 
   memberships  Membership[]
@@ -380,6 +384,12 @@ model Comment {
 
   @@index([tenantId, entityType, entityId])
   @@map("comments")
+}
+
+enum CollectionsTone {
+  GENTLE
+  STANDARD
+  FIRM
 }
 
 enum DisputeStatus {
