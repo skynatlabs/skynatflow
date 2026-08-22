@@ -14,44 +14,64 @@ import {
   CheckSquareIcon,
   UserCogIcon,
   SparkleIcon,
+  ColumnsIcon,
+  UsersIcon,
 } from "@/components/icons";
 
 const FEATURES = [
   {
     icon: QuoteIcon,
     tint: "kb-tint-mint",
-    title: "Quoting & follow-up",
-    body: "Send a quote from WhatsApp or the web, and the AI chases it automatically — no follow-up ever falls through the cracks.",
+    title: "Basic quotes & proposals",
+    body: "A quick line-item quote, or a full proposal with intro and scope of work — pick from a saved template, send as a link or a PDF.",
   },
   {
     icon: BoxIcon,
     tint: "kb-tint-blue",
-    title: "End-to-end inventory",
-    body: "One stock ledger from purchase to sale — no separate purchasing and POS counts drifting apart.",
+    title: "Product catalog & migration",
+    body: "Build your catalog once and reuse it everywhere, or bring your whole customer/product list over from Zoho, QuickBooks, FreshBooks, Wave, or Xero in a few clicks.",
+  },
+  {
+    icon: ColumnsIcon,
+    tint: "kb-tint-violet",
+    title: "Pipeline & recurring billing",
+    body: "A real deal board for your quotes, plus standing subscriptions that auto-generate and send invoices on schedule — no manual re-billing.",
+  },
+  {
+    icon: SparkleIcon,
+    tint: "kb-tint-yellow",
+    title: "AI drafts, you approve",
+    body: "The AI drafts every follow-up with its reasoning shown — nothing reaches a customer until you click Approve. Edit it first if you want.",
+  },
+  {
+    icon: UserCogIcon,
+    tint: "kb-tint-peach",
+    title: "Booking page & photo proof",
+    body: "A public link where customers pick their own appointment slot, and photo proof of delivery or install that shows up right on their portal.",
   },
   {
     icon: SignatureIcon,
-    tint: "kb-tint-violet",
+    tint: "kb-tint-mint",
     title: "Customer portal & e-signatures",
-    body: "Send a link, no login needed. Your customer views the quote and signs it right there.",
+    body: "Send a link, no login needed. Your customer views the quote, signs it with a legally-verifiable acceptance record, and can flag anything that's not right.",
+  },
+  {
+    icon: CheckSquareIcon,
+    tint: "kb-tint-blue",
+    title: "Team tasks & real permissions",
+    body: "A simple board your team will actually use, with a real per-role permissions matrix — not a project-management suite nobody opens.",
   },
   {
     icon: LinkIcon,
-    tint: "kb-tint-yellow",
+    tint: "kb-tint-violet",
     title: "Wholesale connections",
     body: "Connect directly to another workspace on the platform — orders flow straight into their pipeline, no re-keying.",
   },
   {
-    icon: CheckSquareIcon,
-    tint: "kb-tint-peach",
-    title: "Team tasks & roles",
-    body: "A simple board your team will actually use, with real permissions — not a project-management suite nobody opens.",
-  },
-  {
-    icon: UserCogIcon,
-    tint: "kb-tint-mint",
-    title: "One login, many businesses",
-    body: "Own or work under any number of workspaces with one account — a platform admin can see across all of them.",
+    icon: UsersIcon,
+    tint: "kb-tint-yellow",
+    title: "2FA, audit log & full export",
+    body: "Two-factor login, a searchable audit trail of every action, and a one-click CSV export of your whole business — leave any time, no lock-in.",
   },
 ];
 
@@ -232,14 +252,14 @@ export default function MarketingHome() {
             <SparkleIcon className="h-7 w-7 text-white" />
           </div>
           <h2 className="mt-6 text-4xl font-extrabold text-white">
-            Built AI-first, not AI-added
+            Built AI-first, with you always in the loop
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-white/60">
-            The AI doesn&apos;t sit in a chat sidebar — it watches your quotes
-            and invoices and acts, through the same functions your own team
-            uses.
+            The AI doesn&apos;t sit in a chat sidebar, and it never sends a
+            customer-facing message on its own — it watches, drafts, and
+            waits for your OK, through the same functions your own team uses.
           </p>
-          <div className="mt-12 grid grid-cols-1 gap-8 text-left sm:grid-cols-3">
+          <div className="mt-12 grid grid-cols-1 gap-8 text-left sm:grid-cols-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-white/40">Watches</p>
               <p className="mt-2 text-white">
@@ -250,8 +270,15 @@ export default function MarketingHome() {
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-white/40">Drafts</p>
               <p className="mt-2 text-white">
-                A genuinely context-aware follow-up message, escalating tone
-                as it goes unanswered.
+                A context-aware follow-up, escalating tone as it goes
+                unanswered — tuned to the gentle/standard/firm dial you set.
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-white/40">Waits</p>
+              <p className="mt-2 text-white">
+                Every draft shows its reasoning and sits in your queue —
+                nothing goes out until you approve it, edited or as-is.
               </p>
             </div>
             <div>
