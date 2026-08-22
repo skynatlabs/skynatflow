@@ -1,12 +1,24 @@
 # flow — Handover
 
-**Last updated:** 2026-08-20
+**Last updated:** 2026-08-21
 **Repo:** [github.com/skynatlabs/skynatflow](https://github.com/skynatlabs/skynatflow) (private)
-**Live deploy:** Vercel project under `skynatlabs' projects` — build passing as of the latest push (rebrand commit). Not yet connected to a real production database (see Checkpoints below).
+**Live deploy:** Vercel project under `skynatlabs' projects` — connected to a real production Supabase database, SSL issue resolved (see "Production DB — SSL gotcha" below), login/signup verified live. **This session's 20 new features are committed locally on `main` but not yet pushed or migrated onto the production database** — that's the single next action.
 
-> **Session note:** this build session is ending near its context limit. Everything below is accurate as of the last commit pushed to `main` — start a fresh session from this file, not from scratch. The single next action is resolving Checkpoint #1 below (production `DATABASE_URL`); almost everything else is blocked behind it.
+> **Session note:** this session took the product from "solid MVP" to feature-parity-plus against GoHighLevel/ClickUp/Monday/Zoho — 20 shipped features (Phase 1 of a researched 70-item competitive roadmap), each built, migrated, and verified live in a real browser against a real Postgres database, not just written. Full detail in "Phase 1 complete" below. Start a fresh session from this file, not from scratch.
 
 This is the working handover for **flow** (by Skynat) — the AI-native, multi-vertical business OS built out of the Skynat strategic report and build manual. If you're picking this up cold, read this file first, then `README.md` for the technical architecture.
+
+## Immediate next action
+
+1. `git push` — everything below is committed locally on `main`, not yet on GitHub.
+2. Run the ~10 new migrations from this session against the **production** Supabase database (the Prisma CLI can't reach it directly — see the SSL gotcha note below; apply each `prisma/migrations/*/migration.sql` via `psql` against the session-pooler connection string, same approach used earlier in this session).
+3. Confirm the Vercel deploy builds clean with all of today's code before calling it done.
+
+## Production DB — SSL gotcha (read this before touching prod DATABASE_URL)
+
+Two real bugs, now fixed, worth knowing about if the connection ever breaks again:
+- **Direct connection** (`db.<ref>.supabase.co:5432`) needs IPv6 — unreachable from most networks/CI. Use the **session pooler** connection string instead (`aws-0-<region>.pooler.supabase.com:5432`, username `postgres.<project-ref>`).
+- **`pg` (and Prisma's adapter) now treats `sslmode=require` in the connection string as `verify-full`**, which rejects Supabase's pooler cert even when you also pass an explicit `ssl` override — the query-string value wins. Fix, already applied in `src/lib/db.ts`: strip `sslmode` from the URL before it reaches the pool config, and pass `ssl: { rejectUnauthorized: false }` explicitly instead.
 
 ## Just finished this session (rebrand)
 
@@ -22,9 +34,46 @@ also fixed a previously washed-out pale-orange tile color, now a
 richer rose/magenta. A real marketing homepage was also built this
 session (`src/components/marketing/MarketingHome.tsx`), inspired by
 ClickUp/Monday's design language, shown to logged-out visitors at `/`
-(logged-in visitors still redirect straight to `/dashboard`).
+(logged-in visitors still redirect straight to `/dashboard`) — **updated
+again in the Phase 1 session below** to reflect the 20 new features.
 
 ---
+
+## Phase 1 complete (Aug 2026) — 20 shipped features, competitive-parity push
+
+Every item below was built, database-migrated, and manually verified live
+in a real browser against a real Postgres database this session — not
+just written. Full research/rationale behind the 70-item list this drew
+from: see "Competitive roadmap" further down, and the published artifact
+from that research pass.
+
+**Money & documents**
+- **Product/service catalog** — `Item` extended into a real reusable catalog (cost, tax, category, image, active toggle); New Quote now autocompletes from it instead of creating a fresh throwaway item every time.
+- **CSV migration importer** — guided upload → column mapping → preview → commit, with presets for Zoho Invoice, QuickBooks, FreshBooks, Wave, Xero.
+- **CSV data export** — one-click full export of customers/products/transactions — the "leave anytime" trust move.
+- **Pipeline/deal board** — Kanban over the quote lifecycle (Draft/Awaiting/Won/Lost).
+- **Recurring invoices** — standing schedule (weekly/monthly/quarterly), line-item snapshot so later catalog price edits don't reprice an existing subscription, cron-generated (`/api/cron/recurring-invoices`).
+- **Credit notes/refunds** — `recordRefund()` as a first-class ledger entry (REFUND was in the schema enum, never had a function); also filled in the previously-missing "Convert to invoice" and "Record payment" dashboard UI.
+- **Proposal e-sign audit trail** — SHA-256 hash binding amount+signature+timestamp+IP, verified against the RFC 4226 test vector.
+
+**Trust & operations**
+- **Roles & permissions matrix** — read-only page surfacing the fixed capability map.
+- **Searchable/exportable audit log** — filter by capability, search by actor/target, CSV export.
+- **TOTP 2FA** — RFC 6238 implemented directly on Node crypto (no dependency), Google Authenticator/Authy/1Password-compatible via `otpauth://`, opt-in at `/account/security`.
+- **Booking page** — public link (`/book/[tenantId]`), owner sets working hours, bookings land as normal Events.
+- **Photo proof of delivery/install** — stored as a data URL (same pattern as e-signatures, no object storage needed yet), visible on the customer portal.
+- **Internal comments with @mentions** — polymorphic `Comment` model, works on any record.
+
+**Growth & AI**
+- **Review request automation** — fires once, the moment an invoice first reaches PAID, via WhatsApp.
+- **Proposal templates** — reusable intro/scope text blocks, picker on the New Quote form.
+- **Guided setup checklist + trial value nudge** — self-hiding onboarding checklist; past day 6, a banner showing real tracked value (quotes, customers, hot leads).
+- **Cash-sale quick capture** — one-step already-PAID invoice for a walk-in, no quote stage, shared "Walk-in customer" Party when no name given.
+- **Made the confirm-before-send guardrail real** — the code had *claimed* this existed for months (see comments in `src/lib/ai/followUp.ts`), but the cron job actually sent WhatsApp messages straight with zero review. Now every AI-drafted follow-up lands as a pending `AiDraft` with visible reasoning; nothing reaches a customer until the owner clicks Approve (editable first) or Skip, at `/dashboard/[tenantId]/ai-drafts`.
+- **Collections tone dial** — Gentle/Standard/Firm setting shifts the whole escalation curve (both the AI prompt and the no-API-key template fallback), not just one message's wording.
+- **Dispute/complaint flow** — customer flags "this isn't right" from the portal, owner resolves it with a note at `/dashboard/[tenantId]/disputes`. Most CRMs have zero structured path for this.
+
+**New Prisma models this session:** `RecurringInvoice`, `Comment`, `ProposalTemplate`, `AiDraft`, `Dispute`. **Extended:** `Item` (catalog fields), `Transaction` (`QuoteKind`, acceptance audit fields, `reviewRequestSentAt`), `Tenant` (`bookingConfig`, `googleReviewUrl`, `collectionsTone`), `User` (`totpSecret`, `totpEnabled`), `Event` (`scheduledAt`).
 
 ## What this actually is
 
@@ -56,11 +105,10 @@ One shared engine (Party/Item/Transaction/Event data model) wearing seven differ
 
 These are the things that are genuinely blocked on someone's decision or an external account — not things I forgot to build:
 
-1. **Production `DATABASE_URL`.** The Vercel deploy currently points at a placeholder connection string just to get the build passing. Nothing will actually save until this is a real Postgres instance — sign up free at [supabase.com](https://supabase.com) or [neon.tech](https://neon.tech), grab the connection string, set it in Vercel's Environment Variables. Once that's done, the migration needs to be run against it (same command used locally — `npx prisma migrate deploy`) before it'll work.
-2. **`AUTH_SECRET`** for the production environment — already generated, ready to paste into Vercel: `4wNEHWUfnKAqKPgRSx+BLJkqn7aD2WePO4HRPUO9wn0=`
-3. **Domain** — currently sitting on Vercel's auto-generated `.vercel.app` URL. Recommended: point a subdomain of an existing Skynat domain at it (e.g. `app.skynat.co.za`) rather than buying a new one.
-4. **`ANTHROPIC_API_KEY`, WhatsApp Business API creds, `RESEND_API_KEY`** — all optional for now. Everything degrades gracefully without them (follow-ups fall back to templates, sends log to console instead of failing) — nothing breaks, features just aren't "live" yet.
-5. **Apple/Google developer accounts** — needed before the desktop app can be signed/notarized for real distribution, or the Android app can go on the Play Store. Right now both are real, working, unsigned builds — fine for internal testing, not for public distribution.
+1. ~~Production `DATABASE_URL`~~ — **resolved.** Real Supabase Postgres connected, `AUTH_SECRET` set, login/signup verified live. See "Production DB — SSL gotcha" above if the connection ever breaks. **Still outstanding: this session's ~10 new migrations haven't been applied to production yet** (only run locally) — that's the current blocker, see "Immediate next action" at the top.
+2. **Domain** — currently sitting on Vercel's auto-generated `.vercel.app` URL. Recommended: point a subdomain of an existing Skynat domain at it (e.g. `app.skynat.co.za`) rather than buying a new one.
+3. **`ANTHROPIC_API_KEY`, WhatsApp Business API creds, `RESEND_API_KEY`, `CRON_SECRET`** — all optional for now. Everything degrades gracefully without them (AI follow-ups fall back to templates, WhatsApp sends log to console instead of failing, cron endpoints work fine hit manually) — nothing breaks, features just aren't "live" yet. Needed before real users: at minimum WhatsApp creds (booking confirmations, review requests, follow-ups all currently no-op on the actual send) and an actual cron schedule (Hostinger Cron Jobs per the code comments) hitting `/api/cron/follow-ups` and `/api/cron/recurring-invoices`.
+4. **Apple/Google developer accounts** — needed before the desktop app can be signed/notarized for real distribution, or the Android app can go on the Play Store. Right now both are real, working, unsigned builds — fine for internal testing, not for public distribution.
 
 ## Demo logins (local dev database only — not on the live Vercel deploy yet)
 
@@ -89,17 +137,17 @@ Full detail on each surface is in that surface's own README (`README.md`, `apps/
 
 ## Known rough edges (real, not hidden)
 
-- Driver app: no photo/signature capture yet (needs object storage — R2/B2), no offline-first queueing, no real per-driver login. Delivery list + mark-delivered works.
+- Driver app: no photo/signature capture yet (needs object storage — R2/B2), no offline-first queueing, no real per-driver login. Delivery list + mark-delivered works. (Note: the *web* dashboard's photo-proof feature, shipped this session, stores photos as data URLs directly in Postgres — fine at current scale, but genuinely needs object storage once photo volume grows; that's the natural moment to also wire up the driver app's photo capture.)
 - No sales-rep or technician mobile screens yet.
 - AI-conversational onboarding not built — current onboarding is a clean form, works fine, just not the AI-chat version from the strategic report.
-- No marketing/landing site yet — logged-out visitors land straight on `/login`. Worth building before any real customer acquisition push.
 - Desktop and Android builds are unsigned — fine for internal testing, would trigger OS security warnings for anyone else.
+- WhatsApp Business API, Google Calendar, IMAP mail, accounting sync (Xero/QuickBooks), and Zapier are all scoped (Phase 2) but not built — need real provider credentials first, see Checkpoints above.
+- The booking settings page (`/dashboard/[tenantId]/settings/booking`) has become a small grab-bag (booking config + review link + collections tone) — fine functionally, worth splitting into a proper Settings section with sub-pages once there are more of these.
 
 ## Where to pick up next
 
-In rough priority order once the database checkpoint is resolved:
-1. Get the live Vercel deploy actually connected to a real database and confirm the full flow works in production, not just locally.
-2. Point a real subdomain at it.
+1. Push this session's work and apply its migrations to the production database — see "Immediate next action" at the top.
+2. Phase 2 from the competitive roadmap — payment rails, Google Calendar, IMAP inbox, accounting sync, Zapier, WhatsApp two-way inbox — once the relevant provider credentials are available.
 3. Driver app depth (photo/signature, offline queue) once there's a real delivery-heavy pilot customer to build it for.
 
 ## Next pipeline features — gap vs. ClickUp/Monday
@@ -179,8 +227,14 @@ useful, not just missing an API key:**
   the mail client first (both already scoped in Phase 2), then unify
   once each channel actually works on its own.
 
-Everything else from the 70-item list is active — see the task list for
-the phase-by-phase build order. "Now" items build first with no external
-dependencies; "Next" items that need API keys (payment rails, Google
-Calendar, IMAP, Xero/QuickBooks, Zapier, WhatsApp Business API) are
-scoped but wait on the user supplying provider credentials.
+**Phase 1 (all 20 "Now" items — no external dependencies) is done** — see
+"Phase 1 complete" near the top of this file for the full list, each
+verified live.
+
+**Phase 2 — next up, but blocked on the user supplying real provider
+credentials, not on more engineering:** payment rails (PayFast/Yoco/
+Stripe), Google Calendar sync, IMAP mail client (inbox half — the
+send-only Resend scaffold already exists), Xero/QuickBooks two-way sync,
+Zapier connector, WhatsApp Business API two-way inbox. Code can be
+scoped/built ahead of the credentials arriving, but can't be verified
+live without them.
