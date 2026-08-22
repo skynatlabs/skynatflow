@@ -33,6 +33,25 @@ export async function requireTenantAccess(tenantId: string): Promise<TenantAcces
   return { userId: user.id, role: membership.role as Role, membershipId: membership.id };
 }
 
+export interface SuperAdminAccess {
+  userId: string;
+}
+
+// Guard for platform-global surfaces (the marketing site CMS) that aren't
+// scoped to any one tenant — distinct from requireTenantAccess, which
+// always resolves against a specific tenantId.
+export async function requireSuperAdmin(): Promise<SuperAdminAccess> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new AuthRequiredError();
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+  if (!user?.isSuperAdmin) throw new ForbiddenError();
+
+  return { userId: user.id };
+}
+
 export class AuthRequiredError extends Error {
   constructor() {
     super("Sign-in required");

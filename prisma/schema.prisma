@@ -528,3 +528,43 @@ model RecurringInvoice {
   @@index([isActive, nextRunAt])
   @@map("recurring_invoices")
 }
+
+// The flow/Skynat marketing site itself (not a tenant's business) —
+// platform-global, editable only by super-admins via /admin. One row per
+// page (keyed by slug), each with an ordered list of sections. Section
+// shape is deliberately generic (heading/body/image/items) rather than a
+// free block builder — src/lib/cms/pageTemplates.ts is the single source
+// of truth for which sections exist on which page and how each renders.
+model PageContent {
+  id              String   @id @default(cuid())
+  slug            String   @unique // "home", "about", "ai-agents", "industry-SERVICES", ...
+  title           String
+  metaDescription String?
+  updatedAt       DateTime @updatedAt
+  updatedByUserId String?
+
+  sections PageSection[]
+
+  @@map("page_contents")
+}
+
+model PageSection {
+  id         String      @id @default(cuid())
+  pageId     String
+  page       PageContent @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  key        String // matches the slot key in pageTemplates.ts, e.g. "hero", "benefits_grid"
+  heading    String?
+  subheading String?
+  body       String?
+  imageUrl   String?
+  ctaLabel   String?
+  ctaHref    String?
+  // Repeatable sub-items for grid/testimonials/logos/cards sections:
+  // [{ title, body, imageUrl, href, name, role }, ...] — shape varies by
+  // section type, interpreted by SectionRenderer per pageTemplates.ts.
+  items Json?
+  order Int  @default(0)
+
+  @@unique([pageId, key])
+  @@map("page_sections")
+}

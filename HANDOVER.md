@@ -4,6 +4,19 @@
 **Repo:** [github.com/skynatlabs/skynatflow](https://github.com/skynatlabs/skynatflow) (private)
 **Live deploy:** Vercel project under `skynatlabs' projects` — connected to a real production Supabase database, SSL issue resolved (see "Production DB — SSL gotcha" below), login/signup verified live. **Pushed to `main` and all 16 migrations applied to production as of 2026-08-22.**
 
+## 2026-08-22 update — multi-page marketing site + super-admin CMS
+
+Built out the marketing site from one hardcoded homepage into 13 pages, all editable by a super-admin through a structured section editor (not a free block builder) — no code changes needed to update copy/images going forward.
+
+- **New Prisma models:** `PageContent`, `PageSection` (migration `20260822201311_marketing_cms`, applied locally only — **not yet on production**, needs the same `prisma migrate deploy` treatment as above before this ships).
+- **13 pages, all CMS-backed:** Home, About Us, AI & Agents, Case Studies, Benefits, Integrations, plus one landing page per industry (`/industries/[skin]`, all 7 `NicheSkin`s) — each pulling industry-specific copy from `NICHE_CONFIGS` and rendering a live pipeline preview.
+- **Template system:** `src/lib/cms/pageTemplates.ts` is the single source of truth for what sections exist on each page and their type (hero/richText/imageText/grid/testimonials/logos/cards/cta) — drives both the public renderer (`src/components/marketing/sections/SectionRenderer.tsx`) and the admin editor form.
+- **Super-admin editor at `/admin`** — guarded by a new `requireSuperAdmin()` (`src/lib/auth/tenant-access.ts`), same 404-not-leak pattern as tenant access. Structured per-section editor: text fields + image upload + add/remove repeatable items (testimonials, case study cards, integration logos, etc), saves via server action, reflects on the public page immediately.
+- **Image storage — Cloudflare R2, checkpoint, not yet configured.** `src/lib/storage/r2.ts` wraps `@aws-sdk/client-s3` against R2's S3-compatible API. `STORAGE_ENDPOINT`/`STORAGE_ACCESS_KEY_ID`/`STORAGE_SECRET_ACCESS_KEY`/`STORAGE_BUCKET`/`STORAGE_PUBLIC_BASE_URL` are all still empty in `.env` — the upload endpoint returns a clear "storage not configured" error until a free Cloudflare R2 account + bucket is created and the credentials are supplied. Everything else (all page content, text editing) works today without it.
+- **Seed script:** `npm run db:seed:marketing` (`prisma/seed-marketing.ts`) populates real starter copy for all 52 sections across all 13 pages — idempotent, safe to re-run.
+- Deliberately **not per-tenant** — this is the flow/Skynat marketing site only. A semi-whitelabeled customer-facing landing page per tenant business was discussed but is explicitly out of scope for this build (only documents like quotes/invoices are fully whitelabeled today).
+- Verified end-to-end in-browser: all 13 public pages render, admin editor saves and reflects live, non-super-admin gets 404 on `/admin`, image-upload endpoint fails clearly when storage is unconfigured. Existing 14-test suite still passes.
+
 ## 2026-08-22 update — push + production migrations done
 
 - All local commits pushed to `origin/main` (including the Phase 2.1 API/webhooks schema, which had been sitting uncommitted).
@@ -17,9 +30,10 @@ This is the working handover for **flow** (by Skynat) — the AI-native, multi-v
 
 ## Immediate next action
 
-1. `git push` — everything below is committed locally on `main`, not yet on GitHub.
-2. Run the ~10 new migrations from this session against the **production** Supabase database (the Prisma CLI can't reach it directly — see the SSL gotcha note below; apply each `prisma/migrations/*/migration.sql` via `psql` against the session-pooler connection string, same approach used earlier in this session).
-3. Confirm the Vercel deploy builds clean with all of today's code before calling it done.
+1. Commit + push the marketing CMS work (see "2026-08-22 update — multi-page marketing site" above) — as of writing it's built, tested, and verified in-browser but **not yet committed**.
+2. Run migration `20260822201311_marketing_cms` against **production** via `prisma migrate deploy` (session-pooler `DATABASE_URL`, same approach as the rest of this session's migrations — see "Production DB — SSL gotcha" below).
+3. Create a free Cloudflare R2 account + bucket, enable public access, and supply `STORAGE_ENDPOINT`/`STORAGE_ACCESS_KEY_ID`/`STORAGE_SECRET_ACCESS_KEY`/`STORAGE_BUCKET`/`STORAGE_PUBLIC_BASE_URL` so CMS image uploads work (currently returns a clear "not configured" error).
+4. Confirm the Vercel deploy builds clean with all of today's code before calling it done.
 
 ## Production DB — SSL gotcha (read this before touching prod DATABASE_URL)
 
