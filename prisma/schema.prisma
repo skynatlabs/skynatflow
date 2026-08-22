@@ -100,6 +100,8 @@ model Tenant {
   proposalTemplates ProposalTemplate[]
   aiDrafts      AiDraft[]
   disputes      Dispute[]
+  apiKeys       ApiKey[]
+  webhookEndpoints WebhookEndpoint[]
 
   connectionsAsSupplier WholesaleConnection[] @relation("SupplierConnections")
   connectionsAsBuyer    WholesaleConnection[] @relation("BuyerConnections")
@@ -384,6 +386,57 @@ model Comment {
 
   @@index([tenantId, entityType, entityId])
   @@map("comments")
+}
+
+// Public API access — the piece that unlocks Zapier and any other
+// external integration without needing a partnership with anyone. Keys
+// act with full read/write on their own tenant; only the hash is stored,
+// the plaintext key is shown exactly once at creation.
+model ApiKey {
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  name       String
+  keyPrefix  String // first 8 chars, shown in the list so a key is identifiable without re-revealing it
+  keyHash    String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  @@index([tenantId])
+  @@map("api_keys")
+}
+
+// Outbound event notifications — the other half of "integrate with
+// anything." Delivered with an HMAC-SHA256 signature (X-Flow-Signature
+// header) so the receiver can verify authenticity.
+model WebhookEndpoint {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  url       String
+  secret    String
+  events    String[] // e.g. ["quote.created", "quote.accepted", "invoice.paid", "dispute.raised"]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  deliveries WebhookDelivery[]
+
+  @@index([tenantId])
+  @@map("webhook_endpoints")
+}
+
+model WebhookDelivery {
+  id         String          @id @default(cuid())
+  endpointId String
+  endpoint   WebhookEndpoint @relation(fields: [endpointId], references: [id])
+  event      String
+  statusCode Int?
+  error      String?
+  createdAt  DateTime        @default(now())
+
+  @@index([endpointId])
+  @@map("webhook_deliveries")
 }
 
 enum CollectionsTone {

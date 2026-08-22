@@ -147,8 +147,9 @@ Full detail on each surface is in that surface's own README (`README.md`, `apps/
 ## Where to pick up next
 
 1. Push this session's work and apply its migrations to the production database — see "Immediate next action" at the top.
-2. Phase 2 from the competitive roadmap — payment rails, Google Calendar, IMAP inbox, accounting sync, Zapier, WhatsApp two-way inbox — once the relevant provider credentials are available.
-3. Driver app depth (photo/signature, offline queue) once there's a real delivery-heavy pilot customer to build it for.
+2. **Public API + webhooks** (Phase 2.1/2.2, see "Competitive roadmap" below) — the one Phase 2 item that's genuinely unblocked right now (no external credentials needed). Schema's migrated, application code is not written yet.
+3. Phase 2 from the competitive roadmap — payment rails, Google Calendar, IMAP inbox, accounting sync, Zapier, WhatsApp two-way inbox — once the relevant provider credentials are available.
+4. Driver app depth (photo/signature, offline queue) once there's a real delivery-heavy pilot customer to build it for.
 
 ## Next pipeline features — gap vs. ClickUp/Monday
 
@@ -238,3 +239,23 @@ send-only Resend scaffold already exists), Xero/QuickBooks two-way sync,
 Zapier connector, WhatsApp Business API two-way inbox. Code can be
 scoped/built ahead of the credentials arriving, but can't be verified
 live without them.
+
+**Phase 2.1/2.2 — Public API + outbound webhooks (the one Phase 2 item
+that needs no external credentials, only "us"):** schema-only so far.
+`ApiKey`, `WebhookEndpoint`, `WebhookDelivery` models added to
+`prisma/schema.prisma` and migrated locally (migration
+`20260822175544_public_api_webhooks`) — **not yet applied to
+production**, and no application code exists yet: no `src/lib/core/
+apiKeys.ts`, no `/api/v1/*` REST routes, no key-management or webhook
+settings UI, no dispatch function. This is the correct next pickup point
+whenever building resumes — genuinely unblocked, doesn't need any
+partner integration or provider account. Planned shape:
+- `src/lib/core/apiKeys.ts` — `createApiKey`/`listApiKeys`/`revokeApiKey`/
+  `resolveApiKey(rawKey)`, SHA-256 hash stored, plaintext key shown once
+  at creation only (`flow_<hex>` prefix).
+- `/api/v1/*` — REST routes (customers, products, quotes, invoices)
+  authenticated via `Authorization: Bearer <key>`.
+- Settings page for API key management.
+- Webhook dispatch wired into `quote.created`, `quote.accepted`,
+  `invoice.paid`, `dispute.raised`, plus a settings page for endpoint
+  management.
