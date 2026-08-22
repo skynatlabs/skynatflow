@@ -1,8 +1,15 @@
 # flow — Handover
 
-**Last updated:** 2026-08-21
+**Last updated:** 2026-08-22
 **Repo:** [github.com/skynatlabs/skynatflow](https://github.com/skynatlabs/skynatflow) (private)
-**Live deploy:** Vercel project under `skynatlabs' projects` — connected to a real production Supabase database, SSL issue resolved (see "Production DB — SSL gotcha" below), login/signup verified live. **This session's 20 new features are committed locally on `main` but not yet pushed or migrated onto the production database** — that's the single next action.
+**Live deploy:** Vercel project under `skynatlabs' projects` — connected to a real production Supabase database, SSL issue resolved (see "Production DB — SSL gotcha" below), login/signup verified live. **Pushed to `main` and all 16 migrations applied to production as of 2026-08-22.**
+
+## 2026-08-22 update — push + production migrations done
+
+- All local commits pushed to `origin/main` (including the Phase 2.1 API/webhooks schema, which had been sitting uncommitted).
+- Production DB had drifted from the migration history: only migrations 1–3 (`init`, `add_auth_and_tasks`, `customer_portal_and_quote_tracking`) were actually applied, and there was no `_prisma_migrations` ledger table at all — earlier sessions had applied a few migrations by hand via `psql` rather than through Prisma. Verified this column-by-column against the live schema before touching anything.
+- Fix applied: baselined migrations 1–3 as applied (`prisma migrate resolve --applied <name>`), then ran `prisma migrate deploy` for the remaining 13. All 16 applied cleanly; `prisma migrate status` now reports "Database schema is up to date!" against production.
+- **Lesson for future sessions:** don't apply individual `migration.sql` files by hand against production — it silently breaks Prisma's migration ledger and causes exactly this kind of drift. Always use `prisma migrate deploy` (with `DATABASE_URL` pointed at the session-pooler connection string) so the ledger stays authoritative.
 
 > **Session note:** this session took the product from "solid MVP" to feature-parity-plus against GoHighLevel/ClickUp/Monday/Zoho — 20 shipped features (Phase 1 of a researched 70-item competitive roadmap), each built, migrated, and verified live in a real browser against a real Postgres database, not just written. Full detail in "Phase 1 complete" below. Start a fresh session from this file, not from scratch.
 
