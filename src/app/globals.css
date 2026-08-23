@@ -85,6 +85,30 @@ body {
   --kb-tint-mint-ink: #3ddb96;
 }
 
+/* Marketing site override: bolder, more saturated than the dashboard's
+   pastel/muted palette — the marketing site needs to sell, so richer
+   accents and deeper navy (used for black-banded sections) read better
+   than the calm working-app tones. Scoped to .kb-marketing so the
+   dashboard/portal/login surfaces (which also use .kb-shell) are untouched. */
+.kb-shell.kb-marketing {
+  --kb-accent-a: #ff3d00; /* vivid coral-red */
+  --kb-accent-mid: #e0117a; /* saturated magenta */
+  --kb-accent-b: #5b1fd6; /* deep violet */
+  --kb-navy: #050608; /* near-black, for full black-banded sections */
+  --kb-navy-soft: #0d0f1a;
+
+  --kb-tint-blue: #cfe4ff;
+  --kb-tint-blue-ink: #0b4fc4;
+  --kb-tint-yellow: #ffe9a3;
+  --kb-tint-yellow-ink: #8a5a00;
+  --kb-tint-peach: #ffc9a8;
+  --kb-tint-peach-ink: #c23d17;
+  --kb-tint-violet: #ddceff;
+  --kb-tint-violet-ink: #4b1fb8;
+  --kb-tint-mint: #b9f3d6;
+  --kb-tint-mint-ink: #03794f;
+}
+
 /* Cards: soft shadow, generous radius, no border-heavy "glass" look. */
 .kb-card {
   background: var(--kb-panel);

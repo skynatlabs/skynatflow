@@ -1,3 +1,5 @@
+"use client";
+
 // Renders one CMS section by its template `type`. This is the public-facing
 // half of the structured section editor — src/lib/cms/pageTemplates.ts
 // defines which sections exist and what type each is; the super-admin
@@ -5,7 +7,11 @@
 // shape this renders.
 
 import Link from "next/link";
+import { motion } from "motion/react";
+import MotionLink from "@/components/marketing/MotionLink";
 import type { ResolvedSection } from "@/lib/core/cms";
+
+const ELASTIC_HOVER = { whileHover: { scale: 1.05 }, whileTap: { scale: 0.96 }, transition: { type: "spring" as const, stiffness: 400, damping: 15 } };
 
 interface GridItem { title?: string; body?: string; imageUrl?: string }
 interface TestimonialItem { body?: string; name?: string; role?: string; imageUrl?: string }
@@ -46,9 +52,9 @@ function HeroSection({ section }: { section: ResolvedSection }) {
       )}
       {section.ctaLabel && section.ctaHref && (
         <div className="mt-8">
-          <Link href={section.ctaHref} className="kb-pill kb-pill-primary !px-6 !py-3 text-sm">
+          <MotionLink href={section.ctaHref} className="kb-pill kb-pill-primary !px-6 !py-3 text-sm" {...ELASTIC_HOVER}>
             {section.ctaLabel} &rarr;
-          </Link>
+          </MotionLink>
         </div>
       )}
       {section.imageUrl && (
@@ -74,19 +80,19 @@ function RichTextSection({ section }: { section: ResolvedSection }) {
 
 function ImageTextSection({ section }: { section: ResolvedSection }) {
   return (
-    <section className="mx-auto max-w-5xl px-6 py-16">
-      <div className="grid grid-cols-1 items-center gap-10 sm:grid-cols-2">
+    <section className="py-20" style={{ background: "var(--kb-navy)" }}>
+      <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-10 px-6 sm:grid-cols-2">
         <div>
           {section.heading && (
-            <h2 className="text-3xl font-extrabold text-[var(--kb-text)]">{section.heading}</h2>
+            <h2 className="text-3xl font-extrabold text-white">{section.heading}</h2>
           )}
-          {section.body && <p className="mt-4 text-[var(--kb-text-dim)]">{section.body}</p>}
+          {section.body && <p className="mt-4 text-white/60">{section.body}</p>}
         </div>
         {section.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={section.imageUrl} alt="" className="rounded-2xl border border-[var(--kb-panel-border)]" />
+          <img src={section.imageUrl} alt="" className="rounded-2xl border border-white/10" />
         ) : (
-          <div className="kb-card aspect-video" />
+          <div className="kb-glossy aspect-video rounded-2xl" />
         )}
       </div>
     </section>
@@ -156,26 +162,34 @@ function TestimonialsSection({ section }: { section: ResolvedSection }) {
 function LogosSection({ section }: { section: ResolvedSection }) {
   const items = section.items as LogoItem[];
   return (
-    <section className="mx-auto max-w-6xl px-6 py-16">
-      {section.heading && (
-        <h2 className="text-center text-3xl font-extrabold text-[var(--kb-text)]">{section.heading}</h2>
-      )}
-      {items.length > 0 && (
-        <div className="mt-10 grid grid-cols-2 gap-5 sm:grid-cols-4">
-          {items.map((item, i) => {
-            const Wrapper = item.href ? Link : "div";
-            return (
-              <Wrapper key={i} href={item.href ?? "#"} className="kb-card flex items-center justify-center gap-2 p-5">
-                {item.imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.imageUrl} alt={item.title ?? ""} className="h-8 max-w-[80%] object-contain" />
-                )}
-                {!item.imageUrl && item.title && <span className="text-sm font-semibold">{item.title}</span>}
-              </Wrapper>
-            );
-          })}
-        </div>
-      )}
+    <section className="py-16" style={{ background: "var(--kb-navy)" }}>
+      <div className="mx-auto max-w-6xl px-6">
+        {section.heading && (
+          <h2 className="text-center text-3xl font-extrabold text-white">{section.heading}</h2>
+        )}
+        {items.length > 0 && (
+          <div className="mt-10 grid grid-cols-2 gap-5 sm:grid-cols-4">
+            {items.map((item, i) => {
+              const Wrapper = item.href ? Link : "div";
+              return (
+                <Wrapper
+                  key={i}
+                  href={item.href ?? "#"}
+                  className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-5"
+                >
+                  {item.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={item.imageUrl} alt={item.title ?? ""} className="h-8 max-w-[80%] object-contain" />
+                  )}
+                  {!item.imageUrl && item.title && (
+                    <span className="text-sm font-semibold text-white/90">{item.title}</span>
+                  )}
+                </Wrapper>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -196,7 +210,11 @@ function CardsSection({ section }: { section: ResolvedSection }) {
         <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item, i) => {
             const card = (
-              <div className="kb-card h-full overflow-hidden p-0">
+              <motion.div
+                className="kb-card h-full overflow-hidden p-0"
+                whileHover={{ y: -6, scale: 1.02 }}
+                transition={{ type: "spring", stiffness: 300, damping: 18 }}
+              >
                 {item.imageUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={item.imageUrl} alt="" className="h-36 w-full object-cover" />
@@ -205,7 +223,7 @@ function CardsSection({ section }: { section: ResolvedSection }) {
                   {item.title && <p className="font-bold text-[var(--kb-text)]">{item.title}</p>}
                   {item.body && <p className="mt-2 text-sm text-[var(--kb-text-dim)]">{item.body}</p>}
                 </div>
-              </div>
+              </motion.div>
             );
             return item.href ? (
               <Link key={i} href={item.href}>{card}</Link>
@@ -221,18 +239,20 @@ function CardsSection({ section }: { section: ResolvedSection }) {
 
 function CtaSection({ section }: { section: ResolvedSection }) {
   return (
-    <section className="mx-auto max-w-4xl px-6 py-24 text-center">
-      {section.heading && (
-        <h2 className="text-4xl font-extrabold text-[var(--kb-text)]">{section.heading}</h2>
-      )}
-      {section.body && <p className="mx-auto mt-3 max-w-xl text-[var(--kb-text-dim)]">{section.body}</p>}
-      {section.ctaLabel && section.ctaHref && (
-        <div className="mt-8">
-          <Link href={section.ctaHref} className="kb-pill kb-pill-primary !px-8 !py-3.5 text-base">
-            {section.ctaLabel} &rarr;
-          </Link>
-        </div>
-      )}
+    <section className="py-24" style={{ background: "var(--kb-navy)" }}>
+      <div className="mx-auto max-w-4xl px-6 text-center">
+        {section.heading && (
+          <h2 className="text-4xl font-extrabold text-white">{section.heading}</h2>
+        )}
+        {section.body && <p className="mx-auto mt-3 max-w-xl text-white/60">{section.body}</p>}
+        {section.ctaLabel && section.ctaHref && (
+          <div className="mt-8">
+            <MotionLink href={section.ctaHref} className="kb-pill kb-pill-primary !px-8 !py-3.5 text-base" {...ELASTIC_HOVER}>
+              {section.ctaLabel} &rarr;
+            </MotionLink>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

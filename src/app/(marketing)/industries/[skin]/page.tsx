@@ -5,6 +5,7 @@ import { NICHE_CONFIGS } from "@/lib/niches/config";
 import { getPageForRender } from "@/lib/core/cms";
 import { industrySlug } from "@/lib/cms/pageTemplates";
 import CmsPage from "@/components/marketing/CmsPage";
+import PipelinePreview from "@/components/marketing/PipelinePreview";
 
 function resolveSkin(param: string): NicheSkin | null {
   const upper = param.toUpperCase();
@@ -39,21 +40,7 @@ export default async function IndustryPage({ params }: { params: Promise<{ skin:
     <>
       <CmsPage sections={page.sections} />
       {/* Live pipeline preview — derived from NICHE_CONFIGS, not CMS-editable */}
-      <section className="mx-auto max-w-4xl px-6 py-16">
-        <h2 className="text-center text-3xl font-extrabold text-[var(--kb-text)]">
-          Your {config.label.toLowerCase()} pipeline, out of the box
-        </h2>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
-          {config.pipeline.map((stage, i) => (
-            <div key={stage.key} className="flex items-center gap-2">
-              <span className="kb-pill kb-pill-ghost">{stage.label}</span>
-              {i < config.pipeline.length - 1 && (
-                <span className="text-[var(--kb-text-dim)]">&rarr;</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
+      <PipelinePreview label={config.label} stages={config.pipeline} />
     </>
   );
 }
