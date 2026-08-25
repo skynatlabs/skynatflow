@@ -52,6 +52,7 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}`, label: "Home", icon: HomeIcon },
     { href: `/dashboard/${tenantId}/customers`, label: niche.customerLabel + "s", icon: UsersIcon },
     { href: `/dashboard/${tenantId}/products`, label: "Products", icon: BoxIcon },
+    { href: `/dashboard/${tenantId}/inventory`, label: "Inventory", icon: BoxIcon },
     { href: `/dashboard/${tenantId}/quotes/new`, label: "New Quote", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/pipeline`, label: "Pipeline", icon: ColumnsIcon },
     { href: `/dashboard/${tenantId}/ai-drafts`, label: "AI Drafts", icon: SparkleIcon },

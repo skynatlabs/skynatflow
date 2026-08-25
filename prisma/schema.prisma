@@ -101,6 +101,7 @@ model Tenant {
   aiDrafts      AiDraft[]
   disputes      Dispute[]
   apiKeys       ApiKey[]
+  itemBatches   ItemBatch[]
   webhookEndpoints WebhookEndpoint[]
 
   connectionsAsSupplier WholesaleConnection[] @relation("SupplierConnections")
@@ -195,10 +196,30 @@ model Item {
   createdAt     DateTime @default(now())
 
   transactionLines TransactionLine[]
+  batches          ItemBatch[]
 
   @@index([tenantId])
   @@index([tenantId, isActive])
   @@map("items")
+}
+
+// Optional per-batch stock tracking, additive on top of Item.stockQty —
+// only needed for perishable/expiring inventory (FEFO waste reduction).
+// Items that never set a batch just don't get expiry-risk tracking.
+model ItemBatch {
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  itemId     String
+  item       Item      @relation(fields: [itemId], references: [id])
+  quantity   Int
+  receivedAt DateTime  @default(now())
+  expiresAt  DateTime? // null = non-perishable, not tracked for waste risk
+  createdAt  DateTime  @default(now())
+
+  @@index([tenantId])
+  @@index([itemId, expiresAt])
+  @@map("item_batches")
 }
 
 // Money: append-only ledger. Quotes, invoices, payments — one typed table,

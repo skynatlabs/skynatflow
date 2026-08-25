@@ -1,8 +1,34 @@
 # flow — Handover
 
-**Last updated:** 2026-08-22
+**Last updated:** 2026-08-25
 **Repo:** [github.com/skynatlabs/skynatflow](https://github.com/skynatlabs/skynatflow) (private)
-**Live deploy:** Vercel project under `skynatlabs' projects` — connected to a real production Supabase database, SSL issue resolved (see "Production DB — SSL gotcha" below), login/signup verified live. **Pushed to `main` and all 16 migrations applied to production as of 2026-08-22.**
+**Live deploy:** Vercel project under `skynatlabs' projects` — connected to a real production Supabase database, SSL issue resolved (see "Production DB — SSL gotcha" below), login/signup verified live.
+
+## 2026-08-25 update — AI inventory optimization + tax/VAT export (Phase 1 & 2 of the industry-optimization roadmap)
+
+Ran a full pain-point research pass across all 7 niches plus US/RSA tax compliance this session (report delivered to the user as a PDF, not committed to the repo). Started converting that research into features — full 8-phase roadmap below, phases 1–2 built and verified tonight, phases 3–8 scoped for follow-up sessions.
+
+**Design principle used throughout:** numbers come from math (statistical aggregation over existing ledger data), not from an LLM call — the AI's job is reasoning/language (explaining, drafting), not computing forecasts. This is also why it shipped in one session: no new external AI calls needed, just aggregate queries.
+
+**Built tonight:**
+- `src/lib/core/inventory.ts` — demand velocity + heatmap (`getDemandHeatmap`), reorder sizing (`getReorderSuggestions`), and batch/expiry (FEFO waste) tracking (`recordBatch`/`getExpiryRisk`). New `ItemBatch` model (migration `20260825181433_inventory_optimization`), additive on top of `Item.stockQty` — only used when a business logs batches with expiry dates, doesn't touch existing stock tracking.
+- New dashboard page `/dashboard/[tenantId]/inventory` — reorder suggestions, expiry risk, and the demand heatmap ("SKU heat map" — pure sales-velocity ranking, not a physical store-layout map; confirmed that's what was meant before building).
+- `src/lib/core/tax.ts` — `getTaxSummary()`, aggregates tax charged per period from existing `TransactionLine`/`Item.taxRatePercent` data. Supports monthly (US-style) and SARS bi-monthly VAT201-style grouping. Wired into the existing CSV export page/route (`settings/export`) as a new "Tax / VAT summary" entity — no new UI surface needed, reused the "leave anytime" export pattern.
+- Verified: demand heatmap renders correctly against live demo data, batch-logging form → expiry-risk display works end-to-end in-browser, tax math verified against a synthetic PAID invoice (2 units × R100 @ 15% VAT → R30.00 collected, exact). Build, typecheck, and full 14-test suite all pass.
+- **Not yet applied to production** — migration `20260825181433_inventory_optimization` is local-only, and this work is committed locally but not pushed (per this session's "commit for backup, push when asked" instruction).
+
+## 8-phase industry-optimization roadmap (from this session's pain-point research)
+
+1. ✅ **Retail** — inventory optimization (demand heatmap, reorder suggestions, expiry/waste tracking) — built tonight.
+2. ✅ **Tax/VAT (cross-industry, USA & RSA)** — filing-ready export — built tonight.
+3. **Corporate** — overdue-invoice dashboard + optional auto late-fee, using existing `Transaction.dueAt`.
+4. **Services** — speed-to-quote SLA tracker, using existing `Transaction.createdAt`/`respondedAt` on QUOTE rows. (Research flagged this as the single highest-dollar-value gap — missed calls/slow quotes cost the industry $100B+/year — but it needs a call-handling/phone integration flow does not have yet, so the SLA-tracker piece is the buildable slice.)
+5. **Logistics** — hard POD gate (require `Event.photoUrl`/`signedByUrl` before a DELIVERY event can close) + auto-invoice generation on POD capture.
+6. **Medical** — automated appointment reminders at 48h/2h marks, new cron route (pattern: `cron/recurring-invoices`), using existing `Event.scheduledAt` + `sendWhatsAppMessage` (`src/lib/whatsapp/`).
+7. **Wholesale** — credit-limit field on `WholesaleConnection` + `minOrderQty` on `Item`, enforced at order-placement time.
+8. **Ecommerce** — extend the existing AI-draft follow-up engine to also trigger on `Transaction.openCount >= 1 && respondedAt == null` (an opened-but-unconverted quote is functionally an abandoned cart) — reuses infrastructure already built for payment chasing.
+
+Full plan detail (exact function signatures, schema) is in this session's plan file if picking this up cold: `/Users/user/.claude/plans/goofy-brewing-dewdrop.md`.
 
 ## 2026-08-22 update — multi-page marketing site + super-admin CMS
 

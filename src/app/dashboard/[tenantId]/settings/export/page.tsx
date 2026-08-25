@@ -21,6 +21,11 @@ export default async function ExportPage({
       label: "Quotes, invoices & payments",
       desc: "The complete ledger — every transaction, status, and amount.",
     },
+    {
+      entity: "tax-summary",
+      label: "Tax / VAT summary",
+      desc: "Taxable sales and tax collected, grouped by month — ready for your accountant or VAT return.",
+    },
   ];
 
   return (
@@ -38,12 +43,22 @@ export default async function ExportPage({
               <p className="font-medium text-[var(--kb-text)]">{e.label}</p>
               <p className="mt-0.5 text-xs text-[var(--kb-text-dim)]">{e.desc}</p>
             </div>
-            <a
-              href={`/dashboard/${tenantId}/settings/export/${e.entity}`}
-              className="kb-pill kb-pill-primary shrink-0 text-xs"
-            >
-              Download CSV
-            </a>
+            <div className="flex shrink-0 gap-2">
+              <a
+                href={`/dashboard/${tenantId}/settings/export/${e.entity}`}
+                className="kb-pill kb-pill-primary text-xs"
+              >
+                Download CSV
+              </a>
+              {e.entity === "tax-summary" && (
+                <a
+                  href={`/dashboard/${tenantId}/settings/export/${e.entity}?grouping=sars`}
+                  className="kb-pill kb-pill-ghost text-xs"
+                >
+                  SARS bi-monthly
+                </a>
+              )}
+            </div>
           </div>
         ))}
       </div>

@@ -6,13 +6,14 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireTenantAccess, AuthRequiredError, ForbiddenError } from "@/lib/auth/tenant-access";
 import { toCsv } from "@/lib/export/csv";
+import { getTaxSummary } from "@/lib/core/tax";
 
 function money(cents: number) {
   return (cents / 100).toFixed(2);
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ tenantId: string; entity: string }> }
 ) {
   const { tenantId, entity } = await params;
@@ -71,6 +72,16 @@ export async function GET(
       ])
     );
     filename = "transactions.csv";
+  } else if (entity === "tax-summary") {
+    const grouping = new URL(request.url).searchParams.get("grouping") === "sars"
+      ? "sars-bimonthly"
+      : "monthly";
+    const rows = await getTaxSummary(tenantId, { grouping });
+    csv = toCsv(
+      ["Period", "Tax Rate %", "Taxable Sales", "Tax Collected"],
+      rows.map((r) => [r.periodLabel, r.taxRatePercent, money(r.taxableSalesCents), money(r.taxCollectedCents)])
+    );
+    filename = "tax-summary.csv";
   } else {
     notFound();
   }
