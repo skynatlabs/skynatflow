@@ -328,6 +328,34 @@ export async function findStaleTransactions(params: {
   });
 }
 
+// An opened-but-unconverted quote is functionally an abandoned cart —
+// the customer looked, didn't buy, and (unlike a stale quote nobody's
+// touched) we know they were actually interested. Surfaced separately
+// from findStaleTransactions so it can trigger sooner than the standard
+// 3-day staleness window — the moment matters here, per the cart-
+// abandonment research (most recovery messages that work go out within
+// hours, not days).
+export async function findAbandonedQuotes(params: {
+  tenantId: string;
+  minHoursSinceOpen?: number;
+}) {
+  const cutoff = new Date();
+  cutoff.setHours(cutoff.getHours() - (params.minHoursSinceOpen ?? 2));
+
+  return prisma.transaction.findMany({
+    where: {
+      tenantId: params.tenantId,
+      type: TransactionType.QUOTE,
+      status: TransactionStatus.SENT,
+      respondedAt: null,
+      openCount: { gte: 1 },
+      lastOpenedAt: { lt: cutoff },
+    },
+    include: { party: true },
+    orderBy: { lastOpenedAt: "asc" },
+  });
+}
+
 // Cash-sale quick capture — a walk-in transaction recorded in one step
 // instead of quote-then-invoice-then-payment. Still goes through
 // createQuote-esque line items and recordPayment underneath, so it's the

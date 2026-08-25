@@ -6,6 +6,7 @@ import { recordPayment, recordRefund, convertToInvoice } from "@/lib/core/money"
 import { maybeSendReviewRequest } from "@/lib/core/reviews";
 import { createRecurringInvoice, setRecurringInvoiceActive } from "@/lib/core/recurring";
 import { logDelivery } from "@/lib/core/movement";
+import { createTask } from "@/lib/core/tasks";
 import { EventType } from "@prisma/client";
 import type { RecurrenceFrequency } from "@prisma/client";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
@@ -42,6 +43,19 @@ export async function convertToInvoiceAction(formData: FormData) {
     targetId: invoice.id,
     metadata: { fromQuoteId: quoteId, amountCents: invoice.amountCents },
   });
+
+  // One-click quote→invoice + job-card assignment — the "convert and
+  // immediately hand the job to someone" flow, in the same submit instead
+  // of two separate trips through the app.
+  const assigneeId = String(formData.get("assigneeId") ?? "").trim();
+  if (assigneeId) {
+    await createTask({
+      tenantId,
+      title: `Job card — invoice ${invoice.id.slice(-6)}`,
+      assigneeId,
+      partyId: customerId,
+    });
+  }
 
   revalidatePath(`/dashboard/${tenantId}/customers/${customerId}`);
 }

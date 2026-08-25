@@ -13,16 +13,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "tenantId and partyId are required" }, { status: 400 });
   }
 
-  const event = await logDelivery({
-    tenantId,
-    partyId,
-    fromAcceptedQuoteId: quoteId,
-    photoUrl,
-    signedByUrl,
-    gpsLat,
-    gpsLng,
-    notes,
-  });
-
-  return NextResponse.json({ ok: true, event });
+  try {
+    const event = await logDelivery({
+      tenantId,
+      partyId,
+      fromAcceptedQuoteId: quoteId,
+      photoUrl,
+      signedByUrl,
+      gpsLat,
+      gpsLng,
+      notes,
+    });
+    return NextResponse.json({ ok: true, event });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Could not log delivery" },
+      { status: 400 }
+    );
+  }
 }

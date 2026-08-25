@@ -4,7 +4,7 @@
 // order flow — real supply-chain connection, not just a sales channel.
 
 import { prisma } from "@/lib/db";
-import { createQuote, sendQuote } from "./money";
+import { createQuote, sendQuote, customerBalance } from "./money";
 
 export async function inviteConnection(params: {
   supplierTenantId: string;
@@ -59,6 +59,21 @@ export async function placeConnectedOrder(params: {
     throw new Error("Connection must be ACCEPTED before placing orders");
   }
 
+  // MOQ enforcement — catch a below-minimum line before it ever reaches
+  // fulfillment, rather than after pick/pack cost has already been spent.
+  const orderedItems = await Promise.all(
+    params.lines.map((l) => prisma.item.findUniqueOrThrow({ where: { id: l.itemId } }))
+  );
+  for (let i = 0; i < params.lines.length; i++) {
+    const item = orderedItems[i];
+    const qty = params.lines[i].quantity;
+    if (item.minOrderQty != null && qty < item.minOrderQty) {
+      throw new Error(
+        `${item.name} has a minimum order quantity of ${item.minOrderQty} (ordered ${qty})`
+      );
+    }
+  }
+
   // Find or create the buyer-tenant-as-customer Party on the supplier side.
   let buyerParty = await prisma.party.findFirst({
     where: {
@@ -79,13 +94,24 @@ export async function placeConnectedOrder(params: {
   }
 
   const discount = connection.discountPercent ?? 0;
-  const lines = await Promise.all(
-    params.lines.map(async (l) => {
-      const item = await prisma.item.findUniqueOrThrow({ where: { id: l.itemId } });
-      const discountedPrice = Math.round(item.unitPriceCents * (1 - discount / 100));
-      return { itemId: l.itemId, quantity: l.quantity, unitPriceCents: discountedPrice };
-    })
-  );
+  const lines = orderedItems.map((item, i) => {
+    const discountedPrice = Math.round(item.unitPriceCents * (1 - discount / 100));
+    return { itemId: item.id, quantity: params.lines[i].quantity, unitPriceCents: discountedPrice };
+  });
+  const orderTotalCents = lines.reduce((sum, l) => sum + l.quantity * l.unitPriceCents, 0);
+
+  // Credit-limit enforcement — checked against the buyer's current
+  // outstanding balance on the supplier's own books, not a separate
+  // ledger, so it's always in sync with real payment history.
+  if (connection.creditLimitCents != null) {
+    const outstanding = await customerBalance(connection.supplierTenantId, buyerParty.id);
+    if (outstanding + orderTotalCents > connection.creditLimitCents) {
+      throw new Error(
+        `This order would exceed the buyer's credit limit (outstanding ${outstanding / 100} + ` +
+          `order ${orderTotalCents / 100} > limit ${connection.creditLimitCents / 100})`
+      );
+    }
+  }
 
   const quote = await createQuote({
     tenantId: connection.supplierTenantId,

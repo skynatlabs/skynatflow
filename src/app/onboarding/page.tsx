@@ -9,6 +9,7 @@ import { auth } from "@/auth";
 import { NICHE_CONFIGS } from "@/lib/niches/config";
 import { FlowMark } from "@/components/FlowMark";
 import { createTenantAction } from "./actions";
+import PrefillAssist from "./PrefillAssist";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
@@ -35,10 +36,13 @@ export default async function OnboardingPage() {
           the whole platform reconfigures around it.
         </p>
 
+        <PrefillAssist />
+
         <form action={createTenantAction} className="kb-card mt-6 space-y-4 p-6">
+          <input type="hidden" name="catalogItemsJson" id="catalogItemsJson-input" />
           <div>
             <label className={labelClass}>Business name</label>
-            <input name="businessName" required className={inputClass} placeholder="Demo Solar Co" />
+            <input id="businessName-input" name="businessName" required className={inputClass} placeholder="Demo Solar Co" />
           </div>
 
           <div>
@@ -51,6 +55,7 @@ export default async function OnboardingPage() {
                   style={{ background: "var(--kb-tint-violet)" }}
                 >
                   <input
+                    id={`niche-${n.skin}`}
                     type="radio"
                     name="niche"
                     value={n.skin}

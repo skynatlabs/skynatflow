@@ -20,11 +20,22 @@ export async function logDelivery(params: {
   // the money engine" link described in the strategic report, Section 9.
   fromAcceptedQuoteId?: string;
 }) {
+  const type = params.type ?? EventType.DELIVERY;
+
+  // Hard POD gate: a DELIVERY event can't be logged without proof — photo
+  // or signature — because a delivery with no proof is exactly what leaves
+  // a carrier unable to bill (disputed deliveries, rejected invoices) per
+  // the logistics pain-point research. Other event types (SITE_VISIT,
+  // CONSULTATION, etc) are unaffected — proof is optional there.
+  if (type === EventType.DELIVERY && !params.photoUrl && !params.signedByUrl) {
+    throw new Error("A delivery needs a photo or signature as proof before it can be logged.");
+  }
+
   const event = await prisma.event.create({
     data: {
       tenantId: params.tenantId,
       partyId: params.partyId,
-      type: params.type ?? EventType.DELIVERY,
+      type,
       notes: params.notes,
       photoUrl: params.photoUrl,
       signedByUrl: params.signedByUrl,

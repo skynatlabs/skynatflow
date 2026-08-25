@@ -7,6 +7,7 @@ import { customerHistory, getOrCreatePortalToken } from "@/lib/core/parties";
 import { totalPaid, totalRefunded } from "@/lib/core/money";
 import { listRecurringInvoices } from "@/lib/core/recurring";
 import { listComments } from "@/lib/core/comments";
+import { prisma } from "@/lib/db";
 import { addCustomerCommentAction } from "./comments-actions";
 import { PhotoEventForm } from "./PhotoEventForm";
 import {
@@ -30,11 +31,12 @@ export default async function CustomerHistoryPage({
   params: Promise<{ tenantId: string; id: string }>;
 }) {
   const { tenantId, id } = await params;
-  const [{ party, transactions, events }, portalToken, allRecurring, comments] = await Promise.all([
+  const [{ party, transactions, events }, portalToken, allRecurring, comments, memberships] = await Promise.all([
     customerHistory(tenantId, id),
     getOrCreatePortalToken(id),
     listRecurringInvoices(tenantId),
     listComments(tenantId, "Party", id),
+    prisma.membership.findMany({ where: { tenantId }, include: { user: true } }),
   ]);
   const recurringForCustomer = allRecurring.filter((r) => r.partyId === id);
 
@@ -93,10 +95,22 @@ export default async function CustomerHistoryPage({
                   </p>
                 )}
                 {t.type === "QUOTE" && t.status === "ACCEPTED" && !invoicedQuoteIds.has(t.id) && (
-                  <form action={convertToInvoiceAction} className="mt-2">
+                  <form action={convertToInvoiceAction} className="mt-2 flex flex-wrap items-center gap-2">
                     <input type="hidden" name="tenantId" value={tenantId} />
                     <input type="hidden" name="quoteId" value={t.id} />
                     <input type="hidden" name="customerId" value={id} />
+                    <select
+                      name="assigneeId"
+                      defaultValue=""
+                      className="rounded-md border border-[var(--kb-panel-border)] bg-white px-2 py-1 text-xs text-[var(--kb-text)]"
+                    >
+                      <option value="">No job card</option>
+                      {memberships.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          Assign to {m.user.name ?? m.user.email}
+                        </option>
+                      ))}
+                    </select>
                     <button type="submit" className="text-xs font-semibold hover:underline">
                       Convert to invoice &rarr;
                     </button>

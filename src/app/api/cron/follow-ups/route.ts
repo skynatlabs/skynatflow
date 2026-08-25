@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import type { CollectionsTone } from "@prisma/client";
-import { findStaleTransactions } from "@/lib/core/money";
+import { findStaleTransactions, findAbandonedQuotes } from "@/lib/core/money";
 import { countFollowUpsSent } from "@/lib/core/movement";
 import {
   draftFollowUpMessage,
@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
 
   const tenants = await prisma.tenant.findMany();
   let drafted = 0;
+  let abandonedDrafted = 0;
 
   for (const tenant of tenants) {
     const stale = await findStaleTransactions({
@@ -97,7 +98,38 @@ export async function GET(req: NextRequest) {
 
       drafted++;
     }
+
+    // Abandoned-quote recovery — opened but not yet responded to, and not
+    // already caught by the stale-transaction pass above. This is the
+    // ecommerce "abandoned cart" pattern applied to quotes, reusing the
+    // exact same draft-then-approve pipeline as payment chasing.
+    const abandoned = await findAbandonedQuotes({ tenantId: tenant.id, minHoursSinceOpen: 2 });
+
+    for (const tx of abandoned) {
+      if (!tx.party.phone) continue;
+
+      const existingPending = await prisma.aiDraft.findFirst({
+        where: { transactionId: tx.id, status: "PENDING" },
+      });
+      if (existingPending) continue;
+
+      const touchNumber = (await countFollowUpsSent(tx.id)) + 1;
+      const body = await composeFollowUpMessage(tx, touchNumber, tenant.collectionsTone);
+
+      await prisma.aiDraft.create({
+        data: {
+          tenantId: tenant.id,
+          partyId: tx.party.id,
+          transactionId: tx.id,
+          touchNumber,
+          body,
+          reasoning: `They opened this quote (${tx.openCount}x) but haven't responded yet — worth a nudge while it's still fresh, rather than waiting for the standard follow-up cadence.`,
+        },
+      });
+
+      abandonedDrafted++;
+    }
   }
 
-  return NextResponse.json({ ok: true, followUpsDrafted: drafted });
+  return NextResponse.json({ ok: true, followUpsDrafted: drafted, abandonedQuotesDrafted: abandonedDrafted });
 }

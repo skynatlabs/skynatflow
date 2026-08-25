@@ -70,6 +70,12 @@ const CORE_SECTIONS: Record<string, SectionTemplate[]> = {
     { key: "logos", type: "logos", label: "Integration logos" },
     { key: "cta", type: "cta", label: "Final call to action" },
   ],
+  comparison: [
+    { key: "hero", type: "hero", label: "Hero" },
+    { key: "why_flow_wins", type: "grid", label: "Why flow wins" },
+    { key: "vs_tools", type: "cards", label: "Vs. specific tools" },
+    { key: "cta", type: "cta", label: "Final call to action" },
+  ],
 };
 
 const INDUSTRY_SECTIONS: SectionTemplate[] = [
@@ -92,6 +98,7 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
   { slug: "case-studies", title: "Case Studies", path: "/case-studies", group: "core", sections: CORE_SECTIONS["case-studies"] },
   { slug: "benefits", title: "Benefits", path: "/benefits", group: "core", sections: CORE_SECTIONS.benefits },
   { slug: "integrations", title: "Integrations", path: "/integrations", group: "core", sections: CORE_SECTIONS.integrations },
+  { slug: "comparison", title: "Compare", path: "/compare", group: "core", sections: CORE_SECTIONS.comparison },
   ...NICHE_SLUGS.map((skin): PageTemplate => ({
     slug: industrySlug(skin),
     title: NICHE_CONFIGS[skin].label,

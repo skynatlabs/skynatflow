@@ -102,6 +102,14 @@ model Tenant {
   disputes      Dispute[]
   apiKeys       ApiKey[]
   itemBatches   ItemBatch[]
+  notes         Note[]
+  goals         Goal[]
+  expenses      Expense[]
+  messageThreads MessageThread[]
+  timeEntries   TimeEntry[]
+  fuelLogs      FuelLog[]
+  stocktakes    Stocktake[]
+  insuranceClaims InsuranceClaim[]
   webhookEndpoints WebhookEndpoint[]
 
   connectionsAsSupplier WholesaleConnection[] @relation("SupplierConnections")
@@ -143,6 +151,13 @@ model Membership {
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   role      String   @default("OWNER") // OWNER | STAFF | DRIVER | REP | TECHNICIAN
+  // Org hierarchy — additive on top of the per-staff account that already
+  // existed (Membership = one person's account on one business). Optional:
+  // a flat team with no managers set is still perfectly valid.
+  managerId String?
+  manager   Membership?  @relation("ManagerOf", fields: [managerId], references: [id])
+  reports   Membership[] @relation("ManagerOf")
+  department String?
   createdAt DateTime @default(now())
 
   @@unique([userId, tenantId])
@@ -193,10 +208,12 @@ model Item {
   isActive      Boolean  @default(true) // soft-hide from the catalog picker without deleting history
   stockQty      Int?     // null = service line item, not stock-tracked
   reorderPoint  Int?
+  minOrderQty   Int?     // wholesale MOQ — null = no minimum enforced
   createdAt     DateTime @default(now())
 
   transactionLines TransactionLine[]
   batches          ItemBatch[]
+  stocktakes       Stocktake[]
 
   @@index([tenantId])
   @@index([tenantId, isActive])
@@ -322,6 +339,11 @@ model WholesaleConnection {
   // per-item tiers, which is a natural Phase 9 extension once real
   // wholesale customers ask for it.
   discountPercent  Float?
+  // Null = no limit enforced. Checked against the buyer's outstanding
+  // balance on the supplier's books before a new connected order is
+  // accepted — the credit-risk gap identified in the wholesale pain-point
+  // research (orders placed with no visibility into buyer credit exposure).
+  creditLimitCents Int?
   createdAt        DateTime         @default(now())
 
   @@unique([supplierTenantId, buyerTenantId])
@@ -588,4 +610,169 @@ model PageSection {
 
   @@unique([pageId, key])
   @@map("page_sections")
+}
+
+model Note {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  entityType String // "Party" | "Transaction" | "Task" | "Tenant" (general note)
+  entityId   String?
+  authorId   String // Membership.id
+  title      String?
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, entityType, entityId])
+  @@map("notes")
+}
+
+enum GoalStatus {
+  ON_TRACK
+  AT_RISK
+  ACHIEVED
+  MISSED
+}
+
+model Goal {
+  id           String     @id @default(cuid())
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  ownerId      String? // Membership.id — null = whole-company goal
+  title        String
+  metricLabel  String // e.g. "Revenue", "New customers"
+  targetValue  Float
+  currentValue Float      @default(0)
+  dueDate      DateTime?
+  status       GoalStatus @default(ON_TRACK)
+  createdAt    DateTime   @default(now())
+
+  @@index([tenantId])
+  @@map("goals")
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Expense {
+  id              String        @id @default(cuid())
+  tenantId        String
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
+  submittedById   String // Membership.id
+  category        String?
+  descriptionText String
+  amountCents     Int
+  receiptDataUrl  String? // optional attached slip — same base64 pattern as e-signatures
+  status          ExpenseStatus @default(PENDING)
+  approvedById    String?
+  createdAt       DateTime      @default(now())
+
+  @@index([tenantId, status])
+  @@map("expenses")
+}
+
+// A Thread is either a DM (two participantIds), a named group, or scoped
+// to a Task (job card). Polling-based reads for v1 — no websocket infra
+// in this stack yet, and the rest of the dashboard already works this way
+// (server components + revalidatePath), so this stays consistent with it.
+model MessageThread {
+  id              String    @id @default(cuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  name            String? // set for group threads, null for a DM
+  taskId          String? // optional: scoped to a job card/project task
+  participantIds  String[] // Membership.id[]
+  createdAt       DateTime  @default(now())
+
+  messages Message[]
+
+  @@index([tenantId])
+  @@map("message_threads")
+}
+
+model Message {
+  id        String        @id @default(cuid())
+  threadId  String
+  thread    MessageThread @relation(fields: [threadId], references: [id])
+  authorId  String // Membership.id
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@index([threadId, createdAt])
+  @@map("messages")
+}
+
+model TimeEntry {
+  id           String    @id @default(cuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  membershipId String // who clocked in
+  clockInAt    DateTime  @default(now())
+  clockOutAt   DateTime?
+  notes        String?
+
+  @@index([tenantId, membershipId])
+  @@map("time_entries")
+}
+
+model FuelLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  driverId   String // Membership.id
+  odometerKm Int?
+  litres     Float
+  costCents  Int
+  loggedAt   DateTime @default(now())
+  notes      String?
+
+  @@index([tenantId, driverId])
+  @@map("fuel_logs")
+}
+
+// Expected vs counted stock, per count — the retail shrinkage-variance
+// research finding, made visible instead of only discovered months later.
+model Stocktake {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  itemId      String
+  item        Item     @relation(fields: [itemId], references: [id])
+  expectedQty Int
+  countedQty  Int
+  countedById String // Membership.id
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, itemId])
+  @@map("stocktakes")
+}
+
+enum ClaimStatus {
+  SUBMITTED
+  PAID
+  DENIED
+  REWORKED
+}
+
+// Structured insurance-claim tracking — not a real payer/insurance API
+// integration, just the difference between "a denied claim quietly aged
+// into a write-off" (the research finding) and one that's visibly tracked
+// until it's resolved.
+model InsuranceClaim {
+  id           String      @id @default(cuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id])
+  transactionId String     // the invoice this claim is for
+  payerName    String
+  claimedCents Int
+  status       ClaimStatus @default(SUBMITTED)
+  denialReason String?
+  submittedAt  DateTime    @default(now())
+  resolvedAt   DateTime?
+
+  @@index([tenantId, status])
+  @@map("insurance_claims")
 }

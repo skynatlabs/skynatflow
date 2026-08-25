@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: "/ai", label: "AI & Agents" },
   { href: "/case-studies", label: "Case Studies" },
   { href: "/benefits", label: "Benefits" },
+  { href: "/compare", label: "Compare" },
   { href: "/integrations", label: "Integrations" },
 ];
 
