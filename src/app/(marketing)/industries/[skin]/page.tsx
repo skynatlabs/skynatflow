@@ -7,13 +7,15 @@ import { industrySlug } from "@/lib/cms/pageTemplates";
 import CmsPage from "@/components/marketing/CmsPage";
 import PipelinePreview from "@/components/marketing/PipelinePreview";
 
+// Rendered dynamically, not statically — this page is CMS-editable via
+// /admin, and a static build would bake in whatever content existed at
+// deploy time, silently ignoring any admin edit made afterward (the same
+// bug just found and fixed on every other marketing page).
+export const dynamic = "force-dynamic";
+
 function resolveSkin(param: string): NicheSkin | null {
   const upper = param.toUpperCase();
   return upper in NICHE_CONFIGS ? (upper as NicheSkin) : null;
-}
-
-export async function generateStaticParams() {
-  return Object.keys(NICHE_CONFIGS).map((skin) => ({ skin: skin.toLowerCase() }));
 }
 
 export async function generateMetadata({
