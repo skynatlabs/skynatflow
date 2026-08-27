@@ -21,7 +21,7 @@ export interface NicheConfig {
   // purely a UI/vocabulary concern, all backed by the same Transaction rows.
   pipeline: PipelineStage[];
   // Which core capabilities are emphasized in this niche's dashboard.
-  emphasizes: Array<"quoting" | "inventory" | "delivery" | "wholesale" | "appointments" | "subscriptions">;
+  emphasizes: Array<"quoting" | "inventory" | "delivery" | "wholesale" | "appointments" | "subscriptions" | "membership">;
 }
 
 export const NICHE_CONFIGS: Record<NicheSkin, NicheConfig> = {
@@ -117,6 +117,19 @@ export const NICHE_CONFIGS: Record<NicheSkin, NicheConfig> = {
       { key: "fulfilled", label: "Fulfilled" },
     ],
     emphasizes: ["inventory", "subscriptions"],
+  },
+  NONPROFIT: {
+    skin: "NONPROFIT",
+    label: "Non-Profit / Faith Organizations",
+    tagline: "Membership, donations, and compliance — never lose a record again.",
+    customerLabel: "Member",
+    pipeline: [
+      { key: "prospect", label: "Prospect" },
+      { key: "member", label: "Member" },
+      { key: "active", label: "Active" },
+      { key: "lapsed", label: "Lapsed" },
+    ],
+    emphasizes: ["membership", "appointments"],
   },
 };
 

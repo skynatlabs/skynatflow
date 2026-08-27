@@ -37,9 +37,11 @@ const CORE_SECTIONS: Record<string, SectionTemplate[]> = {
   home: [
     { key: "hero", type: "hero", label: "Hero" },
     { key: "stats", type: "grid", label: "Stats strip" },
+    { key: "before_after", type: "cards", label: "Before / after transformation" },
     { key: "verticals", type: "cards", label: "Verticals grid" },
     { key: "features", type: "grid", label: "Feature grid" },
     { key: "ai_section", type: "imageText", label: "AI callout" },
+    { key: "faq", type: "grid", label: "FAQ / objections" },
     { key: "cta", type: "cta", label: "Final call to action" },
   ],
   about: [
@@ -76,12 +78,21 @@ const CORE_SECTIONS: Record<string, SectionTemplate[]> = {
     { key: "vs_tools", type: "cards", label: "Vs. specific tools" },
     { key: "cta", type: "cta", label: "Final call to action" },
   ],
+  pricing: [
+    { key: "hero", type: "hero", label: "Hero" },
+    { key: "tiers", type: "cards", label: "Pricing tiers" },
+    { key: "roi", type: "imageText", label: "ROI framing" },
+    { key: "faq", type: "grid", label: "FAQ / objections" },
+    { key: "cta", type: "cta", label: "Final call to action" },
+  ],
 };
 
 const INDUSTRY_SECTIONS: SectionTemplate[] = [
   { key: "hero", type: "hero", label: "Hero" },
   { key: "pain_points", type: "grid", label: "Pain points / benefits" },
+  { key: "how_it_works", type: "imageText", label: "How it works for this industry" },
   { key: "testimonials", type: "testimonials", label: "Testimonials" },
+  { key: "faq", type: "grid", label: "FAQ / objections" },
   { key: "cta", type: "cta", label: "Final call to action" },
 ];
 
@@ -99,6 +110,7 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
   { slug: "benefits", title: "Benefits", path: "/benefits", group: "core", sections: CORE_SECTIONS.benefits },
   { slug: "integrations", title: "Integrations", path: "/integrations", group: "core", sections: CORE_SECTIONS.integrations },
   { slug: "comparison", title: "Compare", path: "/compare", group: "core", sections: CORE_SECTIONS.comparison },
+  { slug: "pricing", title: "Pricing", path: "/pricing", group: "core", sections: CORE_SECTIONS.pricing },
   ...NICHE_SLUGS.map((skin): PageTemplate => ({
     slug: industrySlug(skin),
     title: NICHE_CONFIGS[skin].label,

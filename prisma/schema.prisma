@@ -17,6 +17,8 @@ enum PartyRole {
   SUPPLIER
   STAFF
   PATIENT // Medical niche — appointment/visit tracking only, no clinical/health data fields
+  MEMBER // Non-profit niche
+  SPONSOR // Non-profit niche — partners/sponsors, distinct from individual members
 }
 
 enum TransactionType {
@@ -28,7 +30,7 @@ enum TransactionType {
 }
 
 enum QuoteKind {
-  BASIC    // plain line-item quote, no narrative content
+  BASIC // plain line-item quote, no narrative content
   PROPOSAL // adds an intro + scope-of-work section above the line items
 }
 
@@ -51,6 +53,7 @@ enum EventType {
   FOLLOW_UP_SENT
   CONSULTATION // Medical niche — an appointment/visit record, non-clinical
   ORDER_PLACED // Ecommerce niche — order confirmed, ahead of fulfillment
+  PROPERTY_INSPECTION // Property niche — inspection/maintenance visit
 }
 
 enum NicheSkin {
@@ -61,6 +64,7 @@ enum NicheSkin {
   RETAIL
   WHOLESALE
   ECOMMERCE
+  NONPROFIT
 }
 
 enum ConnectionStatus {
@@ -76,41 +80,55 @@ enum TaskStatus {
 }
 
 model Tenant {
-  id        String    @id @default(cuid())
-  name      String
-  niche     NicheSkin @default(SERVICES)
+  id              String          @id @default(cuid())
+  name            String
+  niche           NicheSkin       @default(SERVICES)
   // Public booking page config: { enabled, workDays: [1-5], startHour,
   // endHour, slotMins }. Null/absent = booking page not set up yet.
-  bookingConfig Json?
+  bookingConfig   Json?
   googleReviewUrl String? // customer-facing link sent in the post-payment review request
   // Owner-controlled empathy dial on the escalating follow-up engine —
   // chase payment without torching the relationship. Applied to every
   // touch's tone, not just the final one.
   collectionsTone CollectionsTone @default(STANDARD)
-  createdAt DateTime  @default(now())
+  // Doc backup — daily copy of new documents (signed quotes, filings,
+  // lease contracts) to the owner's own cloud storage. Checkpoint: needs
+  // real Google OAuth app registration before this does anything beyond
+  // logging — same graceful-degradation pattern as WhatsApp/R2.
+  docBackupProvider  String? // "google_drive" | null = not connected
+  docBackupConnected Boolean @default(false)
+  createdAt       DateTime        @default(now())
 
-  memberships  Membership[]
-  parties      Party[]
-  items        Item[]
-  transactions Transaction[]
-  events       Event[]
-  tasks        Task[]
-  recurringInvoices RecurringInvoice[]
-  comments      Comment[]
-  proposalTemplates ProposalTemplate[]
-  aiDrafts      AiDraft[]
-  disputes      Dispute[]
-  apiKeys       ApiKey[]
-  itemBatches   ItemBatch[]
-  notes         Note[]
-  goals         Goal[]
-  expenses      Expense[]
-  messageThreads MessageThread[]
-  timeEntries   TimeEntry[]
-  fuelLogs      FuelLog[]
-  stocktakes    Stocktake[]
-  insuranceClaims InsuranceClaim[]
-  webhookEndpoints WebhookEndpoint[]
+  memberships            Membership[]
+  parties                Party[]
+  items                  Item[]
+  transactions           Transaction[]
+  events                 Event[]
+  tasks                  Task[]
+  recurringInvoices      RecurringInvoice[]
+  comments               Comment[]
+  proposalTemplates      ProposalTemplate[]
+  aiDrafts               AiDraft[]
+  disputes               Dispute[]
+  apiKeys                ApiKey[]
+  itemBatches            ItemBatch[]
+  notes                  Note[]
+  goals                  Goal[]
+  expenses               Expense[]
+  messageThreads         MessageThread[]
+  timeEntries            TimeEntry[]
+  fuelLogs               FuelLog[]
+  stocktakes             Stocktake[]
+  insuranceClaims        InsuranceClaim[]
+  membershipInvolvements MembershipInvolvement[]
+  donations              Donation[]
+  complianceFilings      ComplianceFiling[]
+  rentals                Rental[]
+  properties             Property[]
+  leases                 Lease[]
+  tillSessions           TillSession[]
+  posIntegrations        PosIntegration[]
+  webhookEndpoints       WebhookEndpoint[]
 
   connectionsAsSupplier WholesaleConnection[] @relation("SupplierConnections")
   connectionsAsBuyer    WholesaleConnection[] @relation("BuyerConnections")
@@ -124,15 +142,15 @@ model Tenant {
 // membership, for support and cross-business oversight. This is distinct
 // from an OWNER membership, which only grants access to that one business.
 model User {
-  id           String       @id @default(cuid())
-  email        String       @unique
+  id           String   @id @default(cuid())
+  email        String   @unique
   name         String?
   phone        String? // WhatsApp-reachable — where the daily briefing goes
   passwordHash String? // null = account exists (e.g. added by a staff invite) but hasn't been claimed with a password yet
-  isSuperAdmin Boolean      @default(false)
+  isSuperAdmin Boolean  @default(false)
   totpSecret   String? // base32, set once 2FA setup is confirmed
-  totpEnabled  Boolean      @default(false)
-  createdAt    DateTime     @default(now())
+  totpEnabled  Boolean  @default(false)
+  createdAt    DateTime @default(now())
 
   memberships Membership[]
 
@@ -145,20 +163,20 @@ model User {
 // contact. Role granularity (OWNER/STAFF/DRIVER/REP/TECHNICIAN) matches the
 // Role type in src/lib/core/access.ts.
 model Membership {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  role      String   @default("OWNER") // OWNER | STAFF | DRIVER | REP | TECHNICIAN
+  id         String       @id @default(cuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id])
+  tenantId   String
+  tenant     Tenant       @relation(fields: [tenantId], references: [id])
+  role       String       @default("OWNER") // OWNER | STAFF | DRIVER | REP | TECHNICIAN
   // Org hierarchy — additive on top of the per-staff account that already
   // existed (Membership = one person's account on one business). Optional:
   // a flat team with no managers set is still perfectly valid.
-  managerId String?
-  manager   Membership?  @relation("ManagerOf", fields: [managerId], references: [id])
-  reports   Membership[] @relation("ManagerOf")
+  managerId  String?
+  manager    Membership?  @relation("ManagerOf", fields: [managerId], references: [id])
+  reports    Membership[] @relation("ManagerOf")
   department String?
-  createdAt DateTime @default(now())
+  createdAt  DateTime     @default(now())
 
   @@unique([userId, tenantId])
   @@index([tenantId])
@@ -168,25 +186,29 @@ model Membership {
 
 // People: customers, suppliers, staff — one address book, one table.
 model Party {
-  id        String    @id @default(cuid())
-  tenantId  String
-  tenant    Tenant    @relation(fields: [tenantId], references: [id])
-  role      PartyRole
-  name      String
-  phone     String? // WhatsApp-reachable number, E.164
-  email     String?
-  notes     String?
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  role        PartyRole
+  name        String
+  phone       String? // WhatsApp-reachable number, E.164
+  email       String?
+  notes       String?
   // Customer portal — a token-login link (Soler's proven pattern,
   // generalized onto the shared Party model), no password needed. Lazily
   // generated the first time a portal link is requested for this party.
-  portalToken String? @unique
-  createdAt DateTime  @default(now())
+  portalToken String?   @unique
+  createdAt   DateTime  @default(now())
 
-  transactions Transaction[]
-  events       Event[]
-  recurringInvoices RecurringInvoice[]
-  aiDrafts      AiDraft[]
-  disputes      Dispute[]
+  transactions           Transaction[]
+  events                 Event[]
+  recurringInvoices      RecurringInvoice[]
+  aiDrafts               AiDraft[]
+  disputes               Dispute[]
+  membershipInvolvements MembershipInvolvement[]
+  donations              Donation[]
+  rentals                Rental[]
+  leasesAsRenter         Lease[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -195,25 +217,31 @@ model Party {
 
 // Items: stock, services, catalog entries — shared across retail/wholesale/services.
 model Item {
-  id            String   @id @default(cuid())
-  tenantId      String
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  name          String
-  sku           String?
-  unitPriceCents Int
-  costCents     Int?     // for margin reporting — optional, owner may not track cost
-  taxRatePercent Int?    // e.g. 15 for 15% VAT; null = no tax applied
-  category      String?
-  imageUrl      String?
-  isActive      Boolean  @default(true) // soft-hide from the catalog picker without deleting history
-  stockQty      Int?     // null = service line item, not stock-tracked
-  reorderPoint  Int?
-  minOrderQty   Int?     // wholesale MOQ — null = no minimum enforced
-  createdAt     DateTime @default(now())
+  id              String          @id @default(cuid())
+  tenantId        String
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+  name            String
+  sku             String?
+  unitPriceCents  Int
+  costCents       Int? // for margin reporting — optional, owner may not track cost
+  taxRatePercent  Int? // e.g. 15 for 15% VAT; null = no tax applied
+  category        String?
+  imageUrl        String?
+  isActive        Boolean         @default(true) // soft-hide from the catalog picker without deleting history
+  stockQty        Int? // null = service line item, not stock-tracked
+  reorderPoint    Int?
+  minOrderQty     Int? // wholesale MOQ — null = no minimum enforced
+  // Rentals — platform-wide, not tied to one niche. An Item can be
+  // rentable instead of (or as well as) sellable.
+  isRentable      Boolean         @default(false)
+  rentalRateCents Int?
+  rentalRateUnit  RentalRateUnit?
+  createdAt       DateTime        @default(now())
 
   transactionLines TransactionLine[]
   batches          ItemBatch[]
   stocktakes       Stocktake[]
+  rentals          Rental[]
 
   @@index([tenantId])
   @@index([tenantId, isActive])
@@ -242,40 +270,44 @@ model ItemBatch {
 // Money: append-only ledger. Quotes, invoices, payments — one typed table,
 // never mutated after creation, only superseded by a new row referencing it.
 model Transaction {
-  id          String             @id @default(cuid())
-  tenantId    String
-  tenant      Tenant             @relation(fields: [tenantId], references: [id])
-  partyId     String
-  party       Party              @relation(fields: [partyId], references: [id])
-  type        TransactionType
-  status      TransactionStatus  @default(DRAFT)
-  amountCents Int
-  parentId    String?            // e.g. an INVOICE points back at the QUOTE it came from
-  parent      Transaction?       @relation("TransactionLineage", fields: [parentId], references: [id])
-  children    Transaction[]      @relation("TransactionLineage")
-  createdAt   DateTime           @default(now())
-  dueAt       DateTime?
-  respondedAt DateTime?          // when the customer last replied/acted — drives the follow-up engine
-  signatureDataUrl String?       // customer's e-signature on quote acceptance, captured via the portal
+  id                  String            @id @default(cuid())
+  tenantId            String
+  tenant              Tenant            @relation(fields: [tenantId], references: [id])
+  partyId             String
+  party               Party             @relation(fields: [partyId], references: [id])
+  type                TransactionType
+  status              TransactionStatus @default(DRAFT)
+  amountCents         Int
+  parentId            String? // e.g. an INVOICE points back at the QUOTE it came from
+  parent              Transaction?      @relation("TransactionLineage", fields: [parentId], references: [id])
+  children            Transaction[]     @relation("TransactionLineage")
+  createdAt           DateTime          @default(now())
+  dueAt               DateTime?
+  respondedAt         DateTime? // when the customer last replied/acted — drives the follow-up engine
+  signatureDataUrl    String? // customer's e-signature on quote acceptance, captured via the portal
   // Acceptance audit trail — the difference between "we have a drawn
   // signature" and "this holds up as a real contract record." The hash
   // binds the amount/lines/signature/timestamp together so any later
   // tampering with the quote is detectable by recomputing and comparing.
-  acceptanceIp   String?
-  acceptanceHash String?
+  acceptanceIp        String?
+  acceptanceHash      String?
   reviewRequestSentAt DateTime? // fires once, the moment an invoice first reaches PAID
   // Quote presentation (BASIC vs PROPOSAL). Only meaningful on QUOTE rows;
   // introText/scopeOfWork are populated for PROPOSAL and shown above the
   // line items on both the web link and the PDF.
-  quoteKind   QuoteKind? @default(BASIC)
-  introText   String?
-  scopeOfWork String?
+  quoteKind           QuoteKind?        @default(BASIC)
+  introText           String?
+  scopeOfWork         String?
   // Quote-open tracking (Soler's hot-lead pattern): a customer opening the
   // portal link for a quote is a buying signal, tracked independent of
   // whether they've responded yet.
-  openCount     Int       @default(0)
-  firstOpenedAt DateTime?
-  lastOpenedAt  DateTime?
+  openCount           Int               @default(0)
+  firstOpenedAt       DateTime?
+  lastOpenedAt        DateTime?
+  // POS checkout — only set on PAYMENT rows recorded at a till.
+  paymentMethod       String? // "cash" | "card" | provider id, e.g. "yoco"
+  tillSessionId       String?
+  tillSession         TillSession?      @relation(fields: [tillSessionId], references: [id])
 
   itemLines TransactionLine[]
 
@@ -286,12 +318,12 @@ model Transaction {
 }
 
 model TransactionLine {
-  id            String      @id @default(cuid())
-  transactionId String
-  transaction   Transaction @relation(fields: [transactionId], references: [id])
-  itemId        String
-  item          Item        @relation(fields: [itemId], references: [id])
-  quantity      Int
+  id             String      @id @default(cuid())
+  transactionId  String
+  transaction    Transaction @relation(fields: [transactionId], references: [id])
+  itemId         String
+  item           Item        @relation(fields: [itemId], references: [id])
+  quantity       Int
   unitPriceCents Int
 
   @@index([transactionId])
@@ -305,7 +337,7 @@ model Event {
   tenant        Tenant    @relation(fields: [tenantId], references: [id])
   partyId       String?
   party         Party?    @relation(fields: [partyId], references: [id])
-  transactionId String?   // which quote/invoice this event relates to, e.g. a FOLLOW_UP_SENT
+  transactionId String? // which quote/invoice this event relates to, e.g. a FOLLOW_UP_SENT
   type          EventType
   notes         String?
   photoUrl      String?
@@ -554,18 +586,18 @@ enum RecurrenceFrequency {
 // product later doesn't silently change a subscription's price. The cron
 // route is the only writer of nextRunAt; everything else just reads it.
 model RecurringInvoice {
-  id          String              @id @default(cuid())
-  tenantId    String
-  tenant      Tenant              @relation(fields: [tenantId], references: [id])
-  partyId     String
-  party       Party               @relation(fields: [partyId], references: [id])
-  frequency   RecurrenceFrequency
-  dueInDays   Int                 @default(14)
-  isActive    Boolean             @default(true)
-  lines       Json // snapshot: [{ itemId, name, quantity, unitPriceCents }]
-  nextRunAt   DateTime
-  lastRunAt   DateTime?
-  createdAt   DateTime            @default(now())
+  id        String              @id @default(cuid())
+  tenantId  String
+  tenant    Tenant              @relation(fields: [tenantId], references: [id])
+  partyId   String
+  party     Party               @relation(fields: [partyId], references: [id])
+  frequency RecurrenceFrequency
+  dueInDays Int                 @default(14)
+  isActive  Boolean             @default(true)
+  lines     Json // snapshot: [{ itemId, name, quantity, unitPriceCents }]
+  nextRunAt DateTime
+  lastRunAt DateTime?
+  createdAt DateTime            @default(now())
 
   @@index([tenantId])
   @@index([isActive, nextRunAt])
@@ -605,8 +637,8 @@ model PageSection {
   // Repeatable sub-items for grid/testimonials/logos/cards sections:
   // [{ title, body, imageUrl, href, name, role }, ...] — shape varies by
   // section type, interpreted by SectionRenderer per pageTemplates.ts.
-  items Json?
-  order Int  @default(0)
+  items      Json?
+  order      Int         @default(0)
 
   @@unique([pageId, key])
   @@map("page_sections")
@@ -679,13 +711,13 @@ model Expense {
 // in this stack yet, and the rest of the dashboard already works this way
 // (server components + revalidatePath), so this stays consistent with it.
 model MessageThread {
-  id              String    @id @default(cuid())
-  tenantId        String
-  tenant          Tenant    @relation(fields: [tenantId], references: [id])
-  name            String? // set for group threads, null for a DM
-  taskId          String? // optional: scoped to a job card/project task
-  participantIds  String[] // Membership.id[]
-  createdAt       DateTime  @default(now())
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  name           String? // set for group threads, null for a DM
+  taskId         String? // optional: scoped to a job card/project task
+  participantIds String[] // Membership.id[]
+  createdAt      DateTime @default(now())
 
   messages Message[]
 
@@ -762,17 +794,244 @@ enum ClaimStatus {
 // into a write-off" (the research finding) and one that's visibly tracked
 // until it's resolved.
 model InsuranceClaim {
-  id           String      @id @default(cuid())
-  tenantId     String
-  tenant       Tenant      @relation(fields: [tenantId], references: [id])
-  transactionId String     // the invoice this claim is for
-  payerName    String
-  claimedCents Int
-  status       ClaimStatus @default(SUBMITTED)
-  denialReason String?
-  submittedAt  DateTime    @default(now())
-  resolvedAt   DateTime?
+  id            String      @id @default(cuid())
+  tenantId      String
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+  transactionId String // the invoice this claim is for
+  payerName     String
+  claimedCents  Int
+  status        ClaimStatus @default(SUBMITTED)
+  denialReason  String?
+  submittedAt   DateTime    @default(now())
+  resolvedAt    DateTime?
 
   @@index([tenantId, status])
   @@map("insurance_claims")
+}
+
+// ---------------------------------------------------------------------
+// POS — own built-in checkout plus region-scaffolded card-provider
+// integrations (RSA/Yoco first). A TillSession brackets a cash-drawer
+// session (open float -> sales -> close/count), same reconciliation
+// philosophy as Stocktake: expected vs counted, variance surfaced instead
+// of silently absorbed.
+// ---------------------------------------------------------------------
+
+model TillSession {
+  id                  String    @id @default(cuid())
+  tenantId            String
+  tenant              Tenant    @relation(fields: [tenantId], references: [id])
+  openedById          String // Membership.id
+  openingFloatCents   Int
+  openedAt            DateTime  @default(now())
+  closedById          String?
+  closingCountedCents Int?
+  closedAt            DateTime?
+
+  payments Transaction[]
+
+  @@index([tenantId])
+  @@map("till_sessions")
+}
+
+enum PosProviderType {
+  YOCO
+  IKHOKHA
+  SQUARE
+  ZELLER
+  GENERIC
+}
+
+// Scaffolded per-region so adding a new market is one new provider file,
+// not a schema change — region is stored alongside provider so the
+// settings UI can filter the picker to what's relevant for that tenant.
+model PosIntegration {
+  id        String          @id @default(cuid())
+  tenantId  String
+  tenant    Tenant          @relation(fields: [tenantId], references: [id])
+  provider  PosProviderType
+  region    String // "RSA" | "USA" | "AU" | "EU"
+  apiKey    String? // opaque; stubbed (logs instead of charging) until set
+  isActive  Boolean         @default(false)
+  createdAt DateTime        @default(now())
+
+  @@unique([tenantId, provider])
+  @@index([tenantId])
+  @@map("pos_integrations")
+}
+
+// ---------------------------------------------------------------------
+// Non-profit / faith organization niche — membership, donations, and
+// compliance-filing history, built append-only so "prove I was involved,
+// from when to when" is always answerable later (the real gap that
+// prompted this module: churches/NPOs losing exactly this kind of record).
+// ---------------------------------------------------------------------
+
+enum InvolvementRole {
+  MEMBER
+  VOLUNTEER
+  BOARD
+  STAFF
+  SPONSOR
+}
+
+// A person's involvement is tracked as a history of roles over time rather
+// than a single current status — closing (setting endDate) never deletes
+// the row, so a past involvement is provable years later.
+model MembershipInvolvement {
+  id        String          @id @default(cuid())
+  tenantId  String
+  tenant    Tenant          @relation(fields: [tenantId], references: [id])
+  partyId   String
+  party     Party           @relation(fields: [partyId], references: [id])
+  role      InvolvementRole
+  startDate DateTime
+  endDate   DateTime?
+  notes     String?
+  createdAt DateTime        @default(now())
+
+  @@index([tenantId, partyId])
+  @@map("membership_involvements")
+}
+
+// A real ledger, kept separate from the commercial Transaction model —
+// a donation isn't a sale (no line items, no VAT), it's a gift toward a
+// designated fund/purpose, and needs its own receipt/certificate trail.
+model Donation {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  partyId        String
+  party          Party    @relation(fields: [partyId], references: [id])
+  amountCents    Int
+  designatedFund String? // e.g. "Building Fund", "General", null = unrestricted
+  receiptNumber  String?
+  donatedAt      DateTime @default(now())
+
+  @@index([tenantId, donatedAt])
+  @@map("donations")
+}
+
+// Structured record of the exact kind of document whose absence caused
+// the user's real problem — annual returns, PBO/tax-exempt filings, AGM
+// minutes. documentDataUrl reuses the same base64 attachment pattern as
+// e-signatures/photos elsewhere, no object storage dependency.
+model ComplianceFiling {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  filingType      String // "Annual Return" | "PBO Renewal" | "AGM Minutes" | ...
+  filingDate      DateTime
+  documentDataUrl String?
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId, filingType])
+  @@map("compliance_filings")
+}
+
+// ---------------------------------------------------------------------
+// Rentals — platform-wide, not tied to one niche. Any Item can be marked
+// rentable instead of (or as well as) sellable; a Rental tracks the
+// out/returned lifecycle a straight sale doesn't need.
+// ---------------------------------------------------------------------
+
+enum RentalRateUnit {
+  HOUR
+  DAY
+  WEEK
+  MONTH
+}
+
+enum RentalStatus {
+  ACTIVE
+  RETURNED
+  OVERDUE
+}
+
+model Rental {
+  id            String         @id @default(cuid())
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  itemId        String
+  item          Item           @relation(fields: [itemId], references: [id])
+  partyId       String
+  party         Party          @relation(fields: [partyId], references: [id])
+  startAt       DateTime       @default(now())
+  endAt         DateTime? // expected return — null = open-ended
+  returnedAt    DateTime?
+  rateCents     Int
+  rateUnit      RentalRateUnit
+  depositCents  Int?
+  status        RentalStatus   @default(ACTIVE)
+  transactionId String? // the invoice covering this rental, once billed
+
+  @@index([tenantId, status])
+  @@map("rentals")
+}
+
+// ---------------------------------------------------------------------
+// Property sales, leasing & management — its own domain: a Property is
+// the asset, a Lease is a specific tenancy on it. Reuses Event (with a
+// new PROPERTY_INSPECTION type) for inspections/maintenance visits rather
+// than a parallel model, consistent with how Event already generalizes
+// site visits/deliveries/installs.
+// ---------------------------------------------------------------------
+
+enum PropertyType {
+  RESIDENTIAL
+  COMMERCIAL
+  LAND
+}
+
+enum PropertyStatus {
+  AVAILABLE
+  LEASED
+  SOLD
+  MAINTENANCE
+}
+
+model Property {
+  id                String         @id @default(cuid())
+  tenantId          String
+  tenant            Tenant         @relation(fields: [tenantId], references: [id])
+  address           String
+  propertyType      PropertyType
+  ownerPartyId      String? // set when managing on behalf of an owner, not the agency's own stock
+  status            PropertyStatus @default(AVAILABLE)
+  listingPriceCents Int? // for sale
+  rentalRateCents   Int? // for lease, per month
+  createdAt         DateTime       @default(now())
+
+  leases Lease[]
+
+  @@index([tenantId, status])
+  @@map("properties")
+}
+
+enum LeaseStatus {
+  ACTIVE
+  ENDED
+  TERMINATED
+}
+
+model Lease {
+  id               String      @id @default(cuid())
+  tenantId         String
+  tenant           Tenant      @relation(fields: [tenantId], references: [id])
+  propertyId       String
+  property         Property    @relation(fields: [propertyId], references: [id])
+  renterPartyId    String
+  renterParty      Party       @relation(fields: [renterPartyId], references: [id])
+  startDate        DateTime
+  endDate          DateTime?
+  monthlyRentCents Int
+  depositCents     Int?
+  status           LeaseStatus @default(ACTIVE)
+  documentDataUrl  String? // the signed lease contract
+  createdAt        DateTime    @default(now())
+
+  @@index([tenantId, status])
+  @@index([propertyId])
+  @@map("leases")
 }

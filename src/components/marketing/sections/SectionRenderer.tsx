@@ -99,6 +99,11 @@ function ImageTextSection({ section }: { section: ResolvedSection }) {
   );
 }
 
+// Cycled instead of a single flat color across every card — a wash of one
+// tint (mint) read as monotonous; rotating through the richer marketing
+// palette keeps each grid visually varied without picking per-item colors.
+const GRID_TINTS = ["kb-tint-blue", "kb-tint-violet", "kb-tint-peach", "kb-tint-yellow"];
+
 function GridSection({ section }: { section: ResolvedSection }) {
   const items = section.items as GridItem[];
   return (
@@ -114,7 +119,7 @@ function GridSection({ section }: { section: ResolvedSection }) {
       {items.length > 0 && (
         <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item, i) => (
-            <div key={i} className="kb-tile kb-tint-mint">
+            <div key={i} className={`kb-tile ${GRID_TINTS[i % GRID_TINTS.length]}`}>
               {item.imageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.imageUrl} alt="" className="h-8 w-8 rounded" />

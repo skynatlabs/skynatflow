@@ -43,6 +43,18 @@ const CORE: SectionSeed[] = [
     ],
   },
   {
+    slug: "home", title: "flow — the AI business operating system", key: "before_after",
+    heading: "Before flow, and after",
+    subheading: "Not a feature list — what your actual week looks like.",
+    items: [
+      { title: "Before: quotes sit in drafts for days", body: "After: unsent quotes are flagged the moment they go stale, so nothing loses a job to a faster competitor." },
+      { title: "Before: invoices go unpaid with no system", body: "After: every overdue invoice is flagged automatically, with a one-click late fee ready to go." },
+      { title: "Before: five apps that don't talk to each other", body: "After: one shared engine — quotes, invoices, inventory, staff, and messaging in one login." },
+      { title: "Before: paper stocktakes and guessed reorders", body: "After: a live demand heatmap and reorder suggestions sized to real sales velocity." },
+      { title: "Before: \"did we actually deliver that?\" disputes", body: "After: a delivery can't even be logged without a photo or signature — proof by default." },
+    ],
+  },
+  {
     slug: "home", title: "flow — the AI business operating system", key: "verticals",
     heading: "One engine, seven industries, zero generic software feel",
     subheading: "Pick your business type once at signup — pricing, vocabulary, pipeline stages, and the tools you actually need reconfigure around it automatically.",
@@ -67,6 +79,18 @@ const CORE: SectionSeed[] = [
     slug: "home", title: "flow — the AI business operating system", key: "ai_section",
     heading: "AI that acts like a trustworthy employee, not a black box",
     body: "flow's AI never sends a customer-facing message on its own. It watches every quote and invoice, drafts a context-aware follow-up with its reasoning shown in plain English, and waits for your approval — the same discipline whether it's chasing a late payment, nudging an abandoned quote, or flagging a fuel-cost anomaly. You stay in control of every dollar it touches.",
+  },
+  {
+    slug: "home", title: "flow — the AI business operating system", key: "faq",
+    heading: "Before you ask",
+    subheading: "The honest answers to what everyone actually wonders before signing up.",
+    items: [
+      { title: "\"I already use Excel/WhatsApp, isn't switching a hassle?\"", body: "Import your customers and catalog straight from a CSV, or paste your website link and flow prefills the rest. Most owners are set up in under 10 minutes." },
+      { title: "\"Is this going to be too complicated for my team?\"", body: "If a feature needs a training video, we consider it not done yet. flow is built to be usable on day one, on a phone or a desktop." },
+      { title: "\"What if I want to leave later?\"", body: "One-click CSV export of your entire business, any time, no support ticket required. Nothing is held hostage." },
+      { title: "\"Will the AI send things to my customers without me knowing?\"", body: "Never. Every AI-drafted message shows its reasoning and waits for your Approve or Skip — nothing goes out on its own." },
+      { title: "\"Is this only for one type of business?\"", body: "flow reconfigures around your industry at signup — solar and contractors, logistics, medical, retail, wholesale, ecommerce, non-profits, and more." },
+    ],
   },
   {
     slug: "home", title: "flow — the AI business operating system", key: "cta",
@@ -248,6 +272,42 @@ const CORE: SectionSeed[] = [
     body: "Set up your workspace free and see how much of your current toolstack it actually replaces.",
     ctaLabel: "Get Started Free", ctaHref: "/signup",
   },
+
+  // Pricing
+  {
+    slug: "pricing", title: "Pricing", key: "hero",
+    heading: "Simple pricing, no five-figure implementation fee",
+    subheading: "Free to start, no credit card required. Pick a plan when you're ready to grow — not before.",
+    ctaLabel: "Get Started Free", ctaHref: "/signup",
+  },
+  {
+    slug: "pricing", title: "Pricing", key: "tiers",
+    heading: "Three plans, no surprise tiers hiding basic features",
+    items: [
+      { title: "Starter — Free", body: "One workspace, unlimited quotes/invoices, customer portal, e-signatures, CSV import/export. Everything a solo operator needs to leave spreadsheets behind." },
+      { title: "Growth", body: "Everything in Starter, plus: AI follow-ups and abandoned-quote recovery, team messaging and org chart, inventory demand heatmap, POS, rentals, and property modules." },
+      { title: "Enterprise", body: "Everything in Growth, plus: multi-location support, dedicated onboarding, and priority support. Same engine, not a different product — you never outgrow flow and have to migrate." },
+    ],
+  },
+  {
+    slug: "pricing", title: "Pricing", key: "roi",
+    heading: "The math that actually matters",
+    body: "If flow catches just one overdue invoice before it's written off, or recovers one abandoned quote that would've gone cold, it's already paid for itself for the month. Everything else — the time saved not re-entering data across five tools — is the part that compounds.",
+  },
+  {
+    slug: "pricing", title: "Pricing", key: "faq",
+    heading: "Pricing questions",
+    items: [
+      { title: "\"Is there a contract?\"", body: "No. No multi-year lock-in, no cancellation penalty — the opposite of what some field-service platforms are known for." },
+      { title: "\"What happens to my data if I downgrade or leave?\"", body: "It's always yours. One-click CSV export of everything, any time, whether you're upgrading, downgrading, or leaving entirely." },
+      { title: "\"Do I need a credit card to try it?\"", body: "No. Sign up, set up your workspace, and start using it — no card required for the free tier." },
+    ],
+  },
+  {
+    slug: "pricing", title: "Pricing", key: "cta",
+    heading: "Start free, upgrade when it's actually paying for itself",
+    ctaLabel: "Get Started Free", ctaHref: "/signup",
+  },
 ];
 
 // Real pain-point → real shipped-feature copy per industry, drawn directly
@@ -260,6 +320,9 @@ const INDUSTRY_COPY: Partial<Record<NicheSkin, {
   painPointsHeading: string;
   painPointsSub: string;
   painPoints: { title: string; body: string }[];
+  howItWorksHeading: string;
+  howItWorksBody: string;
+  faq: { title: string; body: string }[];
   ctaHeading: string;
 }>> = {
   CORPORATE: {
@@ -271,6 +334,13 @@ const INDUSTRY_COPY: Partial<Record<NicheSkin, {
       { title: "Overdue invoices, automatically flagged", body: "Every invoice past its due date shows up in one place, oldest first, with a one-click 5% late fee ready to go." },
       { title: "AI follow-ups, escalating tone", body: "A Gentle/Standard/Firm dial shapes the whole chase sequence — you set the tone once, flow keeps it consistent." },
       { title: "One shared client record", body: "Quote status, invoice status, and every note live in one place — no more three different tools disagreeing about where a deal stands." },
+    ],
+    howItWorksHeading: "From proposal to paid, one system",
+    howItWorksBody: "Send a proposal, track when your client opens it, convert to a retainer or invoice on acceptance, and let the overdue dashboard chase anything that goes quiet — all without leaving flow or re-typing anything into a second tool.",
+    faq: [
+      { title: "\"We bill on retainers, not one-off invoices — does this work?\"", body: "Yes — recurring invoices generate on schedule from a line-item snapshot, so a later price change doesn't silently reprice an existing client's retainer." },
+      { title: "\"Can my whole team see client status, not just me?\"", body: "Every staff account sees the same shared record — no more three people with three different pictures of where a deal stands." },
+      { title: "\"What about scope creep on a project?\"", body: "Log extra work as a note against the client record today; a formal change-order flow is on our roadmap." },
     ],
     ctaHeading: "Get paid on time, without the awkward conversation",
   },
@@ -284,6 +354,13 @@ const INDUSTRY_COPY: Partial<Record<NicheSkin, {
       { title: "Proof of work, built in", body: "A delivery or install can't be logged without a photo or signature — the exact fix for the \"installer vanished with my deposit\" trust problem." },
       { title: "Job cards in one click", body: "Convert an accepted quote to an invoice and hand the job to a technician in the same action — no separate trip to assign it." },
     ],
+    howItWorksHeading: "Quote to job card to cash, without the gaps",
+    howItWorksBody: "A site survey becomes a quote, an accepted quote converts to an invoice and a job card in one click, and the job can't close without a technician's photo or signature — which is also what triggers the invoice. Equipment can be rented out through the same catalog, not just sold.",
+    faq: [
+      { title: "\"My guys aren't great with tech — will they actually use this?\"", body: "The job-card flow is a photo/signature capture and a status button — no training video required." },
+      { title: "\"We also rent out equipment, not just install it\"", body: "Any catalog item can be marked rentable — track the out/returned cycle and bill the actual duration used." },
+      { title: "\"What about big-ticket jobs needing a deposit?\"", body: "Record a deposit as a partial payment against the quote before work starts — the balance tracks automatically." },
+    ],
     ctaHeading: "Quote faster, prove the work, get paid",
   },
   LOGISTICS: {
@@ -295,6 +372,13 @@ const INDUSTRY_COPY: Partial<Record<NicheSkin, {
       { title: "Hard proof-of-delivery gate", body: "No photo or signature, no delivery logged — and the invoice generates itself the moment proof lands." },
       { title: "Fuel-cost anomaly flags", body: "Every fuel log is checked against that driver's own average — a cost spike gets flagged before it becomes a pattern." },
       { title: "Dispute-ready by default", body: "Every delivery's photo, signature, and timestamp is already attached to the record — nothing to dig up when a customer disputes a delivery." },
+    ],
+    howItWorksHeading: "Delivery, proof, and invoice — one motion",
+    howItWorksBody: "A driver logs a delivery with a required photo or signature. That single action closes the job and generates the invoice at the same time — no separate paperwork step, no gap where proof could go missing.",
+    faq: [
+      { title: "\"My drivers aren't always online\"", body: "The delivery log works from any phone browser — no dedicated app install required to capture proof." },
+      { title: "\"We bill detention/demurrage — does flow track that?\"", body: "Detention timers are on our roadmap; today you can log it as a manual line item on the invoice." },
+      { title: "\"Can I see all deliveries for one customer at once?\"", body: "Every delivery, quote, and invoice for a customer lives on one shared record — no separate systems to check." },
     ],
     ctaHeading: "Never lose an invoice to missing paperwork again",
   },
@@ -308,6 +392,13 @@ const INDUSTRY_COPY: Partial<Record<NicheSkin, {
       { title: "Claims that can't be forgotten", body: "Every denied claim stays visible with an aging counter until it's reworked or resolved — nothing ages silently into a write-off." },
       { title: "A real online booking page", body: "Patients book their own slot with no phone tag, and it lands straight on your calendar as a normal event." },
     ],
+    howItWorksHeading: "Booking to billing, without the admin drag",
+    howItWorksBody: "A patient books online, gets a 48h and 2h WhatsApp reminder automatically, and after the visit a private billing statement goes out — with any insurance claim tracked separately until it's actually resolved, not silently forgotten.",
+    faq: [
+      { title: "\"Does flow store clinical/health data?\"", body: "No — this is strictly a non-clinical administrative workflow: scheduling, billing, and reminders, nothing clinical." },
+      { title: "\"We run multiple locations\"", body: "Each location's bookings and billing stay clearly separated, with one owner view across all of them." },
+      { title: "\"What about patients who never confirm?\"", body: "Unconfirmed bookings still get both reminder touches — most no-shows come from a small repeat group, easy to spot once it's tracked." },
+    ],
     ctaHeading: "Fewer no-shows, zero forgotten claims",
   },
   RETAIL: {
@@ -319,6 +410,13 @@ const INDUSTRY_COPY: Partial<Record<NicheSkin, {
       { title: "A live demand heatmap", body: "Every product ranked by real sales velocity — fast movers, slow movers, and dead stock, at a glance." },
       { title: "Reorder quantities sized to demand", body: "flow suggests how much to reorder based on actual recent sales, not a guess from months ago." },
       { title: "Shrinkage, made visible", body: "Count what's actually on the shelf — any gap against the system is flagged by item and by who counted it, instead of surfacing as an unexplained margin loss." },
+    ],
+    howItWorksHeading: "From the till to the stockroom, one system",
+    howItWorksBody: "flow's own built-in POS rings up a sale, updates stock in real time, and feeds the demand heatmap that drives your reorder suggestions — with till reconciliation catching cash variance at close-out instead of it going unnoticed for weeks.",
+    faq: [
+      { title: "\"I already have a card machine/POS I like\"", body: "flow's POS is built to also connect to card providers like Yoco directly — you're not forced to switch hardware." },
+      { title: "\"We run more than one branch\"", body: "Each branch's stock and till sessions are tracked separately, with one owner view across all of them." },
+      { title: "\"What about items I want to rent, not sell?\"", body: "Any catalog item can be marked rentable — flow tracks the out/returned cycle and bills for the actual time used." },
     ],
     ctaHeading: "Reorder with data, not a gut feeling",
   },
@@ -332,6 +430,13 @@ const INDUSTRY_COPY: Partial<Record<NicheSkin, {
       { title: "Credit limits enforced automatically", body: "An order that would exceed a buyer's credit limit is caught before it ships, not discovered at reconciliation." },
       { title: "Minimum order quantities, enforced", body: "Below-MOQ orders are caught at the point of order — not after pick, pack, and shipping cost is already spent." },
     ],
+    howItWorksHeading: "Retailer self-service, without the risk",
+    howItWorksBody: "A connected retail buyer places their own order through their portal — tiered pricing, credit limit, and MOQ are all checked automatically before it ever reaches your warehouse, so nothing ships that shouldn't have.",
+    faq: [
+      { title: "\"We negotiate different prices per customer\"", body: "Each wholesale connection carries its own discount tier, applied automatically — no manual price lookup per order." },
+      { title: "\"What stops an over-limit order from shipping?\"", body: "Credit-limit enforcement checks the buyer's real outstanding balance at order time, not a static number set once." },
+      { title: "\"Can retailers see their own order history?\"", body: "Yes — every connected buyer sees their own orders and statements without calling you to ask." },
+    ],
     ctaHeading: "Give your buyers the ordering experience that keeps them",
   },
   ECOMMERCE: {
@@ -344,7 +449,33 @@ const INDUSTRY_COPY: Partial<Record<NicheSkin, {
       { title: "Refunds as real ledger entries", body: "Credit notes and refunds are tracked properly, not scribbled in a notebook or lost in an email thread." },
       { title: "One customer record, every order", body: "A customer's full order history in one place, so support never starts from zero." },
     ],
+    howItWorksHeading: "From opened quote to recovered sale",
+    howItWorksBody: "flow already tracks when a customer opens a quote without responding — the same AI-draft engine used for payment follow-ups fires a timely, personal nudge while it's still fresh, not a generic drip days later.",
+    faq: [
+      { title: "\"I sell through Shopify/WooCommerce — does this replace my storefront?\"", body: "No — flow isn't a storefront. It's the operational layer behind it: quoting, invoicing, and follow-up for the sales that need a human touch, not your checkout flow." },
+      { title: "\"Can I track refunds properly?\"", body: "Yes — credit notes and refunds are real ledger entries, not a note in an email thread." },
+      { title: "\"Does it handle multi-channel inventory sync?\"", body: "Not yet — that's on our roadmap. Today flow tracks one unified stock count per item." },
+    ],
     ctaHeading: "Recover the sale before it's gone for good",
+  },
+  NONPROFIT: {
+    heroHeading: "Never lose a member's record again",
+    heroSub: "Churches and non-profits routinely lose track of who was involved, when, and what was donated — until someone needs that proof and it isn't there. flow keeps every involvement, donation, and filing on an append-only record.",
+    painPointsHeading: "The records that go missing, and why it matters",
+    painPointsSub: "Not a compliance nice-to-have — the exact gap that causes real problems later.",
+    painPoints: [
+      { title: "Involvement history, provable years later", body: "Every member, volunteer, or board role is tracked with a start (and end) date — \"were they involved, and when\" is always answerable." },
+      { title: "Donations, properly recorded", body: "A real ledger by donor and designated fund — not a spreadsheet someone forgot to update." },
+      { title: "Compliance filings, never lost", body: "Annual returns, PBO renewals, and AGM minutes logged with their documents attached, not scattered across email and someone's filing cabinet." },
+    ],
+    howItWorksHeading: "Membership, donations, and filings — one record",
+    howItWorksBody: "Add a member or sponsor once, log their involvement over time, record donations against a designated fund, and keep every compliance filing attached to the org's own timeline — all searchable, all provable later.",
+    faq: [
+      { title: "\"We're not a church, just a small NPO\"", body: "This works for any membership-based organization — the vocabulary (member, donor, filing) fits NPOs and civic bodies just as well." },
+      { title: "\"Can we issue tax certificates for donations?\"", body: "Donations are recorded with a receipt number field today; automated tax-certificate generation is on our roadmap." },
+      { title: "\"What about sensitive records like counseling notes?\"", body: "Those need dedicated, carefully-designed handling we haven't built yet — flow today covers membership, donations, and general compliance filings." },
+    ],
+    ctaHeading: "Keep the records that protect your organization",
   },
 };
 
@@ -372,9 +503,22 @@ function industryCopy(skin: NicheSkin): SectionSeed[] {
       ],
     },
     {
+      slug, title, key: "how_it_works",
+      heading: copy?.howItWorksHeading ?? "How it works",
+      body: copy?.howItWorksBody ?? `flow gives ${config.label.toLowerCase()} businesses one shared record for every ${config.customerLabel.toLowerCase()}, quote, and job — no separate tools to keep in sync.`,
+    },
+    {
       slug, title, key: "testimonials",
       heading: `What ${config.label.toLowerCase()} owners say`,
       items: [],
+    },
+    {
+      slug, title, key: "faq",
+      heading: "Common questions",
+      items: copy?.faq ?? [
+        { title: "\"How long does setup take?\"", body: "Most owners are up and running in under 10 minutes — import your customers and catalog, or start fresh." },
+        { title: "\"Can my team use this too?\"", body: "Yes — every staff member gets their own login with role-based permissions." },
+      ],
     },
     {
       slug, title, key: "cta",

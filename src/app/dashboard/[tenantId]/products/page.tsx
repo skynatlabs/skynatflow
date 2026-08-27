@@ -33,6 +33,12 @@ export default async function ProductsPage({
           <Link href={`/dashboard/${tenantId}/settings/import`} className="kb-pill text-xs">
             Import from Zoho/QuickBooks/etc.
           </Link>
+          <Link href={`/dashboard/${tenantId}/settings/pos-integrations`} className="kb-pill text-xs">
+            POS integrations
+          </Link>
+          <Link href={`/dashboard/${tenantId}/settings/backup`} className="kb-pill text-xs">
+            Account &amp; backup
+          </Link>
           <Link href={`/dashboard/${tenantId}/products/new`} className="kb-pill kb-pill-primary">
             + Add product
           </Link>
