@@ -1,8 +1,38 @@
 # flow — Handover
 
-**Last updated:** 2026-08-25
+**Last updated:** 2026-08-28
 **Repo:** [github.com/skynatlabs/skynatflow](https://github.com/skynatlabs/skynatflow) (private)
-**Live deploy:** Vercel project under `skynatlabs' projects` — connected to a real production Supabase database, SSL issue resolved (see "Production DB — SSL gotcha" below), login/signup verified live.
+**Live deploy:** `skynatflow-topaz.vercel.app`, custom domain `skynatflow.com` — connected to production Supabase, all migrations through `20260828174559_email_client_notifications_followup_cadence` applied and verified live as of this update. Everything described below is pushed, migrated, and confirmed responding in production, not just local — this session ended with a full deploy.
+
+## 2026-08-25 → 2026-08-28 session arc — the big one
+
+Started from the pain-point research phase (below) and kept going across several build rounds in the same multi-day session. In order, all shipped and live:
+
+1. **Retail inventory + tax/VAT export** (detail below)
+2. **Marketing site rewrite**: nav bugs fixed (no mobile menu existed at all; Industries hover-dropdown had a gap that closed it before the cursor arrived — now click-to-pin + outside-click-to-close too), full persuasive copy pass across all pages, new `/pricing` page, before/after + FAQ sections, richer color palette
+3. **Non-profit/faith niche** (`NONPROFIT`) — member/donor records, append-only involvement history, a donation ledger separate from the commercial invoice ledger, compliance-filing tracking (`/dashboard/[tenantId]/members`)
+4. **Rentals module** — platform-wide, any catalog item can be marked rentable, tracks out/returned lifecycle, bills actual duration on return (`/dashboard/[tenantId]/rentals`)
+5. **Property module** — properties, leases, expiring-lease alerts (`/dashboard/[tenantId]/properties`)
+6. **POS** — flow's own built-in till (open/checkout/close-and-reconcile) plus a region-scaffolded card-provider registry, Yoco (RSA) as the first real integration, stubbed until a real key is supplied (`/dashboard/[tenantId]/pos`, `settings/pos-integrations`)
+7. **Account settings & doc backup** — Google Drive connect toggle, stubbed until real OAuth is registered (`settings/backup`)
+8. **PDF templates** — 10 invoice/quote design styles + 2 delivery-slip styles, one shared parameterized renderer (`src/lib/pdf/`), every document gets a QR code + view-online link + flow branding footer. Tenants save up to 3 templates (one default + two customized) at `settings/pdf-templates`. New "Proposal" quote type: AI generates system-info/performance-expectancy/timeline from the line items + a location field — metered at 5/month, visible counter, model only ever writes text (never touches PDF layout). New invoice PDF + portal view (didn't exist before, only quotes had one).
+9. **Follow-up automation controls** — owner-configurable cadence (`settings/automation`: first-touch window + repeat interval, e.g. same-day/next-day/weekly) replacing a hardcoded 3-day window, plus an auto-respond toggle that lets a tenant skip the manual Approve step entirely
+10. **Built-in mail client** (`settings/mail`) — BlueMail-style, three connection types: IMAP (real today, password AES-encrypted at rest via `src/lib/crypto.ts`), flow-hosted forwarding address (real today, no credentials — but needs an inbound-parse provider like Postmark/Mailgun connected with MX records before mail actually arrives there), Google OAuth (visible "coming soon," needs a verified OAuth app). AI classifies every inbound email (statement/invoice/legal/quote-reply/other), flags importance, and reschedules a quote's follow-up automatically when a customer's reply gives a real timing cue ("call me in 2 weeks" → `Transaction.nextFollowUpAt`).
+11. **In-dashboard notification center** (`/dashboard/[tenantId]/inbox`) — unread badge in the sidebar, fed by hot leads, important mail, and auto-sent follow-ups; also WhatsApp-alerts the owner.
+
+**Real, still-open checkpoints (external accounts needed, not code gaps):**
+- Real Google Drive OAuth (doc backup) and Google mail sign-in both need a verified Google OAuth app
+- Real Yoco secret key for POS card charges (stubbed/logs until then)
+- An inbound-parse email provider (Postmark/Mailgun-class) + MX records for the flow-hosted mail address to actually receive anything
+- `ANTHROPIC_API_KEY` already set in production — AI proposal generation, email classification, and follow-up drafting are all real there, not just stubbed
+
+**Also still open, not blocked on anything external, just not built yet:**
+- Education niche (flagged as worthwhile, not scoped)
+- Film/TV/production niche (works today via Services' vocabulary remapping; dedicated niche only if real demand shows up)
+- End-to-end encryption (user's own idea, explicitly deferred — "a few months post-launch")
+- PDF template settings page has no logo-upload widget yet (schema supports it, UI doesn't expose it)
+- No "Download PDF" button in the dashboard's own invoice views yet (only reachable via the customer portal)
+- Quote creation is still single-line-item only — no multi-line cart in that form
 
 ## 2026-08-25 update — AI inventory optimization + tax/VAT export (Phase 1 & 2 of the industry-optimization roadmap)
 
@@ -15,18 +45,18 @@ Ran a full pain-point research pass across all 7 niches plus US/RSA tax complian
 - New dashboard page `/dashboard/[tenantId]/inventory` — reorder suggestions, expiry risk, and the demand heatmap ("SKU heat map" — pure sales-velocity ranking, not a physical store-layout map; confirmed that's what was meant before building).
 - `src/lib/core/tax.ts` — `getTaxSummary()`, aggregates tax charged per period from existing `TransactionLine`/`Item.taxRatePercent` data. Supports monthly (US-style) and SARS bi-monthly VAT201-style grouping. Wired into the existing CSV export page/route (`settings/export`) as a new "Tax / VAT summary" entity — no new UI surface needed, reused the "leave anytime" export pattern.
 - Verified: demand heatmap renders correctly against live demo data, batch-logging form → expiry-risk display works end-to-end in-browser, tax math verified against a synthetic PAID invoice (2 units × R100 @ 15% VAT → R30.00 collected, exact). Build, typecheck, and full 14-test suite all pass.
-- **Not yet applied to production** — migration `20260825181433_inventory_optimization` is local-only, and this work is committed locally but not pushed (per this session's "commit for backup, push when asked" instruction).
+- **Now on production** — applied along with everything else in the 2026-08-28 deploy at the top of this file.
 
-## 8-phase industry-optimization roadmap (from this session's pain-point research)
+## 8-phase industry-optimization roadmap (from this session's pain-point research) — all 8 shipped
 
-1. ✅ **Retail** — inventory optimization (demand heatmap, reorder suggestions, expiry/waste tracking) — built tonight.
-2. ✅ **Tax/VAT (cross-industry, USA & RSA)** — filing-ready export — built tonight.
-3. **Corporate** — overdue-invoice dashboard + optional auto late-fee, using existing `Transaction.dueAt`.
-4. **Services** — speed-to-quote SLA tracker, using existing `Transaction.createdAt`/`respondedAt` on QUOTE rows. (Research flagged this as the single highest-dollar-value gap — missed calls/slow quotes cost the industry $100B+/year — but it needs a call-handling/phone integration flow does not have yet, so the SLA-tracker piece is the buildable slice.)
-5. **Logistics** — hard POD gate (require `Event.photoUrl`/`signedByUrl` before a DELIVERY event can close) + auto-invoice generation on POD capture.
-6. **Medical** — automated appointment reminders at 48h/2h marks, new cron route (pattern: `cron/recurring-invoices`), using existing `Event.scheduledAt` + `sendWhatsAppMessage` (`src/lib/whatsapp/`).
-7. **Wholesale** — credit-limit field on `WholesaleConnection` + `minOrderQty` on `Item`, enforced at order-placement time.
-8. **Ecommerce** — extend the existing AI-draft follow-up engine to also trigger on `Transaction.openCount >= 1 && respondedAt == null` (an opened-but-unconverted quote is functionally an abandoned cart) — reuses infrastructure already built for payment chasing.
+1. ✅ **Retail** — inventory optimization (demand heatmap, reorder suggestions, expiry/waste tracking).
+2. ✅ **Tax/VAT (cross-industry, USA & RSA)** — filing-ready export.
+3. ✅ **Corporate** — overdue-invoice dashboard + one-click late fee (`/dashboard/[tenantId]/overdue`).
+4. ✅ **Services** — speed-to-quote SLA tracker (`/dashboard/[tenantId]/unsent-quotes`). Missed-calls/slow-quotes was the single highest-dollar-value gap from the research ($100B+/year industry-wide) but needs a phone/call-handling integration flow doesn't have — the SLA-tracker is the buildable slice of that problem; real call handling is still open.
+5. ✅ **Logistics** — hard POD gate (`Event.photoUrl`/`signedByUrl` required before a DELIVERY event can close) + auto-invoice generation on POD capture, in `src/lib/core/movement.ts`.
+6. ✅ **Medical** — automated appointment reminders at 48h/2h marks (`cron/appointment-reminders`).
+7. ✅ **Wholesale** — credit-limit + MOQ enforcement on wholesale ordering, in `src/lib/core/connections.ts`.
+8. ✅ **Ecommerce** — abandoned-quote AI recovery reusing the existing follow-up-draft engine, in `src/lib/core/money.ts`/`cron/follow-ups`.
 
 Full plan detail (exact function signatures, schema) is in this session's plan file if picking this up cold: `/Users/user/.claude/plans/goofy-brewing-dewdrop.md`.
 
@@ -34,7 +64,7 @@ Full plan detail (exact function signatures, schema) is in this session's plan f
 
 Built out the marketing site from one hardcoded homepage into 13 pages, all editable by a super-admin through a structured section editor (not a free block builder) — no code changes needed to update copy/images going forward.
 
-- **New Prisma models:** `PageContent`, `PageSection` (migration `20260822201311_marketing_cms`, applied locally only — **not yet on production**, needs the same `prisma migrate deploy` treatment as above before this ships).
+- **New Prisma models:** `PageContent`, `PageSection` (migration `20260822201311_marketing_cms`) — now on production, along with every migration through this file's "Last updated" date.
 - **13 pages, all CMS-backed:** Home, About Us, AI & Agents, Case Studies, Benefits, Integrations, plus one landing page per industry (`/industries/[skin]`, all 7 `NicheSkin`s) — each pulling industry-specific copy from `NICHE_CONFIGS` and rendering a live pipeline preview.
 - **Template system:** `src/lib/cms/pageTemplates.ts` is the single source of truth for what sections exist on each page and their type (hero/richText/imageText/grid/testimonials/logos/cards/cta) — drives both the public renderer (`src/components/marketing/sections/SectionRenderer.tsx`) and the admin editor form.
 - **Super-admin editor at `/admin`** — guarded by a new `requireSuperAdmin()` (`src/lib/auth/tenant-access.ts`), same 404-not-leak pattern as tenant access. Structured per-section editor: text fields + image upload + add/remove repeatable items (testimonials, case study cards, integration logos, etc), saves via server action, reflects on the public page immediately.
