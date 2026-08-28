@@ -36,6 +36,9 @@ export default async function ProductsPage({
           <Link href={`/dashboard/${tenantId}/settings/pos-integrations`} className="kb-pill text-xs">
             POS integrations
           </Link>
+          <Link href={`/dashboard/${tenantId}/settings/pdf-templates`} className="kb-pill text-xs">
+            PDF templates
+          </Link>
           <Link href={`/dashboard/${tenantId}/settings/backup`} className="kb-pill text-xs">
             Account &amp; backup
           </Link>

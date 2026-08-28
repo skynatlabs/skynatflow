@@ -24,6 +24,10 @@ export async function createQuote(params: {
   quoteKind?: QuoteKind;
   introText?: string;
   scopeOfWork?: string;
+  projectLocation?: string;
+  performanceExpectancy?: string;
+  projectTimeline?: string;
+  systemInfo?: string;
 }) {
   const amountCents = params.lines.reduce(
     (sum, l) => sum + l.quantity * l.unitPriceCents,
@@ -40,6 +44,10 @@ export async function createQuote(params: {
       quoteKind: params.quoteKind ?? QuoteKind.BASIC,
       introText: params.introText,
       scopeOfWork: params.scopeOfWork,
+      projectLocation: params.projectLocation,
+      performanceExpectancy: params.performanceExpectancy,
+      projectTimeline: params.projectTimeline,
+      systemInfo: params.systemInfo,
       itemLines: {
         create: params.lines.map((l) => ({
           itemId: l.itemId,

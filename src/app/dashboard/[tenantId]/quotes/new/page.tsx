@@ -2,9 +2,11 @@ import { prisma } from "@/lib/db";
 import { nicheConfig } from "@/lib/niches/config";
 import { listProducts } from "@/lib/core/catalog";
 import { listProposalTemplates } from "@/lib/core/templates";
+import { getProposalUsage } from "@/lib/ai/proposal";
 import { createQuoteAction } from "./actions";
 import { ProductPicker } from "./ProductPicker";
 import { TemplatePicker } from "./TemplatePicker";
+import { QuoteTypeSection } from "./QuoteTypeSection";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
@@ -20,6 +22,7 @@ export default async function NewQuotePage({
   const niche = nicheConfig(tenant.niche);
   const products = await listProducts(tenantId);
   const templates = await listProposalTemplates(tenantId);
+  const proposalUsage = await getProposalUsage(tenantId);
 
   return (
     <main className="mx-auto max-w-md p-8">
@@ -34,25 +37,11 @@ export default async function NewQuotePage({
 
       <form action={createQuoteAction} className="kb-card mt-6 space-y-4 p-6">
         <input type="hidden" name="tenantId" value={tenantId} />
-        <div>
-          <label className={labelClass}>Quote type</label>
-          <div className="mt-1 grid grid-cols-2 gap-2">
-            <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm has-[:checked]:border-[var(--kb-accent-a)]">
-              <input type="radio" name="quoteKind" value="BASIC" defaultChecked className="mt-0.5" />
-              <span>
-                <span className="block font-medium text-[var(--kb-text)]">Basic</span>
-                <span className="block text-xs text-[var(--kb-text-dim)]">Just line items and a total.</span>
-              </span>
-            </label>
-            <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm has-[:checked]:border-[var(--kb-accent-a)]">
-              <input type="radio" name="quoteKind" value="PROPOSAL" className="mt-0.5" />
-              <span>
-                <span className="block font-medium text-[var(--kb-text)]">Proposal</span>
-                <span className="block text-xs text-[var(--kb-text-dim)]">Adds an intro and scope of work.</span>
-              </span>
-            </label>
-          </div>
-        </div>
+        <QuoteTypeSection
+          tenantId={tenantId}
+          usageRemaining={proposalUsage.remaining}
+          usageLimit={proposalUsage.limit}
+        />
         <TemplatePicker
           templates={templates.map((t) => ({
             id: t.id,
@@ -61,28 +50,6 @@ export default async function NewQuotePage({
             scopeOfWork: t.scopeOfWork,
           }))}
         />
-        <div>
-          <label className={labelClass}>
-            Intro <span className="text-[var(--kb-text-dim)]">(proposal only)</span>
-          </label>
-          <textarea
-            name="introText"
-            rows={3}
-            placeholder="A short opening paragraph introducing the proposal..."
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>
-            Scope of work <span className="text-[var(--kb-text-dim)]">(proposal only)</span>
-          </label>
-          <textarea
-            name="scopeOfWork"
-            rows={4}
-            placeholder="What's included, what the process looks like, timeline..."
-            className={inputClass}
-          />
-        </div>
         <div>
           <label className={labelClass}>{niche.customerLabel} name</label>
           <input name="customerName" required className={inputClass} />

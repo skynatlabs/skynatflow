@@ -30,6 +30,10 @@ export async function createQuoteAction(formData: FormData) {
   const quoteKind = quoteKindRaw === "PROPOSAL" ? QuoteKind.PROPOSAL : QuoteKind.BASIC;
   const introText = String(formData.get("introText") ?? "").trim();
   const scopeOfWork = String(formData.get("scopeOfWork") ?? "").trim();
+  const projectLocation = String(formData.get("projectLocation") ?? "").trim();
+  const systemInfo = String(formData.get("systemInfo") ?? "").trim();
+  const performanceExpectancy = String(formData.get("performanceExpectancy") ?? "").trim();
+  const projectTimeline = String(formData.get("projectTimeline") ?? "").trim();
 
   if (!customerName || !itemName || !priceRand) {
     throw new Error("Customer name, item, and price are required.");
@@ -69,6 +73,10 @@ export async function createQuoteAction(formData: FormData) {
     quoteKind,
     introText: quoteKind === QuoteKind.PROPOSAL ? introText || undefined : undefined,
     scopeOfWork: quoteKind === QuoteKind.PROPOSAL ? scopeOfWork || undefined : undefined,
+    projectLocation: quoteKind === QuoteKind.PROPOSAL ? projectLocation || undefined : undefined,
+    systemInfo: quoteKind === QuoteKind.PROPOSAL ? systemInfo || undefined : undefined,
+    performanceExpectancy: quoteKind === QuoteKind.PROPOSAL ? performanceExpectancy || undefined : undefined,
+    projectTimeline: quoteKind === QuoteKind.PROPOSAL ? projectTimeline || undefined : undefined,
   });
 
   await sendQuote(quote.id);

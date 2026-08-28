@@ -80,24 +80,31 @@ enum TaskStatus {
 }
 
 model Tenant {
-  id              String          @id @default(cuid())
-  name            String
-  niche           NicheSkin       @default(SERVICES)
+  id                           String          @id @default(cuid())
+  name                         String
+  niche                        NicheSkin       @default(SERVICES)
   // Public booking page config: { enabled, workDays: [1-5], startHour,
   // endHour, slotMins }. Null/absent = booking page not set up yet.
-  bookingConfig   Json?
-  googleReviewUrl String? // customer-facing link sent in the post-payment review request
+  bookingConfig                Json?
+  googleReviewUrl              String? // customer-facing link sent in the post-payment review request
   // Owner-controlled empathy dial on the escalating follow-up engine —
   // chase payment without torching the relationship. Applied to every
   // touch's tone, not just the final one.
-  collectionsTone CollectionsTone @default(STANDARD)
+  collectionsTone              CollectionsTone @default(STANDARD)
   // Doc backup — daily copy of new documents (signed quotes, filings,
   // lease contracts) to the owner's own cloud storage. Checkpoint: needs
   // real Google OAuth app registration before this does anything beyond
   // logging — same graceful-degradation pattern as WhatsApp/R2.
-  docBackupProvider  String? // "google_drive" | null = not connected
-  docBackupConnected Boolean @default(false)
-  createdAt       DateTime        @default(now())
+  docBackupProvider            String? // "google_drive" | null = not connected
+  docBackupConnected           Boolean         @default(false)
+  // AI-generated proposal content is metered — the LLM call only writes
+  // text (never the PDF design/layout, which stays fixed code, both for
+  // cost and for visual consistency), but text generation still costs
+  // real tokens per call. Simple monthly counter, resets on read once the
+  // month rolls over rather than needing a cron job.
+  aiProposalGenerationsUsed    Int             @default(0)
+  aiProposalGenerationsResetAt DateTime        @default(now())
+  createdAt                    DateTime        @default(now())
 
   memberships            Membership[]
   parties                Party[]
@@ -128,6 +135,7 @@ model Tenant {
   leases                 Lease[]
   tillSessions           TillSession[]
   posIntegrations        PosIntegration[]
+  pdfTemplates           TenantPdfTemplate[]
   webhookEndpoints       WebhookEndpoint[]
 
   connectionsAsSupplier WholesaleConnection[] @relation("SupplierConnections")
@@ -270,44 +278,53 @@ model ItemBatch {
 // Money: append-only ledger. Quotes, invoices, payments — one typed table,
 // never mutated after creation, only superseded by a new row referencing it.
 model Transaction {
-  id                  String            @id @default(cuid())
-  tenantId            String
-  tenant              Tenant            @relation(fields: [tenantId], references: [id])
-  partyId             String
-  party               Party             @relation(fields: [partyId], references: [id])
-  type                TransactionType
-  status              TransactionStatus @default(DRAFT)
-  amountCents         Int
-  parentId            String? // e.g. an INVOICE points back at the QUOTE it came from
-  parent              Transaction?      @relation("TransactionLineage", fields: [parentId], references: [id])
-  children            Transaction[]     @relation("TransactionLineage")
-  createdAt           DateTime          @default(now())
-  dueAt               DateTime?
-  respondedAt         DateTime? // when the customer last replied/acted — drives the follow-up engine
-  signatureDataUrl    String? // customer's e-signature on quote acceptance, captured via the portal
+  id                    String            @id @default(cuid())
+  tenantId              String
+  tenant                Tenant            @relation(fields: [tenantId], references: [id])
+  partyId               String
+  party                 Party             @relation(fields: [partyId], references: [id])
+  type                  TransactionType
+  status                TransactionStatus @default(DRAFT)
+  amountCents           Int
+  parentId              String? // e.g. an INVOICE points back at the QUOTE it came from
+  parent                Transaction?      @relation("TransactionLineage", fields: [parentId], references: [id])
+  children              Transaction[]     @relation("TransactionLineage")
+  createdAt             DateTime          @default(now())
+  dueAt                 DateTime?
+  respondedAt           DateTime? // when the customer last replied/acted — drives the follow-up engine
+  signatureDataUrl      String? // customer's e-signature on quote acceptance, captured via the portal
   // Acceptance audit trail — the difference between "we have a drawn
   // signature" and "this holds up as a real contract record." The hash
   // binds the amount/lines/signature/timestamp together so any later
   // tampering with the quote is detectable by recomputing and comparing.
-  acceptanceIp        String?
-  acceptanceHash      String?
-  reviewRequestSentAt DateTime? // fires once, the moment an invoice first reaches PAID
+  acceptanceIp          String?
+  acceptanceHash        String?
+  reviewRequestSentAt   DateTime? // fires once, the moment an invoice first reaches PAID
   // Quote presentation (BASIC vs PROPOSAL). Only meaningful on QUOTE rows;
   // introText/scopeOfWork are populated for PROPOSAL and shown above the
   // line items on both the web link and the PDF.
-  quoteKind           QuoteKind?        @default(BASIC)
-  introText           String?
-  scopeOfWork         String?
+  quoteKind             QuoteKind?        @default(BASIC)
+  introText             String?
+  scopeOfWork           String?
+  // Extra fields for a PROPOSAL-kind quote's project info — populated by
+  // AI (src/lib/ai/proposal.ts) from the line items plus projectLocation,
+  // the one field a human has to actually type in. The AI only ever
+  // writes text into these fields; the PDF layout/design is fixed code,
+  // never generated, so this stays fast, cheap, and visually consistent.
+  projectLocation       String?
+  performanceExpectancy String?
+  projectTimeline       String?
+  systemInfo            String?
   // Quote-open tracking (Soler's hot-lead pattern): a customer opening the
   // portal link for a quote is a buying signal, tracked independent of
   // whether they've responded yet.
-  openCount           Int               @default(0)
-  firstOpenedAt       DateTime?
-  lastOpenedAt        DateTime?
+  openCount             Int               @default(0)
+  firstOpenedAt         DateTime?
+  lastOpenedAt          DateTime?
   // POS checkout — only set on PAYMENT rows recorded at a till.
-  paymentMethod       String? // "cash" | "card" | provider id, e.g. "yoco"
-  tillSessionId       String?
-  tillSession         TillSession?      @relation(fields: [tillSessionId], references: [id])
+  paymentMethod         String? // "cash" | "card" | provider id, e.g. "yoco"
+  tillSessionId         String?
+  tillSession           TillSession?      @relation(fields: [tillSessionId], references: [id])
 
   itemLines TransactionLine[]
 
@@ -1034,4 +1051,27 @@ model Lease {
   @@index([tenantId, status])
   @@index([propertyId])
   @@map("leases")
+}
+
+// ---------------------------------------------------------------------
+// PDF templates — styleKey references a fixed design config in
+// src/lib/pdf/styles.ts, not a DB-editable layout (so "10+ templates"
+// means 10 real, tested layouts, not a page-builder). A tenant can own
+// several of these (recommended: one default + up to 2 customized), pick
+// which style each is based on, and override its accent color/logo.
+// ---------------------------------------------------------------------
+
+model TenantPdfTemplate {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  name           String
+  styleKey       String // one of the keys in PDF_STYLES
+  isDefault      Boolean  @default(false)
+  accentColorHex String?
+  logoDataUrl    String?
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("tenant_pdf_templates")
 }
