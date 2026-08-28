@@ -1,17 +1,21 @@
 // Hit by Hostinger's Cron Jobs on a schedule (e.g. hourly). Finds every
 // quote/invoice gone quiet past its threshold, across every tenant, and
-// drafts a follow-up — but does NOT send it. This is the confirm-before-
-// send guardrail made real: every draft lands as a pending AiDraft row,
+// drafts a follow-up. By default this does NOT send it — the confirm-
+// before-send guardrail: every draft lands as a pending AiDraft row,
 // visible with its reasoning at /dashboard/[tenantId]/ai-drafts, and only
-// goes out once the owner clicks Approve. Uses the AI-drafted message
-// (Phase 3) when ANTHROPIC_API_KEY is configured; falls back to a plain
-// template otherwise, so this endpoint works before that checkpoint is
-// resolved.
+// goes out once the owner clicks Approve. When Tenant.autoRespondEnabled
+// is on, it sends immediately instead — the guardrail made optional per
+// tenant, not mandatory, for owners who want the daily task gone
+// entirely. Cadence (window before first follow-up, days between
+// repeats) is owner-controlled via Tenant.followUpWindowDays/
+// followUpRepeatDays rather than the old hardcoded 3 days.
 
 import { NextRequest, NextResponse } from "next/server";
 import type { CollectionsTone } from "@prisma/client";
 import { findStaleTransactions, findAbandonedQuotes } from "@/lib/core/money";
-import { countFollowUpsSent } from "@/lib/core/movement";
+import { countFollowUpsSent, logFollowUpSent } from "@/lib/core/movement";
+import { sendWhatsAppMessage } from "@/lib/whatsapp/client";
+import { createNotification } from "@/lib/core/notifications2";
 import {
   draftFollowUpMessage,
   followUpReasoning,
@@ -53,6 +57,66 @@ async function composeFollowUpMessage(
   }
 }
 
+// Creates the draft, then either leaves it PENDING (default) or sends it
+// immediately and advances the transaction's next-follow-up date by the
+// tenant's repeat cadence (autoRespondEnabled). Returns true if a draft
+// was actually created (skips if one's already pending).
+async function processTransaction(
+  tenantId: string,
+  tx: StaleTransactionWithParty,
+  reasoning: string,
+  autoRespond: boolean,
+  repeatDays: number,
+  tone: CollectionsTone
+): Promise<boolean> {
+  if (!tx.party.phone) return false;
+
+  const existingPending = await prisma.aiDraft.findFirst({
+    where: { transactionId: tx.id, status: "PENDING" },
+  });
+  if (existingPending) return false;
+
+  const touchNumber = (await countFollowUpsSent(tx.id)) + 1;
+  const body = await composeFollowUpMessage(tx, touchNumber, tone);
+
+  const draft = await prisma.aiDraft.create({
+    data: {
+      tenantId,
+      partyId: tx.party.id,
+      transactionId: tx.id,
+      touchNumber,
+      body,
+      reasoning,
+      status: autoRespond ? "SENT" : "PENDING",
+      resolvedAt: autoRespond ? new Date() : null,
+    },
+  });
+
+  if (autoRespond) {
+    await sendWhatsAppMessage({ to: tx.party.phone, body });
+    await logFollowUpSent({
+      tenantId,
+      partyId: tx.party.id,
+      transactionId: tx.id,
+      notes: `Follow-up #${touchNumber} auto-sent (auto-respond enabled)`,
+    });
+    await prisma.transaction.update({
+      where: { id: tx.id },
+      data: { nextFollowUpAt: new Date(Date.now() + repeatDays * 86400000) },
+    });
+    await createNotification({
+      tenantId,
+      type: "AUTO_FOLLOW_UP_SENT",
+      title: `Follow-up auto-sent to ${tx.party.name}`,
+      body: body.slice(0, 140),
+      linkHref: `/dashboard/${tenantId}/customers/${tx.party.id}`,
+    });
+  }
+
+  void draft;
+  return true;
+}
+
 export async function GET(req: NextRequest) {
   // Basic shared-secret check so this endpoint can't be triggered by anyone
   // who finds the URL — set CRON_SECRET and pass it as a query param from
@@ -64,39 +128,28 @@ export async function GET(req: NextRequest) {
 
   const tenants = await prisma.tenant.findMany();
   let drafted = 0;
+  let autoSent = 0;
   let abandonedDrafted = 0;
 
   for (const tenant of tenants) {
     const stale = await findStaleTransactions({
       tenantId: tenant.id,
-      staleAfterDays: 3,
+      staleAfterDays: tenant.followUpWindowDays,
     });
 
     for (const tx of stale) {
-      if (!tx.party.phone) continue;
-
-      // Don't pile up a second pending draft for the same transaction —
-      // one open ask at a time, wait for the owner to act on it.
-      const existingPending = await prisma.aiDraft.findFirst({
-        where: { transactionId: tx.id, status: "PENDING" },
-      });
-      if (existingPending) continue;
-
-      const touchNumber = (await countFollowUpsSent(tx.id)) + 1;
-      const body = await composeFollowUpMessage(tx, touchNumber, tenant.collectionsTone);
-
-      await prisma.aiDraft.create({
-        data: {
-          tenantId: tenant.id,
-          partyId: tx.party.id,
-          transactionId: tx.id,
-          touchNumber,
-          body,
-          reasoning: followUpReasoning(touchNumber, tx.type, tenant.collectionsTone),
-        },
-      });
-
-      drafted++;
+      const created = await processTransaction(
+        tenant.id,
+        tx,
+        followUpReasoning(await countFollowUpsSent(tx.id) + 1, tx.type, tenant.collectionsTone),
+        tenant.autoRespondEnabled,
+        tenant.followUpRepeatDays,
+        tenant.collectionsTone
+      );
+      if (created) {
+        drafted++;
+        if (tenant.autoRespondEnabled) autoSent++;
+      }
     }
 
     // Abandoned-quote recovery — opened but not yet responded to, and not
@@ -106,30 +159,25 @@ export async function GET(req: NextRequest) {
     const abandoned = await findAbandonedQuotes({ tenantId: tenant.id, minHoursSinceOpen: 2 });
 
     for (const tx of abandoned) {
-      if (!tx.party.phone) continue;
-
-      const existingPending = await prisma.aiDraft.findFirst({
-        where: { transactionId: tx.id, status: "PENDING" },
-      });
-      if (existingPending) continue;
-
-      const touchNumber = (await countFollowUpsSent(tx.id)) + 1;
-      const body = await composeFollowUpMessage(tx, touchNumber, tenant.collectionsTone);
-
-      await prisma.aiDraft.create({
-        data: {
-          tenantId: tenant.id,
-          partyId: tx.party.id,
-          transactionId: tx.id,
-          touchNumber,
-          body,
-          reasoning: `They opened this quote (${tx.openCount}x) but haven't responded yet — worth a nudge while it's still fresh, rather than waiting for the standard follow-up cadence.`,
-        },
-      });
-
-      abandonedDrafted++;
+      const created = await processTransaction(
+        tenant.id,
+        tx,
+        `They opened this quote (${tx.openCount}x) but haven't responded yet — worth a nudge while it's still fresh, rather than waiting for the standard follow-up cadence.`,
+        tenant.autoRespondEnabled,
+        tenant.followUpRepeatDays,
+        tenant.collectionsTone
+      );
+      if (created) {
+        abandonedDrafted++;
+        if (tenant.autoRespondEnabled) autoSent++;
+      }
     }
   }
 
-  return NextResponse.json({ ok: true, followUpsDrafted: drafted, abandonedQuotesDrafted: abandonedDrafted });
+  return NextResponse.json({
+    ok: true,
+    followUpsDrafted: drafted,
+    abandonedQuotesDrafted: abandonedDrafted,
+    autoSent,
+  });
 }

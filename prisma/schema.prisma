@@ -97,6 +97,17 @@ model Tenant {
   // logging — same graceful-degradation pattern as WhatsApp/R2.
   docBackupProvider            String? // "google_drive" | null = not connected
   docBackupConnected           Boolean         @default(false)
+  // Follow-up cadence, owner-controlled — taking the "when do we nudge
+  // them" decision off a person's daily mental checklist entirely.
+  // windowDays = days of silence before the first follow-up fires;
+  // repeatDays = days between each escalation after that.
+  followUpWindowDays           Int             @default(3)
+  followUpRepeatDays           Int             @default(3)
+  // When on, an AI-drafted follow-up sends automatically instead of
+  // waiting in the AiDraft queue for a human Approve click — the
+  // confirm-before-send guardrail, made optional per tenant rather than
+  // mandatory, since some owners want the daily task gone entirely.
+  autoRespondEnabled           Boolean         @default(false)
   // AI-generated proposal content is metered — the LLM call only writes
   // text (never the PDF design/layout, which stays fixed code, both for
   // cost and for visual consistency), but text generation still costs
@@ -136,6 +147,9 @@ model Tenant {
   tillSessions           TillSession[]
   posIntegrations        PosIntegration[]
   pdfTemplates           TenantPdfTemplate[]
+  emailAccounts          EmailAccount[]
+  inboundEmails          InboundEmail[]
+  notifications          Notification[]
   webhookEndpoints       WebhookEndpoint[]
 
   connectionsAsSupplier WholesaleConnection[] @relation("SupplierConnections")
@@ -325,6 +339,11 @@ model Transaction {
   paymentMethod         String? // "cash" | "card" | provider id, e.g. "yoco"
   tillSessionId         String?
   tillSession           TillSession?      @relation(fields: [tillSessionId], references: [id])
+  // Overrides the default follow-up cadence when an inbound email reply
+  // gave a real scheduling cue ("call me back in 2 weeks") — the
+  // follow-up cron checks this before falling back to
+  // Tenant.followUpWindowDays/followUpRepeatDays.
+  nextFollowUpAt        DateTime?
 
   itemLines TransactionLine[]
 
@@ -1074,4 +1093,110 @@ model TenantPdfTemplate {
 
   @@index([tenantId])
   @@map("tenant_pdf_templates")
+}
+
+// ---------------------------------------------------------------------
+// Built-in mail client — a BlueMail-style unified inbox. GOOGLE is a
+// coming-soon connection type (needs a real OAuth app registered and
+// verified with Google before it can do anything beyond sit disabled,
+// same checkpoint class as Google Drive backup). IMAP is real today —
+// the owner's own mail credentials, encrypted at rest (src/lib/crypto.ts)
+// since this is meaningfully more sensitive than an API key. FLOW_HOSTED
+// is a forwarding address unique to this tenant that flow ingests via
+// webhook — no credentials to store at all.
+// ---------------------------------------------------------------------
+
+enum EmailProviderType {
+  GOOGLE
+  IMAP
+  FLOW_HOSTED
+}
+
+model EmailAccount {
+  id                  String            @id @default(cuid())
+  tenantId            String
+  tenant              Tenant            @relation(fields: [tenantId], references: [id])
+  provider            EmailProviderType
+  emailAddress        String
+  imapHost            String?
+  imapPort            Int?
+  imapUser            String?
+  imapPasswordEnc     String? // AES-encrypted, never plaintext
+  flowInboundAddress  String?           @unique // e.g. "acme-co@mail.flow.skynat.co"
+  isActive            Boolean           @default(true)
+  lastCheckedAt       DateTime?
+  createdAt           DateTime          @default(now())
+
+  emails InboundEmail[]
+
+  @@index([tenantId])
+  @@map("email_accounts")
+}
+
+enum EmailCategory {
+  STATEMENT
+  INVOICE
+  LEGAL
+  QUOTE_REPLY
+  OTHER
+}
+
+// Every inbound message that's been ingested (IMAP poll or webhook),
+// classified by AI so statements/invoices/legal mail surfaces as
+// important in the dashboard instead of getting buried in an inbox
+// nobody checks — the actual problem this feature exists to solve.
+model InboundEmail {
+  id             String        @id @default(cuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  emailAccountId String
+  emailAccount   EmailAccount  @relation(fields: [emailAccountId], references: [id])
+  fromAddress    String
+  subject        String
+  bodyText       String
+  receivedAt     DateTime
+  category       EmailCategory @default(OTHER)
+  isImportant    Boolean       @default(false)
+  aiSummary      String?
+  // If the AI reads a scheduling cue in a quote reply ("call me back in
+  // 2 weeks"), it links back to the quote and the follow-up cron reads
+  // Transaction.nextFollowUpAt instead of the default cadence.
+  linkedTransactionId String?
+  isRead         Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+
+  @@index([tenantId, isRead])
+  @@index([tenantId, category])
+  @@map("inbound_emails")
+}
+
+enum NotificationType {
+  HOT_LEAD
+  IMPORTANT_EMAIL
+  AUTO_FOLLOW_UP_SENT
+  FOLLOW_UP_NEEDS_APPROVAL
+  GENERAL
+}
+
+// One shared in-dashboard notification center — also the hub other
+// channels (WhatsApp alert to the assigned salesperson today, push once
+// there's a mobile push provider) fan out from, so there's a single
+// record of "the business was told about this," not a different history
+// per channel.
+model Notification {
+  id           String           @id @default(cuid())
+  tenantId     String
+  tenant       Tenant           @relation(fields: [tenantId], references: [id])
+  membershipId String? // null = visible to every member of the tenant
+  type         NotificationType
+  title        String
+  body         String
+  linkHref     String?
+  isRead       Boolean          @default(false)
+  sentViaWhatsApp Boolean       @default(false)
+  createdAt    DateTime         @default(now())
+
+  @@index([tenantId, isRead])
+  @@index([tenantId, membershipId, isRead])
+  @@map("notifications")
 }

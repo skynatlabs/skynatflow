@@ -321,15 +321,23 @@ export async function findStaleTransactions(params: {
   tenantId: string;
   staleAfterDays?: number;
 }) {
+  const now = new Date();
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - (params.staleAfterDays ?? 3));
 
+  // nextFollowUpAt (set when an inbound email reply gave a real timing
+  // cue) always wins over the default cadence — a future date holds this
+  // transaction back even past the normal window, a past/present date
+  // pulls it in regardless of how recently it was created.
   return prisma.transaction.findMany({
     where: {
       tenantId: params.tenantId,
       type: { in: [TransactionType.QUOTE, TransactionType.INVOICE] },
       status: { in: [TransactionStatus.SENT, TransactionStatus.PARTIALLY_PAID] },
-      createdAt: { lt: cutoff },
+      OR: [
+        { nextFollowUpAt: { lte: now } },
+        { nextFollowUpAt: null, createdAt: { lt: cutoff } },
+      ],
     },
     include: { party: true },
     orderBy: { createdAt: "asc" },

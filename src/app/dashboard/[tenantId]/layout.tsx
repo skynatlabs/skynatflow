@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthRequiredError, ForbiddenError, requireTenantAccess } from "@/lib/auth/tenant-access";
 import { logoutAction } from "@/app/logout/actions";
 import { FlowMark } from "@/components/FlowMark";
+import { unreadCount } from "@/lib/core/notifications2";
 import {
   HomeIcon,
   UsersIcon,
@@ -45,11 +46,13 @@ export default async function TenantShellLayout({
   if (!tenant) notFound();
 
   const niche = nicheConfig(tenant.niche);
+  const unread = await unreadCount(tenantId);
   const cookieStore = await cookies();
   const theme = cookieStore.get("kb-theme")?.value === "dark" ? "dark" : "light";
 
   const nav = [
     { href: `/dashboard/${tenantId}`, label: "Home", icon: HomeIcon },
+    { href: `/dashboard/${tenantId}/inbox`, label: "Inbox", icon: SignatureIcon, badge: unread || undefined },
     { href: `/dashboard/${tenantId}/customers`, label: niche.customerLabel + "s", icon: UsersIcon },
     { href: `/dashboard/${tenantId}/products`, label: "Products", icon: BoxIcon },
     { href: `/dashboard/${tenantId}/inventory`, label: "Inventory", icon: BoxIcon },
@@ -108,7 +111,12 @@ export default async function TenantShellLayout({
                   className="flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white"
                 >
                   <Icon className="h-[18px] w-[18px] shrink-0" />
-                  <span className="truncate">{item.label}</span>
+                  <span className="truncate flex-1">{item.label}</span>
+                  {"badge" in item && item.badge ? (
+                    <span className="rounded-full bg-[var(--kb-accent-a)] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      {item.badge}
+                    </span>
+                  ) : null}
                 </Link>
               );
             })}
