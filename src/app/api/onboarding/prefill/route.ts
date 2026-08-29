@@ -21,5 +21,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ prefill });
+  // Fetched server-side and inlined as a data URL — the browser can't load
+  // an arbitrary third-party image into a form field without hitting CORS,
+  // and this is the one shot at grabbing it while we already have the URL.
+  let logoDataUrl: string | null = null;
+  if (prefill.logoUrl) {
+    try {
+      const imgRes = await fetch(prefill.logoUrl, { signal: AbortSignal.timeout(5000) });
+      const contentType = imgRes.headers.get("content-type") ?? "";
+      if (imgRes.ok && contentType.startsWith("image/")) {
+        const buffer = Buffer.from(await imgRes.arrayBuffer());
+        if (buffer.length < 2 * 1024 * 1024) {
+          logoDataUrl = `data:${contentType};base64,${buffer.toString("base64")}`;
+        }
+      }
+    } catch {
+      // Logo fetch failing is never worth blocking the rest of prefill on.
+    }
+  }
+
+  return NextResponse.json({ prefill: { ...prefill, logoDataUrl } });
 }

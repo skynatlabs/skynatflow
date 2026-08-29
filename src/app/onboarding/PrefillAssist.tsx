@@ -11,6 +11,7 @@ export default function PrefillAssist() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [foundSocialLinks, setFoundSocialLinks] = useState<string[]>([]);
 
   async function handlePrefill() {
     if (!url.trim()) return;
@@ -28,7 +29,7 @@ export default function PrefillAssist() {
         return;
       }
 
-      const { businessName, suggestedNiche, suggestedCatalogItems } = data.prefill;
+      const { businessName, suggestedNiche, suggestedCatalogItems, logoDataUrl, socialLinks } = data.prefill;
 
       if (businessName) {
         const nameInput = document.getElementById("businessName-input") as HTMLInputElement | null;
@@ -42,6 +43,11 @@ export default function PrefillAssist() {
       if (hiddenItems && suggestedCatalogItems?.length) {
         hiddenItems.value = JSON.stringify(suggestedCatalogItems);
       }
+      const hiddenLogo = document.getElementById("logoDataUrl-input") as HTMLInputElement | null;
+      if (hiddenLogo && logoDataUrl) {
+        hiddenLogo.value = logoDataUrl;
+      }
+      setFoundSocialLinks(socialLinks ?? []);
 
       setMessage(
         businessName
@@ -78,6 +84,18 @@ export default function PrefillAssist() {
         </button>
       </div>
       {message && <p className="mt-2 text-xs text-[var(--kb-text-dim)]">{message}</p>}
+      {foundSocialLinks.length > 0 && (
+        <p className="mt-2 text-xs text-[var(--kb-text-dim)]">
+          Also found: {foundSocialLinks.map((l, i) => (
+            <span key={l}>
+              {i > 0 && ", "}
+              <a href={l} target="_blank" rel="noopener noreferrer" className="underline">
+                {new URL(l).hostname.replace(/^www\./, "")}
+              </a>
+            </span>
+          ))}
+        </p>
+      )}
     </div>
   );
 }

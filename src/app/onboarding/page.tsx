@@ -10,6 +10,7 @@ import { NICHE_CONFIGS } from "@/lib/niches/config";
 import { FlowMark } from "@/components/FlowMark";
 import { createTenantAction } from "./actions";
 import PrefillAssist from "./PrefillAssist";
+import PdfPrefillAssist from "./PdfPrefillAssist";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
@@ -37,9 +38,12 @@ export default async function OnboardingPage() {
         </p>
 
         <PrefillAssist />
+        <PdfPrefillAssist />
 
         <form action={createTenantAction} className="kb-card mt-6 space-y-4 p-6">
           <input type="hidden" name="catalogItemsJson" id="catalogItemsJson-input" />
+          <input type="hidden" name="customerJson" id="customerJson-input" />
+          <input type="hidden" name="logoDataUrl" id="logoDataUrl-input" />
           <div>
             <label className={labelClass}>Business name</label>
             <input id="businessName-input" name="businessName" required className={inputClass} placeholder="Demo Solar Co" />

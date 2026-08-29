@@ -5,6 +5,9 @@ import { prisma } from "@/lib/db";
 import { NicheSkin } from "@prisma/client";
 import { auth } from "@/auth";
 import { createProduct } from "@/lib/core/catalog";
+import { createParty } from "@/lib/core/parties";
+import { PartyRole } from "@prisma/client";
+import { createPdfTemplate } from "@/lib/core/pdfTemplates";
 
 export async function createTenantAction(formData: FormData) {
   const session = await auth();
@@ -33,20 +36,65 @@ export async function createTenantAction(formData: FormData) {
     data: { userId: session.user.id, tenantId: tenant.id, role: "OWNER" },
   });
 
-  // Catalog items suggested by the onboarding "paste your website" prefill
-  // — no price known yet, so they land as free-form drafts (owner sets a
-  // real price on their first quote) rather than blocking on it here.
+  // Catalog items suggested by either onboarding prefill path — the
+  // website one never knows a real price (lands as a 0-price draft, owner
+  // sets it on their first quote); the PDF-quote path usually does know a
+  // real price straight off the document, so it's honored when present.
   const catalogItemsJson = String(formData.get("catalogItemsJson") ?? "");
   if (catalogItemsJson) {
     try {
-      const items: { name: string }[] = JSON.parse(catalogItemsJson);
-      for (const item of items.slice(0, 5)) {
+      const items: { name: string; unitPriceCents?: number | null }[] = JSON.parse(catalogItemsJson);
+      for (const item of items.slice(0, 20)) {
         if (item.name) {
-          await createProduct({ tenantId: tenant.id, name: item.name, unitPriceCents: 0 });
+          await createProduct({
+            tenantId: tenant.id,
+            name: item.name,
+            unitPriceCents: item.unitPriceCents ?? 0,
+          });
         }
       }
     } catch {
       // Malformed hint — not worth failing onboarding over.
+    }
+  }
+
+  // A customer named on an uploaded PDF quote — created alongside the
+  // business itself, same "extract customers and products from the same
+  // import" pattern Zoho uses, just sourced from a document instead of a CSV.
+  const customerJson = String(formData.get("customerJson") ?? "");
+  if (customerJson) {
+    try {
+      const customer: { name?: string; email?: string | null; phone?: string | null } = JSON.parse(customerJson);
+      if (customer.name) {
+        await createParty({
+          tenantId: tenant.id,
+          role: niche === "MEDICAL" ? PartyRole.PATIENT : PartyRole.CUSTOMER,
+          name: customer.name,
+          email: customer.email || undefined,
+          phone: customer.phone || undefined,
+        });
+      }
+    } catch {
+      // Malformed hint — not worth failing onboarding over.
+    }
+  }
+
+  // A logo found on their website during prefill — used to pre-brand their
+  // very first PDF template so "Brand your quotes & invoices" on the next
+  // screen already shows a checkmark instead of an empty picker.
+  const logoDataUrl = String(formData.get("logoDataUrl") ?? "").trim();
+  if (logoDataUrl) {
+    try {
+      await createPdfTemplate({
+        tenantId: tenant.id,
+        name: "Default",
+        styleKey: "minimal-mono",
+        logoDataUrl,
+        isDefault: true,
+      });
+    } catch {
+      // Not worth failing onboarding over — the finish step still lets
+      // them pick a template manually if this didn't take.
     }
   }
 
