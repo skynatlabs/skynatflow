@@ -11,6 +11,7 @@ const inputClass =
 export default async function SignupPage() {
   const cookieStore = await cookies();
   const theme = cookieStore.get("kb-theme")?.value === "dark" ? "dark" : "light";
+  const showGoogle = await googleLoginEnabled();
 
   return (
     <div className="kb-shell flex min-h-screen items-center justify-center p-8" data-theme={theme}>
@@ -21,7 +22,7 @@ export default async function SignupPage() {
         </div>
 
         <div className="mt-6 space-y-3">
-          {googleLoginEnabled && (
+          {showGoogle && (
             <>
               <GoogleSignInButton label="Sign up with Google" />
               <div className="flex items-center gap-3 text-xs text-[var(--kb-text-dim)]">

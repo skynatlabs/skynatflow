@@ -1345,3 +1345,19 @@ model PlatformSetting {
 
   @@map("platform_settings")
 }
+
+// Every external-service credential this app can use, settable from
+// /admin/api-keys instead of only an env var — a super-admin can add or
+// rotate a key without a redeploy. `key` is one of the fixed identifiers
+// in src/lib/platform/apiKeys.ts (e.g. "ANTHROPIC_API_KEY"); `valueEnc` is
+// AES-256-GCM encrypted (src/lib/crypto.ts) since these are always secrets.
+// Reading always checks here first, falling back to the env var of the
+// same name — nothing breaks for a deployment that only ever used env vars.
+model PlatformApiKey {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  valueEnc  String
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_api_keys")
+}

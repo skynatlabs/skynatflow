@@ -24,6 +24,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href="/admin/ai" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
               AI provider
             </Link>
+            <Link href="/admin/api-keys" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
+              API keys
+            </Link>
             <Link href="/dashboard" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
               &larr; Back to dashboard
             </Link>

@@ -6,9 +6,10 @@
 // configured if the chosen one doesn't, and to null (caller degrades
 // gracefully, same as every other external integration here) if neither does.
 
-import { anthropic } from "@ai-sdk/anthropic";
-import { google } from "@ai-sdk/google";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { prisma } from "@/lib/db";
+import { getPlatformSecret } from "@/lib/platform/apiKeys";
 
 export type AiProvider = "anthropic" | "google";
 
@@ -17,10 +18,17 @@ export const AI_PROVIDER_LABELS: Record<AiProvider, string> = {
   google: "Gemini (Google)",
 };
 
-export function providerHasKey(provider: AiProvider): boolean {
-  return provider === "anthropic"
-    ? Boolean(process.env.ANTHROPIC_API_KEY)
-    : Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+const KEY_NAME: Record<AiProvider, string> = {
+  anthropic: "ANTHROPIC_API_KEY",
+  google: "GOOGLE_GENERATIVE_AI_API_KEY",
+};
+
+export async function getProviderKey(provider: AiProvider): Promise<string | null> {
+  return getPlatformSecret(KEY_NAME[provider]);
+}
+
+export async function providerHasKey(provider: AiProvider): Promise<boolean> {
+  return Boolean(await getProviderKey(provider));
 }
 
 export async function getPlatformAiProvider(): Promise<AiProvider> {
@@ -36,8 +44,12 @@ export async function setPlatformAiProvider(provider: AiProvider): Promise<void>
   });
 }
 
-function modelFor(provider: AiProvider) {
-  return provider === "google" ? google("gemini-2.5-pro") : anthropic("claude-sonnet-4-5");
+async function modelFor(provider: AiProvider) {
+  const apiKey = await getProviderKey(provider);
+  if (!apiKey) return null;
+  return provider === "google"
+    ? createGoogleGenerativeAI({ apiKey })("gemini-2.5-pro")
+    : createAnthropic({ apiKey })("claude-sonnet-4-5");
 }
 
 // Returns null when nothing is configured — every call site already
@@ -45,10 +57,9 @@ function modelFor(provider: AiProvider) {
 // established graceful-degradation pattern), so nothing here should throw.
 export async function getAiModel() {
   const chosen = await getPlatformAiProvider();
-  if (providerHasKey(chosen)) return modelFor(chosen);
+  const primary = await modelFor(chosen);
+  if (primary) return primary;
 
   const fallback: AiProvider = chosen === "anthropic" ? "google" : "anthropic";
-  if (providerHasKey(fallback)) return modelFor(fallback);
-
-  return null;
+  return modelFor(fallback);
 }

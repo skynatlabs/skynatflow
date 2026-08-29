@@ -4,6 +4,9 @@ import { setAiProviderAction } from "./actions";
 export default async function AdminAiSettingsPage() {
   const current = await getPlatformAiProvider();
   const providers: AiProvider[] = ["anthropic", "google"];
+  const keyStatus = Object.fromEntries(
+    await Promise.all(providers.map(async (p) => [p, await providerHasKey(p)] as const))
+  );
 
   return (
     <div>
@@ -16,7 +19,7 @@ export default async function AdminAiSettingsPage() {
 
       <div className="kb-card mt-6 divide-y divide-[var(--kb-panel-border)]">
         {providers.map((provider) => {
-          const hasKey = providerHasKey(provider);
+          const hasKey = keyStatus[provider];
           const isCurrent = current === provider;
           return (
             <div key={provider} className="flex items-center justify-between p-5">
