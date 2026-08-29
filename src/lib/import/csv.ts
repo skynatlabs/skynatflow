@@ -57,7 +57,13 @@ export function parseCsv(text: string): { headers: string[]; rows: string[][] } 
 // means what.
 export const IMPORT_PRESETS: Record<
   string,
-  { label: string; customers?: Record<string, string[]>; products?: Record<string, string[]> }
+  {
+    label: string;
+    customers?: Record<string, string[]>;
+    products?: Record<string, string[]>;
+    quotes?: Record<string, string[]>;
+    invoices?: Record<string, string[]>;
+  }
 > = {
   zoho: {
     label: "Zoho Invoice / Zoho Books",
@@ -71,6 +77,21 @@ export const IMPORT_PRESETS: Record<
       sku: ["SKU", "Item SKU"],
       unitPriceCents: ["Rate", "Sales Price", "Price"],
       category: ["Category Name", "Category"],
+    },
+    quotes: {
+      customerName: ["Customer Name", "Display Name"],
+      amountCents: ["Total", "SubTotal"],
+      status: ["Estimate Status", "Status"],
+      date: ["Estimate Date", "Date"],
+      reference: ["Estimate Number", "Estimate#"],
+    },
+    invoices: {
+      customerName: ["Customer Name", "Display Name"],
+      amountCents: ["Total", "Balance"],
+      status: ["Invoice Status", "Status"],
+      date: ["Invoice Date", "Date"],
+      dueDate: ["Due Date"],
+      reference: ["Invoice Number", "Invoice#"],
     },
   },
   quickbooks: {
@@ -86,6 +107,21 @@ export const IMPORT_PRESETS: Record<
       unitPriceCents: ["Sales Price", "Price"],
       category: ["Category"],
     },
+    quotes: {
+      customerName: ["Customer", "Name"],
+      amountCents: ["Total", "Amount"],
+      status: ["Status"],
+      date: ["Estimate Date", "Date"],
+      reference: ["Estimate No.", "Num"],
+    },
+    invoices: {
+      customerName: ["Customer", "Name"],
+      amountCents: ["Total", "Amount"],
+      status: ["Status"],
+      date: ["Invoice Date", "Date"],
+      dueDate: ["Due Date"],
+      reference: ["Invoice No.", "Num"],
+    },
   },
   freshbooks: {
     label: "FreshBooks",
@@ -97,6 +133,14 @@ export const IMPORT_PRESETS: Record<
     products: {
       name: ["Item Name", "Description"],
       unitPriceCents: ["Unit Cost", "Rate"],
+    },
+    invoices: {
+      customerName: ["Organization", "Client Name"],
+      amountCents: ["Amount", "Total"],
+      status: ["Status"],
+      date: ["Invoice Date", "Date"],
+      dueDate: ["Due Date"],
+      reference: ["Invoice #", "Invoice Number"],
     },
   },
   wave: {
@@ -110,6 +154,14 @@ export const IMPORT_PRESETS: Record<
       name: ["Product Name", "Name"],
       unitPriceCents: ["Price", "Sale Price"],
     },
+    invoices: {
+      customerName: ["Customer Name", "Name"],
+      amountCents: ["Amount Due", "Total"],
+      status: ["Status"],
+      date: ["Invoice Date", "Date"],
+      dueDate: ["Due Date"],
+      reference: ["Invoice Number"],
+    },
   },
   xero: {
     label: "Xero",
@@ -122,6 +174,14 @@ export const IMPORT_PRESETS: Record<
       name: ["*ItemCode", "ItemName", "Description"],
       sku: ["ItemCode"],
       unitPriceCents: ["SalesUnitPrice", "PurchasesUnitPrice"],
+    },
+    invoices: {
+      customerName: ["*ContactName", "ContactName"],
+      amountCents: ["*UnitAmount", "Total"],
+      status: ["*InvoiceStatus", "Status"],
+      date: ["*InvoiceDate", "InvoiceDate"],
+      dueDate: ["*DueDate", "DueDate"],
+      reference: ["*InvoiceNumber", "InvoiceNumber"],
     },
   },
   generic: { label: "Generic CSV (map columns manually)" },
@@ -138,6 +198,21 @@ export const TARGET_FIELDS = {
     { key: "sku", label: "SKU", required: false },
     { key: "unitPriceCents", label: "Price", required: true },
     { key: "category", label: "Category", required: false },
+  ],
+  quotes: [
+    { key: "customerName", label: "Customer name", required: true },
+    { key: "amountCents", label: "Amount", required: true },
+    { key: "status", label: "Status (sent/accepted/declined)", required: false },
+    { key: "date", label: "Date created", required: false },
+    { key: "reference", label: "Reference / quote number", required: false },
+  ],
+  invoices: [
+    { key: "customerName", label: "Customer name", required: true },
+    { key: "amountCents", label: "Amount", required: true },
+    { key: "status", label: "Status (paid/unpaid/overdue)", required: false },
+    { key: "date", label: "Date created", required: false },
+    { key: "dueDate", label: "Due date", required: false },
+    { key: "reference", label: "Reference / invoice number", required: false },
   ],
 } as const;
 

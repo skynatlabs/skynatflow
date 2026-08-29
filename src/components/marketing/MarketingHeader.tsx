@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { FlowMark } from "@/components/FlowMark";
 import { NICHE_CONFIGS } from "@/lib/niches/config";
 import MotionLink from "@/components/marketing/MotionLink";
 
@@ -47,9 +47,8 @@ export default function MarketingHeader() {
       className="sticky top-0 z-20 border-b border-[var(--kb-panel-border)] bg-[var(--kb-bg)]/90 backdrop-blur"
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
-          <FlowMark size={30} />
-          <span className="text-lg font-bold text-[var(--kb-text)]">flow</span>
+        <Link href="/" className="flex items-center" onClick={() => setMobileOpen(false)}>
+          <Image src="/flow-logo.png" alt="flow" width={140} height={40} priority className="h-9 w-auto" />
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-medium text-[var(--kb-text-dim)] lg:flex">

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FlowMark } from "@/components/FlowMark";
+import Image from "next/image";
 
 const COLUMNS = [
   {
@@ -32,10 +32,7 @@ export default function MarketingFooter() {
       <div className="mx-auto max-w-6xl px-6">
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
           <div>
-            <div className="flex items-center gap-2">
-              <FlowMark size={24} />
-              <span className="font-semibold text-[var(--kb-text)]">flow</span>
-            </div>
+            <Image src="/flow-logo.png" alt="flow" width={110} height={32} className="h-7 w-auto" />
             <p className="mt-3 max-w-[20ch] text-xs text-[var(--kb-text-dim)]">
               By Skynat. One platform to run your entire business.
             </p>

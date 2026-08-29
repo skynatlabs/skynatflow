@@ -68,7 +68,7 @@ export function ImportClient({ tenantId }: { tenantId: string }) {
       <div className="kb-card p-6">
         <label className="block text-sm font-medium text-[var(--kb-text)]">Importing</label>
         <div className="mt-1 grid grid-cols-2 gap-2">
-          {(["customers", "products"] as Target[]).map((t) => (
+          {(["customers", "products", "quotes", "invoices"] as Target[]).map((t) => (
             <button
               key={t}
               type="button"
