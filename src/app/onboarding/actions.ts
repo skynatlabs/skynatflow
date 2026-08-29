@@ -50,5 +50,5 @@ export async function createTenantAction(formData: FormData) {
     }
   }
 
-  redirect(`/dashboard/${tenant.id}`);
+  redirect(`/onboarding/finish/${tenant.id}`);
 }
