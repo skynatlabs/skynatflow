@@ -49,6 +49,21 @@ export async function setDefaultPdfTemplate(tenantId: string, templateId: string
   return prisma.tenantPdfTemplate.update({ where: { id: templateId }, data: { isDefault: true } });
 }
 
+export async function updateSectionLayout(params: {
+  tenantId: string;
+  templateId: string;
+  sectionOrder: string[];
+  hiddenSections: string[];
+}) {
+  const template = await prisma.tenantPdfTemplate.findUniqueOrThrow({ where: { id: params.templateId } });
+  if (template.tenantId !== params.tenantId) throw new Error("Not found.");
+
+  return prisma.tenantPdfTemplate.update({
+    where: { id: params.templateId },
+    data: { sectionOrder: params.sectionOrder, hiddenSections: params.hiddenSections },
+  });
+}
+
 export async function deletePdfTemplate(tenantId: string, templateId: string) {
   const template = await prisma.tenantPdfTemplate.findUniqueOrThrow({ where: { id: templateId } });
   if (template.tenantId !== tenantId) throw new Error("Not found.");

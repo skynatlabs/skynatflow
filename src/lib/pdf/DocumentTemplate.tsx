@@ -39,7 +39,24 @@ export interface DocumentData {
   qrDataUrl?: string;
   viewOnlineUrl?: string;
   logoDataUrl?: string;
+  bankingDetails?: {
+    bankName?: string | null;
+    accountHolder?: string | null;
+    accountNumber?: string | null;
+    branchCode?: string | null;
+    swift?: string | null;
+  };
+  verifyWhatsappNumber?: string;
+  // Drag-to-reorder builder output: which of the optional blocks below
+  // the items table appear, and in what order. Missing = the historical
+  // fixed order with nothing hidden, so existing templates render exactly
+  // as before this feature existed.
+  sectionOrder?: OptionalSectionKey[];
+  hiddenSections?: OptionalSectionKey[];
 }
+
+export type OptionalSectionKey = "terms" | "bankingDetails" | "verify";
+export const DEFAULT_SECTION_ORDER: OptionalSectionKey[] = ["terms", "bankingDetails", "verify"];
 
 function money(cents: number, currency = "ZAR") {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency });
@@ -143,12 +160,45 @@ export function DocumentTemplate({ style, data }: { style: PdfStyleConfig; data:
           </View>
         </View>
 
-        {data.terms && !isSlip && (
-          <View style={s.section}>
-            <Text style={s.sectionLabel}>Terms</Text>
-            <Text style={s.muted}>{data.terms}</Text>
-          </View>
-        )}
+        {!isSlip &&
+          (data.sectionOrder ?? DEFAULT_SECTION_ORDER)
+            .filter((key) => !data.hiddenSections?.includes(key))
+            .map((key) => {
+              if (key === "terms" && data.terms) {
+                return (
+                  <View style={s.section} key={key}>
+                    <Text style={s.sectionLabel}>Terms</Text>
+                    <Text style={s.muted}>{data.terms}</Text>
+                  </View>
+                );
+              }
+              if (key === "bankingDetails" && data.bankingDetails?.accountNumber) {
+                const b = data.bankingDetails;
+                return (
+                  <View style={s.section} key={key}>
+                    <Text style={s.sectionLabel}>Banking details</Text>
+                    {b.bankName && <Text style={s.muted}>Bank: {b.bankName}</Text>}
+                    {b.accountHolder && <Text style={s.muted}>Account holder: {b.accountHolder}</Text>}
+                    <Text style={s.muted}>Account number: {b.accountNumber}</Text>
+                    {b.branchCode && <Text style={s.muted}>Branch code: {b.branchCode}</Text>}
+                    {b.swift && <Text style={s.muted}>SWIFT: {b.swift}</Text>}
+                  </View>
+                );
+              }
+              if (key === "verify" && data.verifyWhatsappNumber) {
+                return (
+                  <View style={s.section} key={key}>
+                    <Text style={s.sectionLabel}>Verify this document</Text>
+                    <Text style={s.muted}>
+                      To confirm this {data.docLabel.toLowerCase()} genuinely came from{" "}
+                      {data.tenantName}, message {data.verifyWhatsappNumber} on WhatsApp — never pay
+                      or accept based on a document alone.
+                    </Text>
+                  </View>
+                );
+              }
+              return null;
+            })}
 
         <View style={s.footer}>
           <View style={s.footerLeft}>

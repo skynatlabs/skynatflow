@@ -34,6 +34,8 @@ export default async function PortalInvoicePage({
   });
   if (!invoice || invoice.partyId !== party.id || invoice.type !== "INVOICE") notFound();
 
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: invoice.tenantId } });
+
   const gateways =
     invoice.status === "PAID"
       ? []
@@ -89,6 +91,39 @@ export default async function PortalInvoicePage({
                 </form>
               ))}
             </div>
+          </div>
+        )}
+
+        {(tenant.bankAccountNumber || tenant.whatsappVerifyNumber) && (
+          <div className="mt-4 border-t border-[var(--kb-panel-border)] pt-4 text-sm">
+            {tenant.bankAccountNumber && (
+              <div className="mb-3">
+                <p className="font-medium text-[var(--kb-text)]">Banking details</p>
+                <p className="text-[var(--kb-text-dim)]">
+                  {tenant.bankName && <>Bank: {tenant.bankName}<br /></>}
+                  {tenant.bankAccountHolder && <>Account holder: {tenant.bankAccountHolder}<br /></>}
+                  Account number: {tenant.bankAccountNumber}
+                  {tenant.bankBranchCode && <>, Branch code: {tenant.bankBranchCode}</>}
+                </p>
+              </div>
+            )}
+            {tenant.whatsappVerifyNumber && (
+              <div className="rounded-lg bg-amber-50 px-3 py-2">
+                <p className="text-xs text-amber-800">
+                  Not sure this invoice is genuine? Message{" "}
+                  <a
+                    href={`https://wa.me/${tenant.whatsappVerifyNumber.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                      `Hi, I'd like to verify an invoice from ${tenant.name}.`
+                    )}`}
+                    target="_blank"
+                    className="font-semibold underline"
+                  >
+                    {tenant.name} on WhatsApp
+                  </a>{" "}
+                  to confirm before paying — never rely on the document alone.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -7,7 +7,7 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import type { Transaction, TransactionLine, Item, Party, Tenant } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { DocumentTemplate, type DocumentData } from "./DocumentTemplate";
+import { DocumentTemplate, type DocumentData, type OptionalSectionKey } from "./DocumentTemplate";
 import { getPdfStyle } from "./styles";
 import { generateQrDataUrl } from "./qr";
 
@@ -62,6 +62,18 @@ export async function renderTransactionPdf(params: {
     qrDataUrl,
     viewOnlineUrl: params.viewOnlineUrl,
     logoDataUrl: template?.logoDataUrl ?? undefined,
+    bankingDetails: params.tenant.bankAccountNumber
+      ? {
+          bankName: params.tenant.bankName,
+          accountHolder: params.tenant.bankAccountHolder,
+          accountNumber: params.tenant.bankAccountNumber,
+          branchCode: params.tenant.bankBranchCode,
+          swift: params.tenant.bankSwift,
+        }
+      : undefined,
+    verifyWhatsappNumber: params.tenant.whatsappVerifyNumber ?? undefined,
+    sectionOrder: (template?.sectionOrder as OptionalSectionKey[] | null) ?? undefined,
+    hiddenSections: (template?.hiddenSections as OptionalSectionKey[] | null) ?? undefined,
   };
 
   return renderToBuffer(DocumentTemplate({ style: resolvedStyle, data }));

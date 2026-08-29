@@ -142,6 +142,24 @@ export default async function PortalQuotePage({
           </p>
         )}
 
+        {quote.tenant.whatsappVerifyNumber && (
+          <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2">
+            <p className="text-xs text-amber-800">
+              Not sure this quote is genuine? Message{" "}
+              <a
+                href={`https://wa.me/${quote.tenant.whatsappVerifyNumber.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                  `Hi, I'd like to verify a quote from ${quote.tenant.name}.`
+                )}`}
+                target="_blank"
+                className="font-semibold underline"
+              >
+                {quote.tenant.name} on WhatsApp
+              </a>{" "}
+              to confirm before accepting.
+            </p>
+          </div>
+        )}
+
         <div className="kb-card mt-4 p-6">
           {openDispute ? (
             <div>

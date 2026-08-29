@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { listPdfTemplates } from "@/lib/core/pdfTemplates";
 import { PDF_STYLE_LIST } from "@/lib/pdf/styles";
 import { createPdfTemplateAction, setDefaultPdfTemplateAction, deletePdfTemplateAction } from "./actions";
@@ -31,6 +32,12 @@ export default async function PdfTemplatesPage({
                 <p className="text-xs text-[var(--kb-text-dim)]">{t.styleKey}</p>
               </div>
               <div className="flex items-center gap-2">
+                <Link
+                  href={`/dashboard/${tenantId}/settings/pdf-templates/${t.id}`}
+                  className="kb-pill kb-pill-ghost text-xs"
+                >
+                  Customize layout
+                </Link>
                 {t.isDefault ? (
                   <span className="kb-pill kb-pill-primary text-xs">Default</span>
                 ) : (

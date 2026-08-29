@@ -108,6 +108,18 @@ model Tenant {
   // confirm-before-send guardrail, made optional per tenant rather than
   // mandatory, since some owners want the daily task gone entirely.
   autoRespondEnabled           Boolean         @default(false)
+  // Banking details shown on invoice PDFs for EFT payment, plus the
+  // official WhatsApp number a customer can message to verify a document
+  // is genuinely from this business — an anti-impersonation measure, so
+  // it's deliberately settable only by an OWNER (see settings/banking),
+  // never a capability any staff role gets, to reduce the "a compromised
+  // or dishonest staff account swaps the bank account" fraud path.
+  bankName                     String?
+  bankAccountHolder            String?
+  bankAccountNumber            String?
+  bankBranchCode               String?
+  bankSwift                    String?
+  whatsappVerifyNumber         String?
   // AI-generated proposal content is metered — the LLM call only writes
   // text (never the PDF design/layout, which stays fixed code, both for
   // cost and for visual consistency), but text generation still costs
@@ -1201,6 +1213,13 @@ model TenantPdfTemplate {
   isDefault      Boolean  @default(false)
   accentColorHex String?
   logoDataUrl    String?
+  // Drag-to-reorder builder: which optional blocks appear (beyond the
+  // fixed header/items-table/total anchors) and in what order. Stored as
+  // a plain string array, e.g. ["customerInfo","terms","bankingDetails",
+  // "verify"] — a missing/empty value falls back to that default order
+  // with nothing hidden, so older templates render exactly as before.
+  sectionOrder   Json?
+  hiddenSections Json?
   createdAt      DateTime @default(now())
 
   @@index([tenantId])

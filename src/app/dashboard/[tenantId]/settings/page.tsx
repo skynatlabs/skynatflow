@@ -38,6 +38,7 @@ const GROUPS: {
   {
     heading: "Account",
     items: [
+      { href: "banking", label: "Banking & verification", description: "EFT details and your WhatsApp verify number — owner-only." },
       { href: "audit-log", label: "Audit log", description: "Every sensitive action taken on this workspace, by who and when." },
     ],
   },
