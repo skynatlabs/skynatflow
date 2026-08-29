@@ -16,10 +16,18 @@ const labelClass = "block text-sm font-medium text-[var(--kb-text)]";
 // DOM node directly (`el.value = ...`), and mixing that with React-
 // controlled inputs would fight each other. Both mechanisms write to the
 // same plain textareas here, no conflict.
-export function ProposalAiPanel({ tenantId, usageRemaining, usageLimit }: {
+export function ProposalAiPanel({
+  tenantId,
+  usageRemaining,
+  usageLimit,
+  defaultIntroText,
+  defaultScopeOfWork,
+}: {
   tenantId: string;
   usageRemaining: number;
   usageLimit: number;
+  defaultIntroText?: string;
+  defaultScopeOfWork?: string;
 }) {
   const introRef = useRef<HTMLTextAreaElement>(null);
   const scopeRef = useRef<HTMLTextAreaElement>(null);
@@ -92,11 +100,11 @@ export function ProposalAiPanel({ tenantId, usageRemaining, usageLimit }: {
 
       <div>
         <label className={labelClass}>Intro</label>
-        <textarea ref={introRef} name="introText" rows={3} defaultValue="" className={inputClass} />
+        <textarea ref={introRef} name="introText" rows={3} defaultValue={defaultIntroText ?? ""} className={inputClass} />
       </div>
       <div>
         <label className={labelClass}>Scope of work</label>
-        <textarea ref={scopeRef} name="scopeOfWork" rows={3} defaultValue="" className={inputClass} />
+        <textarea ref={scopeRef} name="scopeOfWork" rows={3} defaultValue={defaultScopeOfWork ?? ""} className={inputClass} />
       </div>
       <div>
         <label className={labelClass}>System / equipment info</label>

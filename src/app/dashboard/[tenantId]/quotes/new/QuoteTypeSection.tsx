@@ -9,12 +9,18 @@ export function QuoteTypeSection({
   tenantId,
   usageRemaining,
   usageLimit,
+  defaultKind,
+  defaultIntroText,
+  defaultScopeOfWork,
 }: {
   tenantId: string;
   usageRemaining: number;
   usageLimit: number;
+  defaultKind?: "BASIC" | "PROPOSAL";
+  defaultIntroText?: string;
+  defaultScopeOfWork?: string;
 }) {
-  const [kind, setKind] = useState<"BASIC" | "PROPOSAL">("BASIC");
+  const [kind, setKind] = useState<"BASIC" | "PROPOSAL">(defaultKind ?? "BASIC");
 
   return (
     <div>
@@ -54,7 +60,13 @@ export function QuoteTypeSection({
 
       {kind === "PROPOSAL" && (
         <div className="mt-3">
-          <ProposalAiPanel tenantId={tenantId} usageRemaining={usageRemaining} usageLimit={usageLimit} />
+          <ProposalAiPanel
+            tenantId={tenantId}
+            usageRemaining={usageRemaining}
+            usageLimit={usageLimit}
+            defaultIntroText={defaultIntroText}
+            defaultScopeOfWork={defaultScopeOfWork}
+          />
         </div>
       )}
     </div>

@@ -3,6 +3,7 @@
 // record" requirement (Section 7.1). Access to this page is already
 // enforced by the tenant layout (requireTenantAccess).
 
+import Link from "next/link";
 import { customerHistory, getOrCreatePortalToken } from "@/lib/core/parties";
 import { totalPaid, totalRefunded } from "@/lib/core/money";
 import { listRecurringInvoices } from "@/lib/core/recurring";
@@ -83,6 +84,14 @@ export default async function CustomerHistoryPage({
                   </span>
                   <span className="text-[var(--kb-text)]">{money(t.amountCents)}</span>
                 </div>
+                {t.type === "QUOTE" && (
+                  <Link
+                    href={`/dashboard/${tenantId}/quotes/new?duplicate=${t.id}`}
+                    className="mt-0.5 inline-block text-xs font-semibold text-[var(--kb-accent-a)] hover:underline"
+                  >
+                    Duplicate for another customer &rarr;
+                  </Link>
+                )}
                 {t.type === "QUOTE" && t.openCount > 0 && (
                   <p className="mt-0.5 text-xs text-[var(--kb-text-dim)]">
                     Opened {t.openCount}&times;

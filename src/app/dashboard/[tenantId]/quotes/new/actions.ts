@@ -22,10 +22,21 @@ export async function createQuoteAction(formData: FormData) {
 
   const customerName = String(formData.get("customerName") ?? "").trim();
   const customerPhone = String(formData.get("customerPhone") ?? "").trim();
-  const itemName = String(formData.get("itemName") ?? "").trim();
-  const itemId = String(formData.get("itemId") ?? "").trim();
-  const priceRand = Number(formData.get("priceRand") ?? 0);
-  const quantity = Number(formData.get("quantity") ?? 1);
+
+  const lineItemIds = formData.getAll("lineItemId").map(String);
+  const lineItemNames = formData.getAll("lineItemName").map((v) => String(v).trim());
+  const lineQuantities = formData.getAll("lineQuantity").map((v) => Number(v) || 1);
+  const linePriceRands = formData.getAll("linePriceRand").map((v) => Number(v) || 0);
+
+  const rows = lineItemNames
+    .map((itemName, i) => ({
+      itemId: lineItemIds[i] ?? "",
+      itemName,
+      quantity: lineQuantities[i] ?? 1,
+      priceRand: linePriceRands[i] ?? 0,
+    }))
+    .filter((r) => r.itemName && r.priceRand > 0);
+
   const quoteKindRaw = String(formData.get("quoteKind") ?? "BASIC");
   const quoteKind = quoteKindRaw === "PROPOSAL" ? QuoteKind.PROPOSAL : QuoteKind.BASIC;
   const introText = String(formData.get("introText") ?? "").trim();
@@ -35,8 +46,8 @@ export async function createQuoteAction(formData: FormData) {
   const performanceExpectancy = String(formData.get("performanceExpectancy") ?? "").trim();
   const projectTimeline = String(formData.get("projectTimeline") ?? "").trim();
 
-  if (!customerName || !itemName || !priceRand) {
-    throw new Error("Customer name, item, and price are required.");
+  if (!customerName || rows.length === 0) {
+    throw new Error("Customer name and at least one item are required.");
   }
 
   const customer = await createParty({
@@ -46,30 +57,35 @@ export async function createQuoteAction(formData: FormData) {
     phone: customerPhone || undefined,
   });
 
-  // Reuse the catalog product when one was picked, instead of creating a
-  // fresh throwaway Item every time — this is the actual product-catalog
-  // integration point. Only trust the id if it really belongs to this
-  // tenant and the name still matches what's shown (picker keeps them in
-  // sync client-side, but a stale/tampered form shouldn't silently reuse
-  // someone else's catalog row).
-  const catalogMatch = itemId
-    ? await prisma.item.findFirst({ where: { id: itemId, tenantId: tenant.id, name: itemName } })
-    : null;
+  // Reuse the catalog product when one was picked for a row, instead of
+  // creating a fresh throwaway Item every time — this is the actual
+  // product-catalog integration point. Only trust the id if it really
+  // belongs to this tenant and the name still matches what's shown (the
+  // picker keeps them in sync client-side, but a stale/tampered form
+  // shouldn't silently reuse someone else's catalog row).
+  const lines = [];
+  for (const row of rows) {
+    const catalogMatch = row.itemId
+      ? await prisma.item.findFirst({ where: { id: row.itemId, tenantId: tenant.id, name: row.itemName } })
+      : null;
 
-  const item =
-    catalogMatch ??
-    (await prisma.item.create({
-      data: {
-        tenantId: tenant.id,
-        name: itemName,
-        unitPriceCents: Math.round(priceRand * 100),
-      },
-    }));
+    const item =
+      catalogMatch ??
+      (await prisma.item.create({
+        data: {
+          tenantId: tenant.id,
+          name: row.itemName,
+          unitPriceCents: Math.round(row.priceRand * 100),
+        },
+      }));
+
+    lines.push({ itemId: item.id, quantity: row.quantity, unitPriceCents: Math.round(row.priceRand * 100) });
+  }
 
   const quote = await createQuote({
     tenantId: tenant.id,
     partyId: customer.id,
-    lines: [{ itemId: item.id, quantity, unitPriceCents: Math.round(priceRand * 100) }],
+    lines,
     quoteKind,
     introText: quoteKind === QuoteKind.PROPOSAL ? introText || undefined : undefined,
     scopeOfWork: quoteKind === QuoteKind.PROPOSAL ? scopeOfWork || undefined : undefined,
