@@ -7,10 +7,10 @@
 // extraction fails, never blocks onboarding.
 
 import { generateObject } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { PDFParse } from "pdf-parse";
 import { NICHE_CONFIGS } from "@/lib/niches/config";
+import { getAiModel } from "@/lib/ai/model";
 
 const QuotePdfSchema = z.object({
   businessName: z.string().nullable(),
@@ -29,7 +29,8 @@ const QuotePdfSchema = z.object({
 export type QuotePdfExtraction = z.infer<typeof QuotePdfSchema>;
 
 export async function extractQuotePdf(fileBuffer: Buffer): Promise<QuotePdfExtraction | null> {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
+  const model = await getAiModel();
+  if (!model) return null;
 
   let text: string;
   try {
@@ -45,7 +46,7 @@ export async function extractQuotePdf(fileBuffer: Buffer): Promise<QuotePdfExtra
 
   try {
     const { object } = await generateObject({
-      model: anthropic("claude-sonnet-4-5"),
+      model,
       schema: QuotePdfSchema,
       prompt:
         `Here is the raw text extracted from a PDF quote or invoice. It was issued BY the business ` +

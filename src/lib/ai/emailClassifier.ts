@@ -6,8 +6,8 @@
 // src/lib/ai/proposal.ts — structured output, not free text to parse.
 
 import { generateObject } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
+import { getAiModel } from "./model";
 
 const ClassificationSchema = z.object({
   category: z.enum(["STATEMENT", "INVOICE", "LEGAL", "QUOTE_REPLY", "OTHER"]),
@@ -26,10 +26,11 @@ export async function classifyInboundEmail(params: {
   subject: string;
   bodyText: string;
 }): Promise<EmailClassification> {
-  if (!process.env.ANTHROPIC_API_KEY) {
+  const model = await getAiModel();
+  if (!model) {
     // Graceful degradation, same as everywhere else AI is optional —
     // falls back to a safe default (flagged important so nothing silently
-    // gets buried just because the key isn't configured yet).
+    // gets buried just because no provider is configured yet).
     return {
       category: "OTHER",
       isImportant: true,
@@ -39,7 +40,7 @@ export async function classifyInboundEmail(params: {
   }
 
   const { object } = await generateObject({
-    model: anthropic("claude-sonnet-4-5"),
+    model,
     schema: ClassificationSchema,
     system:
       "You classify inbound business emails for a small business owner. " +

@@ -9,8 +9,8 @@
 // not itself decide to send without that check happening upstream).
 
 import { generateText } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
 import type { Transaction, Party, CollectionsTone } from "@prisma/client";
+import { getAiModel } from "./model";
 
 export interface StaleTransactionWithParty extends Transaction {
   party: Party;
@@ -47,8 +47,11 @@ export async function draftFollowUpMessage(params: {
     currency: "ZAR",
   });
 
+  const model = await getAiModel();
+  if (!model) throw new Error("No AI provider configured (set ANTHROPIC_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY).");
+
   const { text } = await generateText({
-    model: anthropic("claude-sonnet-4-5"),
+    model,
     system:
       "You draft short, warm, natural-sounding WhatsApp follow-up messages " +
       "for a small services business chasing an unanswered quote or unpaid " +

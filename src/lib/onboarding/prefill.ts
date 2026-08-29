@@ -6,9 +6,9 @@
 // throughout this app.
 
 import { generateObject } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { NICHE_CONFIGS } from "@/lib/niches/config";
+import { getAiModel } from "@/lib/ai/model";
 
 const PrefillSchema = z.object({
   businessName: z.string().nullable(),
@@ -66,7 +66,8 @@ export async function prefillFromUrl(url: string): Promise<OnboardingPrefill | n
 
   const { logoUrl, socialLinks } = extractLogoAndSocialLinks(html, url);
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  const model = await getAiModel();
+  if (!model) {
     return { businessName: null, suggestedNiche: null, suggestedCatalogItems: [], logoUrl, socialLinks };
   }
 
@@ -76,7 +77,7 @@ export async function prefillFromUrl(url: string): Promise<OnboardingPrefill | n
 
   try {
     const { object } = await generateObject({
-      model: anthropic("claude-sonnet-4-5"),
+      model,
       schema: PrefillSchema,
       prompt:
         `Here is the text content of a business's website. Extract: their business name, ` +

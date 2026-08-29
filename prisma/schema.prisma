@@ -1331,3 +1331,17 @@ model Notification {
   @@index([tenantId, membershipId, isRead])
   @@map("notifications")
 }
+
+// Platform-wide (not per-tenant) settings a super-admin controls — today
+// just which LLM provider powers every AI feature (proposals, email
+// classification, follow-up drafting, onboarding extraction). A single
+// fixed-id row rather than a real table, since there's exactly one of
+// these per deployment; getAiModel() reads it so a provider switch takes
+// effect immediately, no redeploy needed.
+model PlatformSetting {
+  id         String   @id @default("singleton")
+  aiProvider String   @default("anthropic") // "anthropic" | "google"
+  updatedAt  DateTime @updatedAt
+
+  @@map("platform_settings")
+}

@@ -20,9 +20,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <FlowMark size={26} />
             <span className="font-bold text-[var(--kb-text)]">Marketing CMS</span>
           </Link>
-          <Link href="/dashboard" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
-            &larr; Back to dashboard
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/admin/ai" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
+              AI provider
+            </Link>
+            <Link href="/dashboard" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
+              &larr; Back to dashboard
+            </Link>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-10">{children}</main>

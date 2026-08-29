@@ -9,9 +9,9 @@
 // throws clearly, same as followUp.ts.
 
 import { generateObject } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { getAiModel } from "./model";
 
 const ProposalContentSchema = z.object({
   introText: z.string().describe("A short, warm 2-3 sentence introduction to the proposal."),
@@ -65,12 +65,13 @@ export async function generateProposalContent(params: {
     );
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error("AI proposal generation needs ANTHROPIC_API_KEY configured — write the proposal manually for now.");
+  const model = await getAiModel();
+  if (!model) {
+    throw new Error("AI proposal generation needs an AI provider configured — write the proposal manually for now.");
   }
 
   const { object } = await generateObject({
-    model: anthropic("claude-sonnet-4-5"),
+    model,
     schema: ProposalContentSchema,
     system:
       "You write concise, professional project proposal content for a small business quoting a customer. " +
