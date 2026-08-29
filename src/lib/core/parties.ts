@@ -13,6 +13,12 @@ export async function createParty(params: {
   phone?: string;
   email?: string;
   notes?: string;
+  companyName?: string;
+  vatNumber?: string;
+  addressLine?: string;
+  city?: string;
+  postalCode?: string;
+  country?: string;
 }) {
   return prisma.party.create({ data: params });
 }
@@ -46,6 +52,26 @@ export async function listCustomers(
     where: { tenantId, role: { in: roles } },
     orderBy: { createdAt: "desc" },
   });
+}
+
+const CUSTOMERS_PAGE_SIZE = 25;
+
+export async function listCustomersPaginated(
+  tenantId: string,
+  page = 1,
+  roles: PartyRole[] = [PartyRole.CUSTOMER, PartyRole.PATIENT]
+) {
+  const where = { tenantId, role: { in: roles } };
+  const [items, total] = await Promise.all([
+    prisma.party.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * CUSTOMERS_PAGE_SIZE,
+      take: CUSTOMERS_PAGE_SIZE,
+    }),
+    prisma.party.count({ where }),
+  ]);
+  return { items, total, pageCount: Math.max(1, Math.ceil(total / CUSTOMERS_PAGE_SIZE)) };
 }
 
 // Full picture behind one customer record: every quote, invoice, payment,

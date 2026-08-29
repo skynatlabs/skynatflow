@@ -216,6 +216,8 @@ model Membership {
   department String?
   createdAt  DateTime     @default(now())
 
+  transactionsAsSalesPerson Transaction[]
+
   @@unique([userId, tenantId])
   @@index([tenantId])
   @@index([userId])
@@ -232,6 +234,14 @@ model Party {
   phone       String? // WhatsApp-reachable number, E.164
   email       String?
   notes       String?
+  // Richer contact/mapping fields for a proper customer record, not just
+  // a name+number — printed on quotes/invoices and usable in reporting.
+  companyName String?
+  vatNumber   String?
+  addressLine String?
+  city        String?
+  postalCode  String?
+  country     String?
   // Customer portal — a token-login link (Soler's proven pattern,
   // generalized onto the shared Party model), no password needed. Lazily
   // generated the first time a portal link is requested for this party.
@@ -330,6 +340,11 @@ model Transaction {
   acceptanceIp          String?
   acceptanceHash        String?
   reviewRequestSentAt   DateTime? // fires once, the moment an invoice first reaches PAID
+  // Who this quote/invoice is attributed to — shown on the document (with
+  // their contact details, if the tenant opts in) so the customer knows
+  // exactly who to reach, and lets reporting break down sales by person.
+  salesPersonMembershipId String?
+  salesPersonMembership   Membership? @relation(fields: [salesPersonMembershipId], references: [id])
   // Quote presentation (BASIC vs PROPOSAL). Only meaningful on QUOTE rows;
   // introText/scopeOfWork are populated for PROPOSAL and shown above the
   // line items on both the web link and the PDF.
