@@ -15,6 +15,7 @@ const GROUPS: {
       { href: "pdf-templates", label: "PDF templates", description: "Pick and customize your quote/invoice/delivery-slip designs." },
       { href: "payment-gateways", label: "Payment gateways", description: "Let customers pay invoices online by card." },
       { href: "pos-integrations", label: "POS & card terminal", description: "Connect an in-person card provider for your till." },
+      { href: "ecommerce", label: "Ecommerce", description: "Connect WooCommerce — sync products, auto-invoice new orders." },
       { href: "automation", label: "Follow-ups & automation", description: "Cadence, auto-respond, and auto-follow-up rules." },
       { href: "templates", label: "Proposal templates", description: "Reusable intro/scope-of-work text for proposal quotes." },
     ],

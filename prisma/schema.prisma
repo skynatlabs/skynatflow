@@ -148,6 +148,8 @@ model Tenant {
   posIntegrations        PosIntegration[]
   paymentGateways        PaymentGateway[]
   paymentCheckouts       PaymentCheckout[]
+  ecommerceIntegrations  EcommerceIntegration[]
+  ecommerceOrders        EcommerceOrder[]
   pdfTemplates           TenantPdfTemplate[]
   emailAccounts          EmailAccount[]
   inboundEmails          InboundEmail[]
@@ -349,6 +351,7 @@ model Transaction {
 
   itemLines        TransactionLine[]
   paymentCheckouts PaymentCheckout[]
+  ecommerceOrder   EcommerceOrder?
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -957,6 +960,52 @@ model PaymentCheckout {
   @@index([tenantId])
   @@index([invoiceId])
   @@map("payment_checkouts")
+}
+
+// Storefront sync — WordPress/WooCommerce today, scaffolded per platform
+// like PosIntegration/PaymentGateway so Shopify/BigCommerce are one new
+// enum value + one new client file later, not a schema change.
+enum EcommercePlatform {
+  WOOCOMMERCE
+}
+
+model EcommerceIntegration {
+  id                 String            @id @default(cuid())
+  tenantId           String
+  tenant             Tenant            @relation(fields: [tenantId], references: [id])
+  platform           EcommercePlatform
+  storeUrl           String // e.g. https://shop.example.com
+  consumerKey        String? // WooCommerce REST API key (ck_...)
+  consumerSecretEnc  String? // AES-256-GCM encrypted (WooCommerce cs_... secret)
+  webhookSecretEnc   String? // AES-256-GCM encrypted — verifies WooCommerce's X-WC-Webhook-Signature
+  isActive           Boolean           @default(false)
+  lastProductSyncAt  DateTime?
+  createdAt          DateTime          @default(now())
+
+  orders EcommerceOrder[]
+
+  @@unique([tenantId, platform])
+  @@index([tenantId])
+  @@map("ecommerce_integrations")
+}
+
+// One row per external order already turned into a flow invoice — the
+// idempotency guard so a WooCommerce webhook retry (it retries on
+// anything but a 200) never creates a duplicate invoice for the same order.
+model EcommerceOrder {
+  id                     String               @id @default(cuid())
+  tenantId               String
+  tenant                 Tenant               @relation(fields: [tenantId], references: [id])
+  integrationId          String
+  integration            EcommerceIntegration @relation(fields: [integrationId], references: [id])
+  externalOrderId        String // WooCommerce order id, as a string
+  invoiceId              String?              @unique
+  invoice                Transaction?         @relation(fields: [invoiceId], references: [id])
+  createdAt              DateTime             @default(now())
+
+  @@unique([integrationId, externalOrderId])
+  @@index([tenantId])
+  @@map("ecommerce_orders")
 }
 
 // ---------------------------------------------------------------------
