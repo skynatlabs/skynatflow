@@ -146,6 +146,8 @@ model Tenant {
   leases                 Lease[]
   tillSessions           TillSession[]
   posIntegrations        PosIntegration[]
+  paymentGateways        PaymentGateway[]
+  paymentCheckouts       PaymentCheckout[]
   pdfTemplates           TenantPdfTemplate[]
   emailAccounts          EmailAccount[]
   inboundEmails          InboundEmail[]
@@ -345,7 +347,8 @@ model Transaction {
   // Tenant.followUpWindowDays/followUpRepeatDays.
   nextFollowUpAt        DateTime?
 
-  itemLines TransactionLine[]
+  itemLines        TransactionLine[]
+  paymentCheckouts PaymentCheckout[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -894,6 +897,66 @@ model PosIntegration {
   @@unique([tenantId, provider])
   @@index([tenantId])
   @@map("pos_integrations")
+}
+
+// Online card payments — lets a CUSTOMER pay a quote/invoice from the
+// portal by card, distinct from PosIntegration (which is the merchant's
+// own in-person till). One tenant can enable several; whichever is
+// isActive and matches the tenant's region is offered on the portal.
+enum PaymentGatewayProvider {
+  // RSA
+  YOCO
+  PAYFAST
+  PEACH_PAYMENTS
+  OZOW
+  IKHOKHA
+  SNAPSCAN
+  PAYSTACK
+  NETCASH
+  // USA
+  STRIPE
+  PAYPAL
+  SQUARE
+  AUTHORIZE_NET
+  BRAINTREE
+}
+
+model PaymentGateway {
+  id           String                 @id @default(cuid())
+  tenantId     String
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id])
+  provider     PaymentGatewayProvider
+  region       String // "RSA" | "USA"
+  publicKey    String? // safe to expose client-side (Stripe publishable key, PayFast merchant id, etc.)
+  secretKey    String? // opaque; stubbed (returns a fake success) until set
+  isActive     Boolean                @default(false)
+  createdAt    DateTime               @default(now())
+
+  @@unique([tenantId, provider])
+  @@index([tenantId])
+  @@map("payment_gateways")
+}
+
+// A customer-initiated card payment attempt, tracked separately from the
+// Transaction ledger until the gateway confirms it — only a confirmed
+// checkout is allowed to call recordPayment and write a real PAYMENT row,
+// so a customer closing the tab mid-checkout never corrupts the ledger.
+model PaymentCheckout {
+  id            String                 @id @default(cuid())
+  tenantId      String
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id])
+  invoiceId     String
+  invoice       Transaction            @relation(fields: [invoiceId], references: [id])
+  provider      PaymentGatewayProvider
+  amountCents   Int
+  reference     String? // gateway's checkout/session id
+  status        String                 @default("PENDING") // PENDING | CONFIRMED | FAILED
+  createdAt     DateTime               @default(now())
+  confirmedAt   DateTime?
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@map("payment_checkouts")
 }
 
 // ---------------------------------------------------------------------

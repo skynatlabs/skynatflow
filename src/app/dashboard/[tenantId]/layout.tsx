@@ -77,6 +77,7 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}/properties`, label: "Properties", icon: BoxIcon },
     { href: `/dashboard/${tenantId}/pos`, label: "Point of Sale", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/staff`, label: "Staff & Roles", icon: UserCogIcon },
+    { href: `/dashboard/${tenantId}/settings`, label: "Settings", icon: UserCogIcon },
   ];
 
   return (

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { FlowMark } from "@/components/FlowMark";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { googleLoginEnabled } from "@/auth";
 import { signupAction } from "./actions";
 
 const inputClass =
@@ -18,7 +20,20 @@ export default async function SignupPage() {
           <span className="kb-gradient-text text-2xl font-extrabold">Create your account</span>
         </div>
 
-        <form action={signupAction} className="kb-card mt-6 space-y-4 p-6">
+        <div className="mt-6 space-y-3">
+          {googleLoginEnabled && (
+            <>
+              <GoogleSignInButton label="Sign up with Google" />
+              <div className="flex items-center gap-3 text-xs text-[var(--kb-text-dim)]">
+                <span className="h-px flex-1 bg-[var(--kb-panel-border)]" />
+                or
+                <span className="h-px flex-1 bg-[var(--kb-panel-border)]" />
+              </div>
+            </>
+          )}
+        </div>
+
+        <form action={signupAction} className="kb-card mt-3 space-y-4 p-6">
           <div>
             <label className="block text-sm font-medium text-[var(--kb-text)]">Name</label>
             <input name="name" className={inputClass} />
