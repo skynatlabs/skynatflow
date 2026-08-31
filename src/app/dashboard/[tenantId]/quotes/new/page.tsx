@@ -7,6 +7,7 @@ import { createQuoteAction } from "./actions";
 import { LineItemsEditor } from "./LineItemsEditor";
 import { TemplatePicker } from "./TemplatePicker";
 import { QuoteTypeSection } from "./QuoteTypeSection";
+import { SmartEntryBox } from "./SmartEntryBox";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
@@ -57,6 +58,8 @@ export default async function NewQuotePage({
           ? "Same line items, ready to send to a different customer — adjust anything before sending."
           : `This creates the ${niche.customerLabel.toLowerCase()} if they're new, and marks the quote as sent — the follow-up engine picks it up automatically if it goes unanswered.`}
       </p>
+
+      <SmartEntryBox tenantId={tenantId} />
 
       <form action={createQuoteAction} className="kb-card mt-6 space-y-5 p-6">
         <input type="hidden" name="tenantId" value={tenantId} />

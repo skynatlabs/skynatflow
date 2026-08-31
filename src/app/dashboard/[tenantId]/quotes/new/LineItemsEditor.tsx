@@ -1,7 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { computeDocumentTotal } from "@/lib/core/pricing";
+
+// Lets an external client component (SmartEntryBox) push a fresh set of
+// rows in after this component has already mounted — initialLines only
+// seeds React state once at mount, so replacing the prop later wouldn't
+// re-render existing rows. Registered on window rather than lifted state/
+// context since there's exactly one of these per page and no ancestor
+// component that needs to know about it.
+declare global {
+  interface Window {
+    __setQuoteLineItems?: (lines: LineItemValue[], documentDiscountPercent?: number) => void;
+  }
+}
 
 const inputClass =
   "w-full rounded-lg border border-[var(--kb-panel-border)] bg-white px-2.5 py-2 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
@@ -39,6 +51,16 @@ export function LineItemsEditor({
     )
   );
   const [documentDiscountPercent, setDocumentDiscountPercent] = useState(initialDocumentDiscountPercent ?? 0);
+
+  useEffect(() => {
+    window.__setQuoteLineItems = (lines, docDiscount) => {
+      setRows(lines.map((l) => ({ ...l, key: nextRowKey++ })));
+      if (docDiscount !== undefined) setDocumentDiscountPercent(docDiscount);
+    };
+    return () => {
+      delete window.__setQuoteLineItems;
+    };
+  }, []);
 
   function updateRow(key: number, patch: Partial<LineItemValue>) {
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
