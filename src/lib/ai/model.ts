@@ -44,11 +44,31 @@ export async function setPlatformAiProvider(provider: AiProvider): Promise<void>
   });
 }
 
+export type ColorSkin = "default" | "sunset";
+
+export const COLOR_SKIN_LABELS: Record<ColorSkin, string> = {
+  default: "Default (navy & coral)",
+  sunset: "Sunset (charcoal & amber)",
+};
+
+export async function getPlatformColorSkin(): Promise<ColorSkin> {
+  const setting = await prisma.platformSetting.findUnique({ where: { id: "singleton" } });
+  return setting?.colorSkin === "sunset" ? "sunset" : "default";
+}
+
+export async function setPlatformColorSkin(skin: ColorSkin): Promise<void> {
+  await prisma.platformSetting.upsert({
+    where: { id: "singleton" },
+    create: { id: "singleton", colorSkin: skin },
+    update: { colorSkin: skin },
+  });
+}
+
 async function modelFor(provider: AiProvider) {
   const apiKey = await getProviderKey(provider);
   if (!apiKey) return null;
   return provider === "google"
-    ? createGoogleGenerativeAI({ apiKey })("gemini-2.5-pro")
+    ? createGoogleGenerativeAI({ apiKey })("gemini-3.1-pro-preview")
     : createAnthropic({ apiKey })("claude-sonnet-4-5");
 }
 

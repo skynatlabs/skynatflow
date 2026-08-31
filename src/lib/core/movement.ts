@@ -56,6 +56,32 @@ export async function logDelivery(params: {
   return event;
 }
 
+// PA job: booking a future site visit/consultation straight from an
+// instruction ("book Peter in for a site visit Tuesday morning") instead
+// of a separate scheduling flow — reuses the same Event model the
+// appointment-reminder engine and the no-show board already read from,
+// so a PA-booked slot shows up everywhere those do with no extra wiring.
+export async function scheduleAppointment(params: {
+  tenantId: string;
+  partyId: string;
+  type: "SITE_VISIT" | "CONSULTATION";
+  scheduledAt: Date;
+  notes?: string;
+}) {
+  if (params.scheduledAt.getTime() < Date.now()) {
+    throw new Error("Can't book an appointment in the past.");
+  }
+  return prisma.event.create({
+    data: {
+      tenantId: params.tenantId,
+      partyId: params.partyId,
+      type: params.type,
+      scheduledAt: params.scheduledAt,
+      notes: params.notes,
+    },
+  });
+}
+
 export async function logFollowUpSent(params: {
   tenantId: string;
   partyId: string;

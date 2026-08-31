@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getOrCreatePortalToken } from "@/lib/core/parties";
+import { checkUnusualAmount } from "@/lib/core/money";
 import {
   sendQuoteAction,
   markQuoteOutcomeAction,
@@ -34,10 +35,11 @@ export default async function QuoteDetailPage({
   });
   if (!quote || quote.tenantId !== tenantId || quote.type !== "QUOTE") notFound();
 
-  const [memberships, invoicedChild, portalToken] = await Promise.all([
+  const [memberships, invoicedChild, portalToken, unusual] = await Promise.all([
     prisma.membership.findMany({ where: { tenantId }, include: { user: true } }),
     prisma.transaction.findFirst({ where: { parentId: id, type: "INVOICE" } }),
     getOrCreatePortalToken(quote.partyId),
+    checkUnusualAmount({ tenantId, partyId: quote.partyId, amountCents: quote.amountCents, excludeTransactionId: id }),
   ]);
 
   const isLocked = LOCKED_STATUSES.has(quote.status);
@@ -76,6 +78,13 @@ export default async function QuoteDetailPage({
         <div className="mt-3 text-sm text-[var(--kb-text-dim)]">
           {quote.subject && <p>{quote.subject}</p>}
           {quote.poNumber && <p className="text-xs">PO #: {quote.poNumber}</p>}
+        </div>
+      )}
+
+      {unusual?.isUnusual && (
+        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          ⚠️ This is {unusual.multiple.toFixed(1)}&times; what {quote.party.name} normally pays
+          ({money(unusual.averageCents)} average) — worth a second look before sending.
         </div>
       )}
 

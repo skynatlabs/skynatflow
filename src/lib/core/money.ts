@@ -11,6 +11,7 @@
 import { QuoteKind, TransactionStatus, TransactionType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { computeDocumentTotal } from "./pricing";
+import { maybeSendReviewRequest } from "./reviews";
 
 export interface QuoteLineInput {
   itemId: string;
@@ -244,10 +245,19 @@ export async function recordPayment(params: {
         ? TransactionStatus.PARTIALLY_PAID
         : invoice.status;
 
-  return prisma.transaction.update({
+  const updated = await prisma.transaction.update({
     where: { id: invoice.id },
     data: { status: newStatus, respondedAt: new Date() },
   });
+
+  // PA job: the moment an invoice crosses fully into PAID, say thanks and
+  // ask for a review — this was already built (src/lib/core/reviews.ts)
+  // but never actually wired to the one place a payment gets recorded.
+  if (newStatus === TransactionStatus.PAID) {
+    await maybeSendReviewRequest(invoice.id);
+  }
+
+  return updated;
 }
 
 export async function totalPaid(invoiceId: string): Promise<number> {
@@ -386,6 +396,40 @@ export async function findAbandonedQuotes(params: {
     include: { party: true },
     orderBy: { lastOpenedAt: "asc" },
   });
+}
+
+// A PA-style second pair of eyes: before a quote/invoice goes out, is
+// this amount wildly out of line with what this customer normally pays?
+// Judgment, not a fixed threshold — a first-ever order has nothing to
+// compare against (never flagged), and the bar for "unusual" is relative
+// to that specific customer's own history, not a platform-wide number.
+export async function checkUnusualAmount(params: {
+  tenantId: string;
+  partyId: string;
+  amountCents: number;
+  excludeTransactionId?: string;
+}): Promise<{ isUnusual: boolean; averageCents: number; multiple: number } | null> {
+  const past = await prisma.transaction.findMany({
+    where: {
+      tenantId: params.tenantId,
+      partyId: params.partyId,
+      type: { in: [TransactionType.QUOTE, TransactionType.INVOICE] },
+      id: params.excludeTransactionId ? { not: params.excludeTransactionId } : undefined,
+    },
+    select: { amountCents: true },
+    take: 50,
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Need real history to compare against — a brand-new customer's first
+  // document is never "unusual," it's just their first.
+  if (past.length < 2) return null;
+
+  const averageCents = past.reduce((sum, t) => sum + t.amountCents, 0) / past.length;
+  if (averageCents <= 0) return null;
+
+  const multiple = params.amountCents / averageCents;
+  return { isUnusual: multiple >= 3, averageCents, multiple };
 }
 
 // Cash-sale quick capture — a walk-in transaction recorded in one step

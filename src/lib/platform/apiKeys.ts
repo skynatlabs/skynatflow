@@ -18,6 +18,7 @@ export interface ApiKeyMeta {
 export const API_KEY_REGISTRY: ApiKeyMeta[] = [
   { key: "ANTHROPIC_API_KEY", label: "Anthropic (Claude)", group: "AI", helpText: "console.anthropic.com" },
   { key: "GOOGLE_GENERATIVE_AI_API_KEY", label: "Google Gemini", group: "AI", helpText: "aistudio.google.com/apikey" },
+  { key: "GOOGLE_TTS_API_KEY", label: "Google Cloud Text-to-Speech", group: "AI", helpText: "console.cloud.google.com — enable the Text-to-Speech API, create an API key" },
   { key: "AUTH_GOOGLE_ID", label: "Google OAuth client ID", group: "Auth", helpText: "For \"Sign in with Google\" — console.cloud.google.com OAuth client" },
   { key: "AUTH_GOOGLE_SECRET", label: "Google OAuth client secret", group: "Auth", helpText: "Same OAuth client as above" },
   { key: "RESEND_API_KEY", label: "Resend (email)", group: "Communication", helpText: "resend.com/api-keys" },

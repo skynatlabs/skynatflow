@@ -9,6 +9,7 @@ import { listThisWeekFollowUps } from "@/lib/core/followUpReminders";
 import { prisma } from "@/lib/db";
 import { DailyVoiceBriefing } from "./DailyVoiceBriefing";
 import { VoiceAssistant } from "./VoiceAssistant";
+import { PaCommandBox } from "./PaCommandBox";
 
 export const dynamic = "force-dynamic";
 
@@ -123,6 +124,7 @@ export default async function TenantHomePage({
     <main className="mx-auto max-w-6xl p-8">
       <DailyVoiceBriefing tenantId={tenantId} text={briefingText} />
       <VoiceAssistant tenantId={tenantId} />
+      <PaCommandBox tenantId={tenantId} />
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[var(--kb-text)]">

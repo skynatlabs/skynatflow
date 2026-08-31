@@ -94,8 +94,8 @@ body {
   --kb-accent-a: #ff3d00; /* vivid coral-red */
   --kb-accent-mid: #e0117a; /* saturated magenta */
   --kb-accent-b: #5b1fd6; /* deep violet */
-  --kb-navy: #0c0f1e; /* deep navy, not pure black — reads as a rich brand color instead of a void */
-  --kb-navy-soft: #0d0f1a;
+  --kb-navy: #181f45; /* a real royal navy, unmistakably blue even at a glance — the earlier #0c0f1e was still dark enough to read as black */
+  --kb-navy-soft: #232c5c;
 
   --kb-tint-blue: #cfe4ff;
   --kb-tint-blue-ink: #0b4fc4;
@@ -107,6 +107,49 @@ body {
   --kb-tint-violet-ink: #4b1fb8;
   --kb-tint-mint: #b9f3d6;
   --kb-tint-mint-ink: #03794f;
+}
+
+/* "Sunset" skin: a platform-wide alternative color skin, chosen by a
+   super-admin at /admin/appearance (PlatformSetting.colorSkin), not a
+   per-user toggle. Three-color palette: a richer dark charcoal grey for
+   the page canvas (not the pale lavender default), white cards for
+   contrast, and a deep amber/burnt-orange accent — no yellow-orange
+   anywhere near the sidebar/nav, which stays the same neutral dark navy
+   in every skin (untouched here — see .kb-navy usage in the dashboard
+   layout). This is a complete self-contained palette rather than a
+   layer over light/dark mode, so it overrides --kb-bg/--kb-panel too. */
+.kb-shell[data-skin="sunset"] {
+  --kb-bg: #23262b; /* rich dark charcoal grey canvas, not pale lavender */
+  --kb-panel: #ffffff; /* white cards pop against the charcoal canvas */
+  --kb-panel-border: #e4e4e7;
+  --kb-text: #f4f4f5;
+  --kb-text-dim: #a1a1aa;
+
+  --kb-accent-a: #d94a0a; /* deep burnt orange */
+  --kb-accent-mid: #f0871f; /* warm mid-tone for gradients */
+  --kb-accent-b: #b8241f; /* rich crimson-red — gives the gradient real depth */
+
+  --kb-tint-blue: #ffe3c2;
+  --kb-tint-blue-ink: #a34d06;
+  --kb-tint-yellow: #fff0cf;
+  --kb-tint-yellow-ink: #92610a;
+  --kb-tint-peach: #ffd4b8;
+  --kb-tint-peach-ink: #b8341a;
+  --kb-tint-violet: #ffe6d1;
+  --kb-tint-violet-ink: #c2410c;
+  --kb-tint-mint: #fce8c8;
+  --kb-tint-mint-ink: #8a5a0f;
+}
+
+/* Card text needs to stay dark-on-white regardless of the charcoal
+   canvas's white --kb-text/--kb-text-dim — redefine both locally so every
+   descendant using var(--kb-text-dim) (secondary copy, timestamps, etc.)
+   reads at proper contrast against the white card instead of washing out
+   with the pale grey meant for the dark canvas outside cards. */
+.kb-shell[data-skin="sunset"] .kb-card {
+  --kb-text: #1c2333;
+  --kb-text-dim: #6b7280;
+  color: var(--kb-text);
 }
 
 /* Cards: soft shadow, generous radius, no border-heavy "glass" look. */

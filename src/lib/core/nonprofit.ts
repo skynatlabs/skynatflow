@@ -5,6 +5,7 @@
 
 import { prisma } from "@/lib/db";
 import { InvolvementRole } from "@prisma/client";
+import { sendEmail } from "@/lib/email/client";
 
 export async function startInvolvement(params: {
   tenantId: string;
@@ -38,6 +39,44 @@ export async function getInvolvementHistory(tenantId: string, partyId: string) {
   });
 }
 
+export interface RenewalDue {
+  involvementId: string;
+  partyId: string;
+  partyName: string;
+  role: InvolvementRole;
+  renewalDueAt: Date;
+  daysUntilDue: number;
+}
+
+// PA job: who's about to lapse — the same "chase before it goes cold"
+// instinct as the commercial follow-up engine, applied to membership
+// renewals instead of unpaid quotes. Only involvements with an explicit
+// renewalDueAt are considered — no assumed annual cadence, since real
+// membership terms vary (see the schema comment on the field itself).
+export async function checkMembershipRenewals(tenantId: string, withinDays = 14): Promise<RenewalDue[]> {
+  const now = new Date();
+  const cutoff = new Date(now.getTime() + withinDays * 86400000);
+
+  const due = await prisma.membershipInvolvement.findMany({
+    where: { tenantId, endDate: null, renewalDueAt: { not: null, lte: cutoff } },
+    include: { party: true },
+    orderBy: { renewalDueAt: "asc" },
+  });
+
+  return due.map((d) => ({
+    involvementId: d.id,
+    partyId: d.partyId,
+    partyName: d.party.name,
+    role: d.role,
+    renewalDueAt: d.renewalDueAt!,
+    daysUntilDue: Math.ceil((d.renewalDueAt!.getTime() - now.getTime()) / 86400000),
+  }));
+}
+
+export async function setRenewalDueDate(involvementId: string, renewalDueAt: Date) {
+  return prisma.membershipInvolvement.update({ where: { id: involvementId }, data: { renewalDueAt } });
+}
+
 export async function listActiveInvolvements(tenantId: string) {
   const involvements = await prisma.membershipInvolvement.findMany({
     where: { tenantId, endDate: null },
@@ -47,6 +86,16 @@ export async function listActiveInvolvements(tenantId: string) {
   return involvements;
 }
 
+function money(cents: number) {
+  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
+}
+
+// PA job: a tax-ready receipt the instant a donation clears, instead of
+// end-of-month batching a coordinator would otherwise do by hand.
+// receiptNumber auto-generates (DON-<year>-<count>) when not supplied,
+// and an email fires immediately if the donor has an address on file —
+// silently skipped, not an error, if they don't (same graceful-
+// degradation posture as every other outbound message in this app).
 export async function recordDonation(params: {
   tenantId: string;
   partyId: string;
@@ -55,16 +104,52 @@ export async function recordDonation(params: {
   receiptNumber?: string;
   donatedAt?: Date;
 }) {
-  return prisma.donation.create({
+  const donatedAt = params.donatedAt ?? new Date();
+  const year = donatedAt.getFullYear();
+
+  let receiptNumber = params.receiptNumber;
+  if (!receiptNumber) {
+    const countThisYear = await prisma.donation.count({
+      where: { tenantId: params.tenantId, donatedAt: { gte: new Date(year, 0, 1), lt: new Date(year + 1, 0, 1) } },
+    });
+    receiptNumber = `DON-${year}-${String(countThisYear + 1).padStart(4, "0")}`;
+  }
+
+  const donation = await prisma.donation.create({
     data: {
       tenantId: params.tenantId,
       partyId: params.partyId,
       amountCents: params.amountCents,
       designatedFund: params.designatedFund,
-      receiptNumber: params.receiptNumber,
-      donatedAt: params.donatedAt ?? new Date(),
+      receiptNumber,
+      donatedAt,
     },
   });
+
+  const [party, tenant] = await Promise.all([
+    prisma.party.findUnique({ where: { id: params.partyId } }),
+    prisma.tenant.findUnique({ where: { id: params.tenantId } }),
+  ]);
+
+  if (party?.email && tenant) {
+    await sendEmail({
+      to: party.email,
+      subject: `Your donation receipt — ${receiptNumber}`,
+      html: `
+        <p>Dear ${party.name},</p>
+        <p>Thank you for your generous donation to <strong>${tenant.name}</strong>.</p>
+        <ul>
+          <li>Receipt number: <strong>${receiptNumber}</strong></li>
+          <li>Amount: <strong>${money(donation.amountCents)}</strong></li>
+          <li>Date: ${donatedAt.toLocaleDateString()}</li>
+          ${params.designatedFund ? `<li>Designated fund: ${params.designatedFund}</li>` : ""}
+        </ul>
+        <p>Please keep this receipt for your tax records.</p>
+      `,
+    });
+  }
+
+  return donation;
 }
 
 export async function listDonations(tenantId: string) {

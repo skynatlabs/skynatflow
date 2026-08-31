@@ -5,7 +5,7 @@ import { InvolvementRole } from "@prisma/client";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { assertCan } from "@/lib/core/access";
 import { createParty } from "@/lib/core/parties";
-import { startInvolvement, endInvolvement, recordDonation, addComplianceFiling } from "@/lib/core/nonprofit";
+import { startInvolvement, endInvolvement, recordDonation, addComplianceFiling, setRenewalDueDate } from "@/lib/core/nonprofit";
 
 export async function addMemberAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
@@ -30,6 +30,19 @@ export async function endInvolvementAction(formData: FormData) {
   assertCan(access.role, "staff:manage");
 
   await endInvolvement(String(formData.get("involvementId") ?? ""));
+  revalidatePath(`/dashboard/${tenantId}/members`);
+}
+
+export async function setRenewalDateAction(formData: FormData) {
+  const tenantId = String(formData.get("tenantId") ?? "");
+  const access = await requireTenantAccess(tenantId);
+  assertCan(access.role, "staff:manage");
+
+  const involvementId = String(formData.get("involvementId") ?? "");
+  const renewalDueAtRaw = String(formData.get("renewalDueAt") ?? "");
+  if (!involvementId || !renewalDueAtRaw) throw new Error("Renewal date is required.");
+
+  await setRenewalDueDate(involvementId, new Date(renewalDueAtRaw));
   revalidatePath(`/dashboard/${tenantId}/members`);
 }
 

@@ -10,13 +10,16 @@ import { z } from "zod";
 import { getAiModel } from "./model";
 
 const ClassificationSchema = z.object({
-  category: z.enum(["STATEMENT", "INVOICE", "LEGAL", "QUOTE_REPLY", "OTHER"]),
+  category: z.enum(["STATEMENT", "INVOICE", "LEGAL", "QUOTE_REPLY", "PAYMENT_REPLY", "OTHER"]),
   isImportant: z.boolean().describe("True if this needs the owner's attention soon (statements, invoices, legal notices, or a customer giving a real answer)."),
   summary: z.string().describe("One plain-English sentence summarizing what this email is about."),
   scheduleFollowUpInDays: z
     .number()
     .nullable()
-    .describe("If the sender gave a concrete timeframe for when to follow up (e.g. 'call me in 2 weeks'), the number of days from now. Null if no such cue."),
+    .describe("If the sender gave a concrete timeframe for when to follow up (e.g. 'call me in 2 weeks', 'I'll pay next Friday'), the number of days from now. Null if no such cue."),
+  looksLikePaymentProof: z
+    .boolean()
+    .describe("True if the sender is claiming they've already paid or attaching/describing proof of payment (a receipt, reference number, screenshot mention) — never inferred from a vague 'will pay soon'."),
 });
 
 export type EmailClassification = z.infer<typeof ClassificationSchema>;
@@ -36,6 +39,7 @@ export async function classifyInboundEmail(params: {
       isImportant: true,
       summary: `Email from ${params.fromAddress}: ${params.subject}`,
       scheduleFollowUpInDays: null,
+      looksLikePaymentProof: false,
     };
   }
 
@@ -47,6 +51,8 @@ export async function classifyInboundEmail(params: {
       "STATEMENT = a bank/supplier account statement. INVOICE = a bill the business needs to pay. " +
       "LEGAL = anything from a lawyer, regulator, or government body, or a legal notice/demand. " +
       "QUOTE_REPLY = a customer replying about a quote/proposal they were sent. " +
+      "PAYMENT_REPLY = a customer replying about an outstanding invoice/payment — including a payment promise " +
+      "('I'll pay next week'), a question about the amount, or proof they've already paid. " +
       "OTHER = anything else. Be conservative about isImportant — false positives are fine, missed important mail is not.",
     prompt: `From: ${params.fromAddress}\nSubject: ${params.subject}\n\nBody:\n${params.bodyText.slice(0, 4000)}`,
   });

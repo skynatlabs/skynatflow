@@ -16,6 +16,7 @@ import {
   recordPayment,
   customerBalance,
   findStaleTransactions,
+  checkUnusualAmount,
 } from "../../src/lib/core/money";
 
 let tenantId: string;
@@ -138,5 +139,62 @@ describe("quote -> invoice -> payment ledger", () => {
     });
     const invoice = await convertToInvoice({ quoteId: quote.id });
     await expect(convertToInvoice({ quoteId: invoice.id })).rejects.toThrow();
+  });
+
+  it("never flags a customer's first-ever document as unusual — nothing to compare against", async () => {
+    const freshCustomer = await prisma.party.create({
+      data: { tenantId, role: PartyRole.CUSTOMER, name: "Brand New Customer" },
+    });
+    const result = await checkUnusualAmount({ tenantId, partyId: freshCustomer.id, amountCents: 50000000 });
+    expect(result).toBeNull();
+  });
+
+  it("flags an amount 3x+ a customer's own historical average, not a fixed platform threshold", async () => {
+    const regular = await prisma.party.create({
+      data: { tenantId, role: PartyRole.CUSTOMER, name: "Regular Solar Customer" },
+    });
+    // Three past quotes averaging 10,000.00 (1,000,000 cents)
+    for (const cents of [900000, 1000000, 1100000]) {
+      await createQuote({ tenantId, partyId: regular.id, lines: [{ itemId, quantity: 1, unitPriceCents: cents }] });
+    }
+
+    const normal = await checkUnusualAmount({ tenantId, partyId: regular.id, amountCents: 1050000 });
+    expect(normal?.isUnusual).toBe(false);
+
+    const spike = await checkUnusualAmount({ tenantId, partyId: regular.id, amountCents: 5000000 });
+    expect(spike?.isUnusual).toBe(true);
+    expect(spike?.multiple).toBeCloseTo(5, 0);
+  });
+
+  it("fires the review request the moment an invoice crosses fully into PAID", async () => {
+    await prisma.tenant.update({ where: { id: tenantId }, data: { googleReviewUrl: "https://g.page/r/test-review" } });
+    const reviewCustomer = await prisma.party.create({
+      data: { tenantId, role: PartyRole.CUSTOMER, name: "Review Test Customer", phone: "+27821112222" },
+    });
+
+    const quote = await createQuote({ tenantId, partyId: reviewCustomer.id, lines: [{ itemId, quantity: 1, unitPriceCents: 100000 }] });
+    await recordResponse(quote.id, "ACCEPTED");
+    const invoice = await convertToInvoice({ quoteId: quote.id });
+
+    let updated = await recordPayment({ invoiceId: invoice.id, amountCents: 100000 });
+    expect(updated.status).toBe("PAID");
+
+    updated = await prisma.transaction.findUniqueOrThrow({ where: { id: invoice.id } });
+    expect(updated.reviewRequestSentAt).not.toBeNull();
+  });
+
+  it("never sends a review request while an invoice is only partially paid", async () => {
+    const reviewCustomer = await prisma.party.create({
+      data: { tenantId, role: PartyRole.CUSTOMER, name: "Partial Pay Customer", phone: "+27821113333" },
+    });
+    const quote = await createQuote({ tenantId, partyId: reviewCustomer.id, lines: [{ itemId, quantity: 1, unitPriceCents: 200000 }] });
+    await recordResponse(quote.id, "ACCEPTED");
+    const invoice = await convertToInvoice({ quoteId: quote.id });
+
+    await recordPayment({ invoiceId: invoice.id, amountCents: 50000 });
+
+    const updated = await prisma.transaction.findUniqueOrThrow({ where: { id: invoice.id } });
+    expect(updated.status).toBe("PARTIALLY_PAID");
+    expect(updated.reviewRequestSentAt).toBeNull();
   });
 });

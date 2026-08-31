@@ -4,9 +4,11 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { nicheConfig } from "@/lib/niches/config";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { getPlatformColorSkin } from "@/lib/ai/model";
 import { AuthRequiredError, ForbiddenError, requireTenantAccess } from "@/lib/auth/tenant-access";
 import { logoutAction } from "@/app/logout/actions";
 import { FlowMark } from "@/components/FlowMark";
+import { FloatingPaButton } from "./FloatingPaButton";
 import { unreadCount } from "@/lib/core/notifications2";
 import {
   HomeIcon,
@@ -49,9 +51,11 @@ export default async function TenantShellLayout({
   const unread = await unreadCount(tenantId);
   const cookieStore = await cookies();
   const theme = cookieStore.get("kb-theme")?.value === "dark" ? "dark" : "light";
+  const skin = await getPlatformColorSkin();
 
   const nav = [
     { href: `/dashboard/${tenantId}`, label: "Home", icon: HomeIcon },
+    { href: `/dashboard/${tenantId}/today`, label: "Today", icon: SignatureIcon },
     { href: `/dashboard/${tenantId}/inbox`, label: "Inbox", icon: SignatureIcon, badge: unread || undefined },
     { href: `/dashboard/${tenantId}/customers`, label: niche.customerLabel + "s", icon: UsersIcon },
     { href: `/dashboard/${tenantId}/products`, label: "Products", icon: BoxIcon },
@@ -60,6 +64,8 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}/invoices`, label: "Invoices", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/statements`, label: "Statements", icon: SignatureIcon },
     { href: `/dashboard/${tenantId}/this-week`, label: "This Week", icon: SignatureIcon },
+    ...(niche.skin === "MEDICAL" || niche.skin === "SERVICES" ? [{ href: `/dashboard/${tenantId}/appointments`, label: "Appointments", icon: SignatureIcon }] : []),
+    ...(niche.skin === "SERVICES" || niche.skin === "LOGISTICS" ? [{ href: `/dashboard/${tenantId}/job-cards`, label: "Job Cards", icon: CheckSquareIcon }] : []),
     { href: `/dashboard/${tenantId}/unsent-quotes`, label: "Unsent Quotes", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/overdue`, label: "Overdue", icon: SignatureIcon },
     { href: `/dashboard/${tenantId}/pipeline`, label: "Pipeline", icon: ColumnsIcon },
@@ -72,8 +78,10 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}/expenses`, label: "Expenses", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/attendance`, label: "Attendance", icon: CheckSquareIcon },
     { href: `/dashboard/${tenantId}/org`, label: "Org Chart", icon: UserCogIcon },
+    { href: `/dashboard/${tenantId}/team-performance`, label: "Team Performance", icon: SignatureIcon },
     ...(niche.skin === "LOGISTICS" ? [{ href: `/dashboard/${tenantId}/fuel`, label: "Fuel Logs", icon: BoxIcon }] : []),
     ...(niche.skin === "RETAIL" || niche.skin === "WHOLESALE" ? [{ href: `/dashboard/${tenantId}/stocktake`, label: "Stocktake", icon: BoxIcon }] : []),
+    ...(niche.skin === "RETAIL" || niche.skin === "WHOLESALE" ? [{ href: `/dashboard/${tenantId}/purchase-orders`, label: "Purchase Orders", icon: BoxIcon }] : []),
     ...(niche.skin === "MEDICAL" ? [{ href: `/dashboard/${tenantId}/claims`, label: "Claims", icon: SignatureIcon }] : []),
     ...(niche.skin === "NONPROFIT" ? [{ href: `/dashboard/${tenantId}/members`, label: "Members & Donors", icon: UsersIcon }] : []),
     { href: `/dashboard/${tenantId}/rentals`, label: "Rentals", icon: BoxIcon },
@@ -84,7 +92,7 @@ export default async function TenantShellLayout({
   ];
 
   return (
-    <div className="kb-shell flex" data-theme={theme}>
+    <div className="kb-shell flex" data-theme={theme} data-skin={skin}>
       <aside
         className="sticky top-0 flex h-screen w-64 flex-col justify-between p-5"
         style={{ background: "var(--kb-navy)" }}
@@ -152,6 +160,7 @@ export default async function TenantShellLayout({
       <div className="min-h-screen flex-1" style={{ background: "var(--kb-bg)" }}>
         {children}
       </div>
+      <FloatingPaButton tenantId={tenantId} />
     </div>
   );
 }

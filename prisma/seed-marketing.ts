@@ -28,8 +28,8 @@ const CORE: SectionSeed[] = [
   // Home
   {
     slug: "home", title: "flow — the AI business operating system", key: "hero",
-    heading: "Stop losing money to spreadsheets, silence, and six disconnected apps",
-    subheading: "flow is the one shared engine that runs quoting, invoicing, inventory, deliveries, staff, and collections — with an AI layer that watches everything and chases nothing without your OK. Built for SMEs, ready for enterprise the moment you outgrow \"small.\"",
+    heading: "The personal assistant your business has been missing",
+    subheading: "flow's PA chases unpaid invoices, books appointments, updates customer details, plans your day, and answers you by voice or text — the same jobs you'd hire an assistant for, running automatically, with you approving anything that touches a customer. Quoting, invoicing, inventory, and staff run underneath it, in one shared engine.",
     ctaLabel: "Get Started Free", ctaHref: "/signup",
   },
   {
@@ -67,18 +67,18 @@ const CORE: SectionSeed[] = [
     heading: "Everything you're currently stitching together from five different tools",
     subheading: "One login, one customer record, one source of truth — not five subscriptions that don't talk to each other.",
     items: [
-      { title: "Quote to cash, one click", body: "Convert an accepted quote straight to an invoice and assign the job card in the same click — no re-entry, no second trip through the app." },
-      { title: "AI that chases, you approve", body: "Every follow-up — overdue invoice, abandoned quote, no-show risk — is drafted with its reasoning shown. Nothing reaches a customer without your OK." },
-      { title: "Inventory that thinks ahead", body: "A live demand heatmap ranks every product by real sales velocity, auto-suggests reorder quantities, and flags stock about to expire before it's a write-off." },
+      { title: "Ask your PA, get it done", body: "One button, anywhere in flow — type or speak a request like \"book Jane in for a site visit Tuesday\" or \"update this customer's VAT number,\" and it's done or drafted for your OK in seconds." },
+      { title: "It chases payment so you don't have to", body: "Sends the reminder, reads the reply, asks for a firm date when a customer says \"soon,\" flags anything that looks like proof of payment for you to confirm, and says thanks (with a review request) the moment it's actually paid." },
+      { title: "Plans your day, not just your data", body: "Real appointment times where they exist, everything else that needs you today ranked by urgency underneath — never a made-up time slot, just an honest list of what your day actually holds." },
+      { title: "Inventory that thinks ahead", body: "A live demand heatmap ranks every product by real sales velocity, auto-suggests reorder quantities, and turns a suggestion into a real purchase order sent to your supplier in one click." },
       { title: "Proof that protects your money", body: "A delivery can't even be logged without a photo or signature — and the invoice generates itself the second that proof lands." },
-      { title: "Your whole team, one place", body: "Org chart, goals, expenses with attached slips, clock-in/out for remote and field staff, and in-app messaging — no separate HR or chat tool needed." },
-      { title: "Tax-ready, always", body: "A structured VAT/sales-tax export, US and SARS-shaped, generated from data that was already clean — not reconstructed from a shoebox of receipts in March." },
+      { title: "Your whole team, one place", body: "Job cards with checklists that won't let a step get skipped, org chart, goals, expenses, clock-in/out for field staff, and in-app messaging — no separate HR tool needed." },
     ],
   },
   {
     slug: "home", title: "flow — the AI business operating system", key: "ai_section",
-    heading: "AI that acts like a trustworthy employee, not a black box",
-    body: "flow's AI never sends a customer-facing message on its own. It watches every quote and invoice, drafts a context-aware follow-up with its reasoning shown in plain English, and waits for your approval — the same discipline whether it's chasing a late payment, nudging an abandoned quote, or flagging a fuel-cost anomaly. You stay in control of every dollar it touches.",
+    heading: "A personal assistant, not a black box",
+    body: "flow's PA never sends a customer-facing message on its own. Ask it to book a visit, chase an invoice, or update a customer's details, and it either does it instantly (for anything low-risk and reversible) or drafts it with its reasoning shown, waiting for your Approve — the same discipline whether it's chasing a late payment, asking a customer for a firm payment date, or nudging an abandoned quote. You stay in control of every dollar and every message it touches.",
   },
   {
     slug: "home", title: "flow — the AI business operating system", key: "faq",
@@ -128,27 +128,31 @@ const CORE: SectionSeed[] = [
   // AI & Agents
   {
     slug: "ai-agents", title: "AI & Agents", key: "hero",
-    heading: "AI-native, not AI-added",
-    subheading: "flow's AI watches every quote and invoice, drafts the follow-up, and waits for your approval — through the same functions your own team uses.",
+    heading: "Meet your PA",
+    subheading: "A personal assistant for every part of running the business — ask it by voice or text, and it either handles it or drafts it and waits for your OK. Not a chatbot bolted onto the side: it's wired into the same quoting, invoicing, and scheduling functions your own team uses.",
   },
   {
     slug: "ai-agents", title: "AI & Agents", key: "how_it_works",
     heading: "How it actually works",
-    body: "Every AI-drafted follow-up lands as a pending draft with its reasoning shown — nothing reaches a customer until you click Approve (editable first) or Skip. A Gentle/Standard/Firm tone dial shifts the whole escalation curve, not just one message's wording.",
+    body: "Tap the ✦ button anywhere in flow, or just ask out loud. Every request gets classified — send a quote, book a visit, update a customer's details, or just a question — and checked against a trust dial you set per action: some things it does instantly because they're low-risk and reversible, everything customer-facing lands as a draft with its reasoning shown until you click Approve. The same dial exists for payment chasing, with a Gentle/Standard/Firm tone that shifts the whole escalation curve, not just one message's wording.",
   },
   {
     slug: "ai-agents", title: "AI & Agents", key: "features",
-    heading: "The AI layer today",
+    heading: "What your PA actually does today",
     items: [
-      { title: "Follow-up drafting", body: "Context-aware, escalating tone as a quote or invoice goes unanswered." },
+      { title: "Books appointments by voice or text", body: "\"Book Jane in for a site visit Tuesday morning\" — found on your calendar, confirmed, done." },
+      { title: "Chases payment end to end", body: "Sends the reminder, reads what the customer says back, asks for a firm date if they're vague, flags anything that looks like proof of payment for you to confirm, and says thanks with a review request the moment it's actually paid." },
+      { title: "Updates customer details on request", body: "\"The customer on invoice 4471 says their VAT number changed\" — updates their record, never touches what was actually billed." },
+      { title: "Reuses your own past work", body: "\"Send a quote like the 8kVA one to Peter\" — finds your closest matching past quote, clones it onto the new customer, hands you a draft to send." },
+      { title: "Plans your day honestly", body: "Real appointment times where they exist, everything else ranked by urgency underneath — an overdue invoice, a quote gone quiet, an unscheduled job. Never a guessed time slot." },
+      { title: "Answers by voice, hands-free", body: "\"Any important mail?\" or \"what's my day look like?\" — answered out loud from your real numbers and inbox, never invented." },
       { title: "Hot-lead alerts", body: "You're notified the moment a quote is opened twice — a real buying signal." },
-      { title: "Collections tone dial", body: "Gentle, Standard, or Firm — your call, applied consistently." },
-      { title: "Custom AI agents (coming soon)", body: "Define your own automation in plain language — the next major AI milestone." },
+      { title: "More PA jobs shipping regularly", body: "Purchase orders, job-card checklists, membership renewals, till reconciliation — the same trust-dial pattern, extended to whatever your business runs on next." },
     ],
   },
   {
     slug: "ai-agents", title: "AI & Agents", key: "cta",
-    heading: "See the AI layer in your own business",
+    heading: "Get a PA for your business",
     ctaLabel: "Get Started Free", ctaHref: "/signup",
   },
 

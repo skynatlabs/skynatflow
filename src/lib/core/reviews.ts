@@ -5,6 +5,7 @@
 
 import { prisma } from "@/lib/db";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/client";
+import { sendEmail } from "@/lib/email/client";
 
 export async function maybeSendReviewRequest(invoiceId: string) {
   const invoice = await prisma.transaction.findUnique({
@@ -14,12 +15,17 @@ export async function maybeSendReviewRequest(invoiceId: string) {
   if (!invoice || invoice.type !== "INVOICE") return;
   if (invoice.status !== "PAID") return;
   if (invoice.reviewRequestSentAt) return; // already sent, never repeat
-  if (!invoice.tenant.googleReviewUrl) return; // nothing configured to link to
-  if (!invoice.party.phone) return;
+  if (!invoice.tenant.googleReviewUrl) return; // nothing configured to link to — reputation management is opt-in via Settings
 
   const body = `Thanks for your business with ${invoice.tenant.name}! If you have a moment, a quick review would mean a lot: ${invoice.tenant.googleReviewUrl}`;
 
-  await sendWhatsAppMessage({ to: invoice.party.phone, body });
+  if (invoice.party.phone) {
+    await sendWhatsAppMessage({ to: invoice.party.phone, body });
+  } else if (invoice.party.email) {
+    await sendEmail({ to: invoice.party.email, subject: `Thank you for your business with ${invoice.tenant.name}`, html: `<p>${body}</p>` });
+  } else {
+    return; // no channel to reach them on at all
+  }
 
   await prisma.transaction.update({
     where: { id: invoiceId },

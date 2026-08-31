@@ -7,6 +7,7 @@
 // answer back — no voice API cost either direction.
 
 import { useEffect, useRef, useState } from "react";
+import { speak } from "@/lib/voice/speakClient";
 
 // Not in the standard lib.dom types yet in most TS setups — declared
 // minimally here rather than pulling in a whole @types package for one API.
@@ -56,10 +57,7 @@ export function VoiceAssistant({ tenantId }: { tenantId: string }) {
       const data = await res.json();
       const answer = data.answer ?? "Sorry, I couldn't work that out.";
       setStatus(answer);
-      if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(new SpeechSynthesisUtterance(answer));
-      }
+      speak(tenantId, answer);
     } catch {
       setStatus("Couldn't reach the assistant just now.");
     }

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { totalPaid, totalRefunded } from "@/lib/core/money";
+import { totalPaid, totalRefunded, checkUnusualAmount } from "@/lib/core/money";
 import { getOrCreatePortalToken } from "@/lib/core/parties";
 import {
   recordPaymentAction,
@@ -34,11 +34,12 @@ export default async function InvoiceDetailPage({
   });
   if (!invoice || invoice.tenantId !== tenantId || invoice.type !== "INVOICE") notFound();
 
-  const [paid, refunded, memberships, portalToken] = await Promise.all([
+  const [paid, refunded, memberships, portalToken, unusual] = await Promise.all([
     totalPaid(id),
     totalRefunded(id),
     prisma.membership.findMany({ where: { tenantId }, include: { user: true } }),
     getOrCreatePortalToken(invoice.partyId),
+    checkUnusualAmount({ tenantId, partyId: invoice.partyId, amountCents: invoice.amountCents, excludeTransactionId: id }),
   ]);
   const netPaid = paid - refunded;
   const isLocked = LOCKED_STATUSES.has(invoice.status);
@@ -74,6 +75,13 @@ export default async function InvoiceDetailPage({
         <div className="mt-3 text-sm text-[var(--kb-text-dim)]">
           {invoice.subject && <p>{invoice.subject}</p>}
           {invoice.poNumber && <p className="text-xs">PO #: {invoice.poNumber}</p>}
+        </div>
+      )}
+
+      {unusual?.isUnusual && (
+        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          ⚠️ This is {unusual.multiple.toFixed(1)}&times; what {invoice.party.name} normally pays
+          ({money(unusual.averageCents)} average) — worth a second look before sending.
         </div>
       )}
 

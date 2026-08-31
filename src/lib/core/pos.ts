@@ -27,12 +27,14 @@ export async function closeTill(sessionId: string, closingCountedCents: number, 
     .reduce((sum, p) => sum + p.amountCents, 0);
   const expectedCents = session.openingFloatCents + cashSalesCents;
 
+  const varianceCents = closingCountedCents - expectedCents;
+
   const closed = await prisma.tillSession.update({
     where: { id: sessionId },
-    data: { closedById, closedAt: new Date(), closingCountedCents },
+    data: { closedById, closedAt: new Date(), closingCountedCents, varianceCents },
   });
 
-  return { ...closed, expectedCents, varianceCents: closingCountedCents - expectedCents };
+  return { ...closed, expectedCents };
 }
 
 export async function findItemByBarcode(tenantId: string, code: string) {

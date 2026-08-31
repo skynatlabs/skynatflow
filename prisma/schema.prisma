@@ -108,6 +108,12 @@ model Tenant {
   // confirm-before-send guardrail, made optional per tenant rather than
   // mandatory, since some owners want the daily task gone entirely.
   autoRespondEnabled           Boolean         @default(false)
+  // PA voice plan — controls how many characters of premium (Google)
+  // voice this tenant gets per period before falling back to free browser
+  // voice for the rest of it. "free" = 20,000/month, "starter" =
+  // 60,000/month, "unlimited" = 10,000/day (never actually blocks; past
+  // the daily allowance it's free browser voice until the day resets).
+  voicePlan                    String          @default("free")
   // Banking details shown on invoice PDFs for EFT payment, plus the
   // official WhatsApp number a customer can message to verify a document
   // is genuinely from this business — an anti-impersonation measure, so
@@ -132,6 +138,8 @@ model Tenant {
   memberships            Membership[]
   parties                Party[]
   items                  Item[]
+  purchaseOrders         PurchaseOrder[]
+  jobCards               JobCard[]
   transactions           Transaction[]
   events                 Event[]
   tasks                  Task[]
@@ -218,11 +226,62 @@ model Membership {
   createdAt  DateTime     @default(now())
 
   transactionsAsSalesPerson Transaction[]
+  jobCardsAssigned          JobCard[]
 
   @@unique([userId, tenantId])
   @@index([tenantId])
   @@index([userId])
   @@map("memberships")
+}
+
+enum JobCardStatus {
+  SCHEDULED
+  IN_PROGRESS
+  DONE
+}
+
+// A work order for a service business — "job cards" per the user's own
+// term (solar install crews, contractors). Deliberately linked to a
+// Transaction (usually the ACCEPTED quote/invoice) rather than floating
+// free, since a job card's whole point is "the physical work behind this
+// sale" — pricing/line-items stay on the Transaction, this only tracks
+// getting the work done. A checklist (JobCardTask) covers the common
+// "make sure every step actually happened" need without inventing a
+// separate generic task system.
+model JobCard {
+  id             String        @id @default(cuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  transactionId  String
+  transaction    Transaction   @relation(fields: [transactionId], references: [id])
+  partyId        String
+  party          Party         @relation(fields: [partyId], references: [id])
+  title          String
+  assignedToId   String?
+  assignedTo     Membership?   @relation(fields: [assignedToId], references: [id])
+  status         JobCardStatus @default(SCHEDULED)
+  scheduledAt    DateTime?
+  notes          String?
+  completionPhotoUrl String?
+  createdAt      DateTime      @default(now())
+  completedAt    DateTime?
+
+  tasks JobCardTask[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("job_cards")
+}
+
+model JobCardTask {
+  id         String   @id @default(cuid())
+  jobCardId  String
+  jobCard    JobCard  @relation(fields: [jobCardId], references: [id])
+  label      String
+  isDone     Boolean  @default(false)
+  sortOrder  Int      @default(0)
+
+  @@map("job_card_tasks")
 }
 
 // People: customers, suppliers, staff — one address book, one table.
@@ -258,6 +317,8 @@ model Party {
   donations              Donation[]
   rentals                Rental[]
   leasesAsRenter         Lease[]
+  purchaseOrdersAsSupplier PurchaseOrder[]
+  jobCards               JobCard[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -290,6 +351,7 @@ model Item {
 
   transactionLines TransactionLine[]
   batches          ItemBatch[]
+  purchaseOrderLines PurchaseOrderLine[]
   stocktakes       Stocktake[]
   rentals          Rental[]
 
@@ -315,6 +377,48 @@ model ItemBatch {
   @@index([tenantId])
   @@index([itemId, expiresAt])
   @@map("item_batches")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  RECEIVED
+}
+
+// PA job: turning a reorder suggestion (src/lib/core/inventory.ts
+// getReorderSuggestions) into a real, sendable document instead of just
+// a number on a dashboard. Deliberately its own model, not a Transaction
+// row — a PO is a commitment to a supplier, not a sale, and mixing it
+// into the sales ledger would break every report that sums Transaction
+// amounts as revenue.
+model PurchaseOrder {
+  id             String              @id @default(cuid())
+  tenantId       String
+  tenant         Tenant              @relation(fields: [tenantId], references: [id])
+  supplierId     String
+  supplier       Party               @relation(fields: [supplierId], references: [id])
+  status         PurchaseOrderStatus @default(DRAFT)
+  totalCostCents Int
+  createdAt      DateTime            @default(now())
+  sentAt         DateTime?
+  receivedAt     DateTime?
+
+  lines PurchaseOrderLine[]
+
+  @@index([tenantId])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  itemId          String
+  item            Item          @relation(fields: [itemId], references: [id])
+  quantity        Int
+  unitCostCents   Int
+
+  @@map("purchase_order_lines")
 }
 
 // Money: append-only ledger. Quotes, invoices, payments — one typed table,
@@ -400,6 +504,7 @@ model Transaction {
   itemLines        TransactionLine[]
   paymentCheckouts PaymentCheckout[]
   ecommerceOrder   EcommerceOrder?
+  jobCards         JobCard[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -440,6 +545,11 @@ model Event {
   gpsLat        Float?
   gpsLng        Float?
   scheduledAt   DateTime? // when this is a booked appointment (CONSULTATION/SITE_VISIT), the slot time — null for events logged after the fact
+  // Marked by a human after the fact — the PA can't infer a no-show on its
+  // own (a passed appointment with no linked invoice is just as often
+  // "hasn't billed yet"), so this stays a deliberate action that then
+  // triggers the automatic rebooking nudge (src/lib/core/reminders.ts).
+  noShow        Boolean   @default(false)
   createdAt     DateTime  @default(now())
 
   @@index([tenantId])
@@ -921,6 +1031,10 @@ model TillSession {
   openedAt            DateTime  @default(now())
   closedById          String?
   closingCountedCents Int?
+  // Persisted at close time so the mismatch flag survives past the single
+  // request that closed the till — see closeTill() in src/lib/core/pos.ts.
+  // Positive = counted more cash than expected, negative = a shortfall.
+  varianceCents       Int?
   closedAt            DateTime?
 
   payments Transaction[]
@@ -1088,6 +1202,12 @@ model MembershipInvolvement {
   role      InvolvementRole
   startDate DateTime
   endDate   DateTime?
+  // When set, this membership/sponsorship is due for renewal on this date
+  // — the PA job "chase a lapsing membership the same way a quote gets
+  // chased" (src/lib/core/nonprofit.ts checkMembershipRenewals) reads
+  // this instead of assuming an annual cadence, since renewal terms
+  // genuinely vary member to member.
+  renewalDueAt DateTime?
   notes     String?
   createdAt DateTime        @default(now())
 
@@ -1319,6 +1439,7 @@ enum EmailCategory {
   INVOICE
   LEGAL
   QUOTE_REPLY
+  PAYMENT_REPLY
   OTHER
 }
 
@@ -1338,6 +1459,7 @@ model InboundEmail {
   receivedAt     DateTime
   category       EmailCategory @default(OTHER)
   isImportant    Boolean       @default(false)
+  looksLikePaymentProof Boolean @default(false)
   aiSummary      String?
   // If the AI reads a scheduling cue in a quote reply ("call me back in
   // 2 weeks"), it links back to the quote and the follow-up cron reads
@@ -1356,6 +1478,7 @@ enum NotificationType {
   IMPORTANT_EMAIL
   AUTO_FOLLOW_UP_SENT
   FOLLOW_UP_NEEDS_APPROVAL
+  PAYMENT_PROOF_RECEIVED
   GENERAL
 }
 
@@ -1391,9 +1514,37 @@ model Notification {
 model PlatformSetting {
   id         String   @id @default("singleton")
   aiProvider String   @default("anthropic") // "anthropic" | "google"
+  // Which engine renders spoken voice (daily briefing, PA answers) when a
+  // tenant's own character allowance for the period hasn't run out —
+  // "browser" costs nothing and needs no key (client-side Web Speech API);
+  // "google" is the paid Neural2 upgrade, only actually used once a
+  // GOOGLE_TTS_API_KEY is configured. Safe to flip any time — this only
+  // changes what a synth request tries first, nothing is stored per-voice.
+  voiceProvider String @default("browser") // "browser" | "google"
+  // Platform-wide dashboard color skin — "default" (navy/coral) or "sunset"
+  // (charcoal/amber). Chosen once here, applies to every tenant; not a
+  // per-user preference. See src/app/globals.css .kb-shell[data-skin].
+  colorSkin  String   @default("default") // "default" | "sunset"
   updatedAt  DateTime @updatedAt
 
   @@map("platform_settings")
+}
+
+// One row per tenant per calendar month — tracks how many characters of
+// premium (Google) voice a tenant has used, so the synth route can fall
+// back to free browser voice once their plan's allowance for the period
+// is spent instead of ever hard-blocking. `period` is "YYYY-MM"; a tenant
+// simply gets a fresh row (and fresh allowance) the moment the month
+// rolls over — no cron/reset job needed.
+model VoiceUsage {
+  id              String   @id @default(cuid())
+  tenantId        String
+  period          String
+  charactersUsed  Int      @default(0)
+  updatedAt       DateTime @updatedAt
+
+  @@unique([tenantId, period])
+  @@map("voice_usage")
 }
 
 // Every external-service credential this app can use, settable from

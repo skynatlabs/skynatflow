@@ -1,6 +1,6 @@
-import { listActiveInvolvements, listDonations, listComplianceFilings, totalDonationsByFund } from "@/lib/core/nonprofit";
+import { listActiveInvolvements, listDonations, listComplianceFilings, totalDonationsByFund, checkMembershipRenewals } from "@/lib/core/nonprofit";
 import { listCustomers } from "@/lib/core/parties";
-import { addMemberAction, endInvolvementAction, recordDonationAction, addFilingAction } from "./actions";
+import { addMemberAction, endInvolvementAction, recordDonationAction, addFilingAction, setRenewalDateAction } from "./actions";
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
@@ -12,13 +12,15 @@ export default async function MembersPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
-  const [involvements, donations, filings, funds, members] = await Promise.all([
+  const [involvements, donations, filings, funds, members, renewalsDue] = await Promise.all([
     listActiveInvolvements(tenantId),
     listDonations(tenantId),
     listComplianceFilings(tenantId),
     totalDonationsByFund(tenantId),
     listCustomers(tenantId, ["MEMBER", "SPONSOR"]),
+    checkMembershipRenewals(tenantId, 14),
   ]);
+  const dueIds = new Set(renewalsDue.map((r) => r.involvementId));
 
   return (
     <main className="mx-auto max-w-3xl p-8">
@@ -28,23 +30,66 @@ export default async function MembersPage({
         and when&quot; is always answerable, not lost to a spreadsheet nobody kept up to date.
       </p>
 
+      {/* Due for renewal */}
+      {renewalsDue.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold text-[var(--kb-text)]">Due for renewal</h2>
+          <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
+            Chase these the same way a quote gets chased — before the membership actually lapses.
+          </p>
+          <ul className="kb-card mt-3 divide-y divide-[var(--kb-panel-border)]">
+            {renewalsDue.map((r) => (
+              <li key={r.involvementId} className="flex items-center justify-between px-5 py-3">
+                <div>
+                  <p className="font-medium text-[var(--kb-text)]">{r.partyName}</p>
+                  <p className="text-xs text-[var(--kb-text-dim)]">{r.role}</p>
+                </div>
+                <span
+                  className="kb-pill text-xs"
+                  style={{ background: "var(--kb-tint-peach)", color: "var(--kb-tint-peach-ink)" }}
+                >
+                  {r.daysUntilDue <= 0 ? "Renewal overdue" : `Due in ${r.daysUntilDue}d`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Active involvements */}
       <section className="mt-8">
         <h2 className="text-lg font-semibold text-[var(--kb-text)]">Active involvement</h2>
         <ul className="kb-card mt-3 divide-y divide-[var(--kb-panel-border)]">
           {involvements.map((i) => (
-            <li key={i.id} className="flex items-center justify-between px-5 py-3">
+            <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
               <div>
-                <p className="font-medium text-[var(--kb-text)]">{i.party.name}</p>
+                <p className="font-medium text-[var(--kb-text)]">
+                  {i.party.name}
+                  {dueIds.has(i.id) && <span className="ml-2 text-xs font-semibold text-[var(--kb-tint-peach-ink)]">· renewal due</span>}
+                </p>
                 <p className="text-xs text-[var(--kb-text-dim)]">
                   {i.role} · since {i.startDate.toLocaleDateString()}
+                  {i.renewalDueAt && ` · renews ${i.renewalDueAt.toLocaleDateString()}`}
                 </p>
               </div>
-              <form action={endInvolvementAction}>
-                <input type="hidden" name="tenantId" value={tenantId} />
-                <input type="hidden" name="involvementId" value={i.id} />
-                <button type="submit" className="kb-pill kb-pill-ghost text-xs">End</button>
-              </form>
+              <div className="flex items-center gap-2">
+                <form action={setRenewalDateAction} className="flex items-center gap-1">
+                  <input type="hidden" name="tenantId" value={tenantId} />
+                  <input type="hidden" name="involvementId" value={i.id} />
+                  <input
+                    type="date"
+                    name="renewalDueAt"
+                    defaultValue={i.renewalDueAt ? i.renewalDueAt.toISOString().slice(0, 10) : undefined}
+                    className="rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-1.5 text-xs"
+                  />
+                  <button type="submit" className="kb-pill kb-pill-ghost text-xs">Set renewal</button>
+                </form>
+                <form action={endInvolvementAction}>
+                  <input type="hidden" name="tenantId" value={tenantId} />
+                  <input type="hidden" name="involvementId" value={i.id} />
+                  <button type="submit" className="kb-pill kb-pill-ghost text-xs">End</button>
+                </form>
+              </div>
             </li>
           ))}
           {involvements.length === 0 && (

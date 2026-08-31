@@ -41,3 +41,4 @@ yarn-error.log*
 next-env.d.ts
 inspiration images/
 pdf template designs/
+.claude/launch.json

@@ -40,6 +40,28 @@ async function dueAppointments(markHours: number, windowMinutes = 65) {
   });
 }
 
+// PA job: mark a past appointment as a no-show and immediately nudge for
+// a rebooking — same-day, not whenever staff happen to notice the gap.
+// Deliberately a human-triggered action, not an inference: a passed
+// appointment with nothing else recorded against it is just as often
+// "hasn't been logged yet" as it is a genuine no-show, so the PA acts on
+// judgment already made by a person rather than guessing on its own.
+export async function markNoShowAndRebook(eventId: string): Promise<{ ok: boolean; reason?: string }> {
+  const event = await prisma.event.findUnique({ where: { id: eventId }, include: { party: true } });
+  if (!event) return { ok: false, reason: "Appointment not found." };
+
+  await prisma.event.update({ where: { id: eventId }, data: { noShow: true } });
+
+  if (!event.party?.phone) return { ok: false, reason: "No phone on file for this customer — mark it, but nudge them another way." };
+
+  await sendWhatsAppMessage({
+    to: event.party.phone,
+    body: `Hi ${event.party.name}, sorry we missed you today! Want to grab another time that works better for you?`,
+  });
+
+  return { ok: true };
+}
+
 export async function sendDueReminders(mark: ReminderMark): Promise<number> {
   const markHours = mark === "48h" ? 48 : 2;
   const appointments = await dueAppointments(markHours);

@@ -3,6 +3,7 @@ import { nicheConfig } from "@/lib/niches/config";
 import { listProducts } from "@/lib/core/catalog";
 import { listProposalTemplates } from "@/lib/core/templates";
 import { getProposalUsage } from "@/lib/ai/proposal";
+import { suggestSalesPersonForNewLead } from "@/lib/core/salesReporting";
 import { createQuoteAction } from "./actions";
 import { LineItemsEditor } from "./LineItemsEditor";
 import { TemplatePicker } from "./TemplatePicker";
@@ -47,6 +48,7 @@ export default async function NewQuotePage({
   }));
 
   const memberships = await prisma.membership.findMany({ where: { tenantId }, include: { user: true } });
+  const suggestedRep = source ? null : await suggestSalesPersonForNewLead(tenantId);
 
   return (
     <main className="mx-auto max-w-3xl p-8">
@@ -111,13 +113,14 @@ export default async function NewQuotePage({
             </label>
             <select
               name="salesPersonMembershipId"
-              defaultValue={source?.salesPersonMembershipId ?? ""}
+              defaultValue={source?.salesPersonMembershipId ?? suggestedRep?.membershipId ?? ""}
               className={inputClass}
             >
               <option value="">Not assigned</option>
               {memberships.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.user.name ?? m.user.email}
+                  {suggestedRep?.membershipId === m.id ? " (suggested — lightest current load)" : ""}
                 </option>
               ))}
             </select>

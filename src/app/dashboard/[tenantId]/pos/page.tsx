@@ -12,8 +12,9 @@ export default async function PosPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
-  const [openSession, products] = await Promise.all([
+  const [openSession, lastClosedSession, products] = await Promise.all([
     prisma.tillSession.findFirst({ where: { tenantId, closedAt: null }, orderBy: { openedAt: "desc" } }),
+    prisma.tillSession.findFirst({ where: { tenantId, closedAt: { not: null } }, orderBy: { closedAt: "desc" } }),
     listProducts(tenantId),
   ]);
 
@@ -23,6 +24,14 @@ export default async function PosPage({
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Your own built-in till — scan/select an item, take cash or card, and reconcile at close-out.
       </p>
+
+      {!openSession && lastClosedSession?.varianceCents != null && lastClosedSession.varianceCents !== 0 && (
+        <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          ⚠️ Last till close-out was{" "}
+          {lastClosedSession.varianceCents > 0 ? "over" : "short"} by {money(Math.abs(lastClosedSession.varianceCents))}
+          {" "}({lastClosedSession.closedAt?.toLocaleString()}) — worth a look before opening today's till.
+        </div>
+      )}
 
       {!openSession ? (
         <form action={openTillAction} className="kb-card mt-6 flex flex-wrap items-end gap-3 p-5">

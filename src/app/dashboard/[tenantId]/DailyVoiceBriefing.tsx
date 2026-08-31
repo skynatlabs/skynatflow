@@ -1,19 +1,20 @@
 "use client";
 
 // Reads today's work summary aloud on the first dashboard visit of the
-// day — uses the browser's built-in speechSynthesis, so there's no API
-// key, no per-call cost, and no external service dependency. Fires once
-// per tenant per calendar day (tracked in localStorage, per-viewer by
-// design — each person on the team gets their own greeting, not a shared
-// "already played" flag).
+// day — premium Google voice when the tenant's plan/period allows it,
+// browser speechSynthesis otherwise (see src/lib/voice/speakClient.ts).
+// Fires once per tenant per calendar day (tracked in localStorage,
+// per-viewer by design — each person on the team gets their own greeting,
+// not a shared "already played" flag).
 
 import { useEffect, useState } from "react";
+import { speak } from "@/lib/voice/speakClient";
 
 export function DailyVoiceBriefing({ tenantId, text }: { tenantId: string; text: string }) {
   const [showReplay, setShowReplay] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (typeof window === "undefined") return;
 
     const today = new Date().toISOString().slice(0, 10);
     const storageKey = `flow:voice-briefing:${tenantId}`;
@@ -28,9 +29,7 @@ export function DailyVoiceBriefing({ tenantId, text }: { tenantId: string; text:
     setShowReplay(true);
     if (alreadyPlayed) return;
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.02;
-    window.speechSynthesis.speak(utterance);
+    speak(tenantId, text);
 
     try {
       localStorage.setItem(storageKey, today);
@@ -40,9 +39,7 @@ export function DailyVoiceBriefing({ tenantId, text }: { tenantId: string; text:
   }, [tenantId, text]);
 
   function replay() {
-    if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+    speak(tenantId, text);
   }
 
   if (!showReplay) return null;

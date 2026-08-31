@@ -27,6 +27,35 @@ export async function findPartyByPhone(tenantId: string, phone: string) {
   return prisma.party.findFirst({ where: { tenantId, phone } });
 }
 
+export interface PartyDetailPatch {
+  name?: string;
+  email?: string;
+  phone?: string;
+  companyName?: string;
+  vatNumber?: string;
+  addressLine?: string;
+  city?: string;
+  postalCode?: string;
+  country?: string;
+}
+
+// PA job: "the customer wants their [detail] changed on the invoice" —
+// a partial update, only touching fields actually specified. Deliberately
+// separate from the manual edit form's action (which always submits every
+// field from a full form and would otherwise null out anything not
+// mentioned in a natural-language request).
+export async function applyPartyDetailChange(tenantId: string, partyId: string, patch: PartyDetailPatch) {
+  const party = await prisma.party.findUniqueOrThrow({ where: { id: partyId } });
+  if (party.tenantId !== tenantId) throw new Error("Not found.");
+
+  const data = Object.fromEntries(Object.entries(patch).filter(([, v]) => v != null && v !== ""));
+  if (Object.keys(data).length === 0) {
+    throw new Error("No details to change were given.");
+  }
+
+  return prisma.party.update({ where: { id: partyId }, data });
+}
+
 // One shared "Walk-in" record per tenant for cash sales where the customer
 // doesn't want to give their details — reused across sales rather than
 // creating a fresh nameless Party every time, per the cash-sale
