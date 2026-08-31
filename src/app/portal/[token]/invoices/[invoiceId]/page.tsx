@@ -30,7 +30,10 @@ export default async function PortalInvoicePage({
 
   const invoice = await prisma.transaction.findUnique({
     where: { id: invoiceId },
-    include: { itemLines: { include: { item: true } } },
+    include: {
+      itemLines: { include: { item: true } },
+      salesPersonMembership: { include: { user: true } },
+    },
   });
   if (!invoice || invoice.partyId !== party.id || invoice.type !== "INVOICE") notFound();
 
@@ -55,6 +58,13 @@ export default async function PortalInvoicePage({
           </Link>
         </div>
         <p className="mt-1 text-sm text-[var(--kb-text-dim)]">Status: {invoice.status}</p>
+        {invoice.subject && <p className="mt-1 text-sm text-[var(--kb-text-dim)]">{invoice.subject}</p>}
+        {invoice.poNumber && <p className="text-xs text-[var(--kb-text-dim)]">PO #: {invoice.poNumber}</p>}
+        {invoice.salesPersonMembership && (
+          <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
+            Prepared by {invoice.salesPersonMembership.user.name ?? invoice.salesPersonMembership.user.email}
+          </p>
+        )}
 
         <ul className="mt-4 divide-y divide-[var(--kb-panel-border)]">
           {invoice.itemLines.map((l) => (

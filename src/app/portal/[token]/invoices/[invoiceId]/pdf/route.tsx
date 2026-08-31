@@ -15,7 +15,11 @@ export async function GET(
 
   const invoice = await prisma.transaction.findUnique({
     where: { id: invoiceId },
-    include: { itemLines: { include: { item: true } }, tenant: true },
+    include: {
+      itemLines: { include: { item: true } },
+      tenant: true,
+      salesPersonMembership: { include: { user: true } },
+    },
   });
   if (!invoice || invoice.partyId !== party.id || invoice.type !== "INVOICE") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

@@ -15,6 +15,7 @@ export function ProductForm({
   initial?: {
     name: string;
     sku: string | null;
+    hsnCode: string | null;
     category: string | null;
     imageUrl: string | null;
     unitPriceCents: number;
@@ -47,6 +48,12 @@ export function ProductForm({
             Category <span className="text-[var(--kb-text-dim)]">(optional)</span>
           </label>
           <input name="category" defaultValue={initial?.category ?? ""} className={inputClass} />
+        </div>
+        <div className="flex-1">
+          <label className={labelClass}>
+            HSN / tax code <span className="text-[var(--kb-text-dim)]">(optional)</span>
+          </label>
+          <input name="hsnCode" defaultValue={initial?.hsnCode ?? ""} className={inputClass} />
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listProducts } from "@/lib/core/catalog";
+import { listProductsPaginated } from "@/lib/core/catalog";
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
@@ -7,17 +7,23 @@ function money(cents: number) {
 
 export default async function ProductsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantId: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { tenantId } = await params;
-  const products = await listProducts(tenantId, true);
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam ?? 1));
+  const { items: products, total, pageCount } = await listProductsPaginated(tenantId, page);
 
   return (
     <main className="mx-auto max-w-3xl p-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Products &amp; services</h1>
+          <h1 className="text-2xl font-semibold text-[var(--kb-text)]">
+            Products &amp; services <span className="text-sm font-normal text-[var(--kb-text-dim)]">({total})</span>
+          </h1>
           <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
             Your reusable catalog — pick straight from here when building a quote instead of
             typing the same item from scratch every time.
@@ -86,6 +92,28 @@ export default async function ProductsPage({
             </li>
           ))}
         </ul>
+      )}
+
+      {pageCount > 1 && (
+        <div className="mt-4 flex items-center justify-between text-sm">
+          <Link
+            href={`?page=${page - 1}`}
+            aria-disabled={page <= 1}
+            className={`kb-pill kb-pill-ghost text-xs ${page <= 1 ? "pointer-events-none opacity-40" : ""}`}
+          >
+            &larr; Prev
+          </Link>
+          <span className="text-[var(--kb-text-dim)]">
+            Page {page} of {pageCount}
+          </span>
+          <Link
+            href={`?page=${page + 1}`}
+            aria-disabled={page >= pageCount}
+            className={`kb-pill kb-pill-ghost text-xs ${page >= pageCount ? "pointer-events-none opacity-40" : ""}`}
+          >
+            Next &rarr;
+          </Link>
+        </div>
       )}
     </main>
   );

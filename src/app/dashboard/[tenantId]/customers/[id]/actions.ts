@@ -13,6 +13,37 @@ import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { assertCan } from "@/lib/core/access";
 import { recordAudit } from "@/lib/core/audit";
 
+export async function updateCustomerAction(formData: FormData) {
+  const tenantId = String(formData.get("tenantId") ?? "");
+  const customerId = String(formData.get("customerId") ?? "");
+  const access = await requireTenantAccess(tenantId);
+  assertCan(access.role, "quote:create");
+
+  const party = await prisma.party.findUniqueOrThrow({ where: { id: customerId } });
+  if (party.tenantId !== tenantId) throw new Error("Not found.");
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Name is required.");
+
+  await prisma.party.update({
+    where: { id: customerId },
+    data: {
+      name,
+      companyName: String(formData.get("companyName") ?? "").trim() || null,
+      phone: String(formData.get("phone") ?? "").trim() || null,
+      email: String(formData.get("email") ?? "").trim() || null,
+      vatNumber: String(formData.get("vatNumber") ?? "").trim() || null,
+      addressLine: String(formData.get("addressLine") ?? "").trim() || null,
+      city: String(formData.get("city") ?? "").trim() || null,
+      postalCode: String(formData.get("postalCode") ?? "").trim() || null,
+      country: String(formData.get("country") ?? "").trim() || null,
+      notes: String(formData.get("notes") ?? "").trim() || null,
+    },
+  });
+
+  revalidatePath(`/dashboard/${tenantId}/customers/${customerId}`);
+}
+
 async function verifyInvoiceInTenant(tenantId: string, invoiceId: string) {
   const invoice = await prisma.transaction.findUniqueOrThrow({ where: { id: invoiceId } });
   if (invoice.tenantId !== tenantId || invoice.type !== "INVOICE") {

@@ -39,7 +39,7 @@ export default async function InvoiceDetailPage({
 
   return (
     <div className="mx-auto max-w-3xl p-8">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-[var(--kb-text)]">
             Invoice for {invoice.party.name}
@@ -49,7 +49,7 @@ export default async function InvoiceDetailPage({
             {isLocked && " — locked, can't be edited"}
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           {!isLocked && (
             <Link href={`/dashboard/${tenantId}/invoices/${id}/edit`} className="kb-pill kb-pill-ghost text-xs">
               Edit
@@ -64,17 +64,43 @@ export default async function InvoiceDetailPage({
         </div>
       </div>
 
+      {(invoice.subject || invoice.poNumber) && (
+        <div className="mt-3 text-sm text-[var(--kb-text-dim)]">
+          {invoice.subject && <p>{invoice.subject}</p>}
+          {invoice.poNumber && <p className="text-xs">PO #: {invoice.poNumber}</p>}
+        </div>
+      )}
+
       <div className="kb-card mt-6 p-6">
         <ul className="divide-y divide-[var(--kb-panel-border)]">
-          {invoice.itemLines.map((l) => (
-            <li key={l.id} className="flex items-center justify-between py-2 text-sm">
-              <span className="text-[var(--kb-text)]">
-                {l.quantity} &times; {l.item.name}
-              </span>
-              <span className="text-[var(--kb-text)]">{money(l.quantity * l.unitPriceCents)}</span>
-            </li>
-          ))}
+          {invoice.itemLines.map((l) => {
+            const gross = l.quantity * l.unitPriceCents;
+            const afterDiscount = gross * (1 - (l.discountPercent ?? 0) / 100);
+            const lineTotal = afterDiscount * (1 + (l.taxRatePercent ?? 0) / 100);
+            return (
+              <li key={l.id} className="flex items-center justify-between py-2 text-sm">
+                <span className="text-[var(--kb-text)]">
+                  {l.quantity} &times; {l.item.name}
+                  {(l.discountPercent || l.taxRatePercent) && (
+                    <span className="text-[var(--kb-text-dim)]">
+                      {" "}
+                      ({l.discountPercent ? `${l.discountPercent}% disc` : ""}
+                      {l.discountPercent && l.taxRatePercent ? ", " : ""}
+                      {l.taxRatePercent ? `${l.taxRatePercent}% tax` : ""})
+                    </span>
+                  )}
+                </span>
+                <span className="text-[var(--kb-text)]">{money(lineTotal)}</span>
+              </li>
+            );
+          })}
         </ul>
+        {(invoice.discountPercent ?? 0) > 0 && (
+          <div className="mt-1 flex justify-between text-xs text-[var(--kb-text-dim)]">
+            <span>Overall discount</span>
+            <span>{invoice.discountPercent}%</span>
+          </div>
+        )}
         <div className="mt-3 flex justify-between border-t border-[var(--kb-panel-border)] pt-3">
           <span className="font-semibold text-[var(--kb-text)]">Total</span>
           <span className="font-bold text-[var(--kb-text)]">{money(invoice.amountCents)}</span>

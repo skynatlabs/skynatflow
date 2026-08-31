@@ -270,6 +270,7 @@ model Item {
   tenant          Tenant          @relation(fields: [tenantId], references: [id])
   name            String
   sku             String?
+  hsnCode         String? // HSN/tax-classification code, shown alongside SKU on the line item
   unitPriceCents  Int
   costCents       Int? // for margin reporting — optional, owner may not track cost
   taxRatePercent  Int? // e.g. 15 for 15% VAT; null = no tax applied
@@ -345,6 +346,16 @@ model Transaction {
   // exactly who to reach, and lets reporting break down sales by person.
   salesPersonMembershipId String?
   salesPersonMembership   Membership? @relation(fields: [salesPersonMembershipId], references: [id])
+  // Whole-document discount, applied on top of the line-level discounts —
+  // matches the "Discount %" field on the totals block of most invoicing
+  // tools. amountCents already reflects this once applied; kept here too
+  // so the PDF/online view can show the breakdown, not just the result.
+  discountPercent         Float?      @default(0)
+  // Free-text business fields shown on the document alongside the line
+  // items — subject line and a PO/reference number, the two fields every
+  // real invoicing tool has that this one didn't.
+  subject                 String?
+  poNumber                String?
   // Quote presentation (BASIC vs PROPOSAL). Only meaningful on QUOTE rows;
   // introText/scopeOfWork are populated for PROPOSAL and shown above the
   // line items on both the web link and the PDF.
@@ -387,13 +398,18 @@ model Transaction {
 }
 
 model TransactionLine {
-  id             String      @id @default(cuid())
-  transactionId  String
-  transaction    Transaction @relation(fields: [transactionId], references: [id])
-  itemId         String
-  item           Item        @relation(fields: [itemId], references: [id])
-  quantity       Int
-  unitPriceCents Int
+  id                String      @id @default(cuid())
+  transactionId     String
+  transaction       Transaction @relation(fields: [transactionId], references: [id])
+  itemId            String
+  item              Item        @relation(fields: [itemId], references: [id])
+  quantity          Int
+  unitPriceCents    Int
+  // Snapshotted at the time this line was added, not read live off Item —
+  // so a later change to the catalog's tax rate never silently rewrites
+  // the tax on a quote/invoice that already went out.
+  discountPercent   Float?      @default(0)
+  taxRatePercent    Float?
 
   @@index([transactionId])
   @@map("transaction_lines")

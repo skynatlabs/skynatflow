@@ -21,7 +21,11 @@ export async function GET(
 
   const quote = await prisma.transaction.findUnique({
     where: { id: quoteId },
-    include: { itemLines: { include: { item: true } }, tenant: true },
+    include: {
+      itemLines: { include: { item: true } },
+      tenant: true,
+      salesPersonMembership: { include: { user: true } },
+    },
   });
   if (!quote || quote.partyId !== party.id || quote.type !== "QUOTE") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

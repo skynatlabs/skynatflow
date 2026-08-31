@@ -11,6 +11,7 @@ import { listComments } from "@/lib/core/comments";
 import { prisma } from "@/lib/db";
 import { addCustomerCommentAction } from "./comments-actions";
 import { PhotoEventForm } from "./PhotoEventForm";
+import { EditCustomerForm } from "./EditCustomerForm";
 import {
   convertToInvoiceAction,
   recordPaymentAction,
@@ -53,8 +54,22 @@ export default async function CustomerHistoryPage({
 
   return (
     <main className="mx-auto max-w-3xl p-8">
-      <h1 className="text-2xl font-semibold text-[var(--kb-text)]">{party.name}</h1>
-      <p className="text-sm text-[var(--kb-text-dim)]">{party.phone ?? party.email}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-[var(--kb-text)]">{party.name}</h1>
+          <p className="text-sm text-[var(--kb-text-dim)]">
+            {party.companyName ? `${party.companyName} · ` : ""}
+            {party.phone ?? party.email ?? "no contact on file"}
+          </p>
+          {(party.addressLine || party.city) && (
+            <p className="text-sm text-[var(--kb-text-dim)]">
+              {[party.addressLine, party.city, party.postalCode, party.country].filter(Boolean).join(", ")}
+            </p>
+          )}
+          {party.vatNumber && <p className="text-xs text-[var(--kb-text-dim)]">VAT: {party.vatNumber}</p>}
+        </div>
+      </div>
+      <EditCustomerForm tenantId={tenantId} customerId={id} party={party} />
 
       <section className="kb-card mt-6 p-6">
         <h2 className="text-xs font-medium uppercase tracking-wide text-[var(--kb-text-dim)]">

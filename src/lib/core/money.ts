@@ -10,11 +10,14 @@
 
 import { QuoteKind, TransactionStatus, TransactionType } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { computeDocumentTotal } from "./pricing";
 
 export interface QuoteLineInput {
   itemId: string;
   quantity: number;
   unitPriceCents: number;
+  discountPercent?: number;
+  taxRatePercent?: number;
 }
 
 export async function createQuote(params: {
@@ -28,11 +31,12 @@ export async function createQuote(params: {
   performanceExpectancy?: string;
   projectTimeline?: string;
   systemInfo?: string;
+  discountPercent?: number;
+  subject?: string;
+  poNumber?: string;
+  salesPersonMembershipId?: string;
 }) {
-  const amountCents = params.lines.reduce(
-    (sum, l) => sum + l.quantity * l.unitPriceCents,
-    0
-  );
+  const { totalCents } = computeDocumentTotal(params.lines, params.discountPercent ?? 0);
 
   return prisma.transaction.create({
     data: {
@@ -40,7 +44,7 @@ export async function createQuote(params: {
       partyId: params.partyId,
       type: TransactionType.QUOTE,
       status: TransactionStatus.DRAFT,
-      amountCents,
+      amountCents: totalCents,
       quoteKind: params.quoteKind ?? QuoteKind.BASIC,
       introText: params.introText,
       scopeOfWork: params.scopeOfWork,
@@ -48,11 +52,17 @@ export async function createQuote(params: {
       performanceExpectancy: params.performanceExpectancy,
       projectTimeline: params.projectTimeline,
       systemInfo: params.systemInfo,
+      discountPercent: params.discountPercent ?? 0,
+      subject: params.subject,
+      poNumber: params.poNumber,
+      salesPersonMembershipId: params.salesPersonMembershipId,
       itemLines: {
         create: params.lines.map((l) => ({
           itemId: l.itemId,
           quantity: l.quantity,
           unitPriceCents: l.unitPriceCents,
+          discountPercent: l.discountPercent ?? 0,
+          taxRatePercent: l.taxRatePercent,
         })),
       },
     },
@@ -176,11 +186,17 @@ export async function convertToInvoice(params: {
       amountCents: quote.amountCents,
       parentId: quote.id,
       dueAt,
+      discountPercent: quote.discountPercent,
+      subject: quote.subject,
+      poNumber: quote.poNumber,
+      salesPersonMembershipId: quote.salesPersonMembershipId,
       itemLines: {
         create: quote.itemLines.map((l) => ({
           itemId: l.itemId,
           quantity: l.quantity,
           unitPriceCents: l.unitPriceCents,
+          discountPercent: l.discountPercent,
+          taxRatePercent: l.taxRatePercent,
         })),
       },
     },

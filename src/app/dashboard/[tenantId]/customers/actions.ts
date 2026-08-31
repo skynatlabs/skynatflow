@@ -28,6 +28,8 @@ export async function createCustomerAction(formData: FormData) {
     addressLine: String(formData.get("addressLine") ?? "").trim() || undefined,
     city: String(formData.get("city") ?? "").trim() || undefined,
     postalCode: String(formData.get("postalCode") ?? "").trim() || undefined,
+    country: String(formData.get("country") ?? "").trim() || undefined,
+    notes: String(formData.get("notes") ?? "").trim() || undefined,
   });
 
   redirect(`/dashboard/${tenantId}/customers/${party.id}`);

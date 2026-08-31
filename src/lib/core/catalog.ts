@@ -9,6 +9,7 @@ export interface UpsertProductInput {
   tenantId: string;
   name: string;
   sku?: string;
+  hsnCode?: string;
   unitPriceCents: number;
   costCents?: number;
   taxRatePercent?: number;
@@ -24,6 +25,7 @@ export async function createProduct(input: UpsertProductInput) {
       tenantId: input.tenantId,
       name: input.name,
       sku: input.sku,
+      hsnCode: input.hsnCode,
       unitPriceCents: input.unitPriceCents,
       costCents: input.costCents,
       taxRatePercent: input.taxRatePercent,
@@ -44,6 +46,7 @@ export async function updateProduct(
     data: {
       name: input.name,
       sku: input.sku,
+      hsnCode: input.hsnCode,
       unitPriceCents: input.unitPriceCents,
       costCents: input.costCents,
       taxRatePercent: input.taxRatePercent,
@@ -64,6 +67,22 @@ export async function listProducts(tenantId: string, includeInactive = false) {
     where: { tenantId, ...(includeInactive ? {} : { isActive: true }) },
     orderBy: { name: "asc" },
   });
+}
+
+const PRODUCTS_PAGE_SIZE = 25;
+
+export async function listProductsPaginated(tenantId: string, page = 1, includeInactive = true) {
+  const where = { tenantId, ...(includeInactive ? {} : { isActive: true }) };
+  const [items, total] = await Promise.all([
+    prisma.item.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip: (page - 1) * PRODUCTS_PAGE_SIZE,
+      take: PRODUCTS_PAGE_SIZE,
+    }),
+    prisma.item.count({ where }),
+  ]);
+  return { items, total, pageCount: Math.max(1, Math.ceil(total / PRODUCTS_PAGE_SIZE)) };
 }
 
 export async function searchProducts(tenantId: string, query: string) {

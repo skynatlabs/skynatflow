@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { assertCan } from "@/lib/core/access";
 import { recordAudit } from "@/lib/core/audit";
+import { computeDocumentTotal } from "@/lib/core/pricing";
 
 const LOCKED_STATUSES = new Set(["ACCEPTED", "DECLINED", "CANCELLED"]);
 
@@ -24,6 +25,11 @@ export async function updateQuoteLinesAction(formData: FormData) {
   const lineItemNames = formData.getAll("lineItemName").map((v) => String(v).trim());
   const lineQuantities = formData.getAll("lineQuantity").map((v) => Number(v) || 1);
   const linePriceRands = formData.getAll("linePriceRand").map((v) => Number(v) || 0);
+  const lineDiscountPercents = formData.getAll("lineDiscountPercent").map((v) => Number(v) || 0);
+  const lineTaxRatePercents = formData.getAll("lineTaxRatePercent").map((v) => (v === "" ? null : Number(v)));
+  const documentDiscountPercent = Number(formData.get("documentDiscountPercent") ?? 0) || 0;
+  const subject = String(formData.get("subject") ?? "").trim();
+  const poNumber = String(formData.get("poNumber") ?? "").trim();
 
   const rows = lineItemNames
     .map((itemName, i) => ({
@@ -31,6 +37,8 @@ export async function updateQuoteLinesAction(formData: FormData) {
       itemName,
       quantity: lineQuantities[i] ?? 1,
       priceRand: linePriceRands[i] ?? 0,
+      discountPercent: lineDiscountPercents[i] ?? 0,
+      taxRatePercent: lineTaxRatePercents[i] ?? null,
     }))
     .filter((r) => r.itemName && r.priceRand > 0);
 
@@ -46,10 +54,16 @@ export async function updateQuoteLinesAction(formData: FormData) {
       (await prisma.item.create({
         data: { tenantId, name: row.itemName, unitPriceCents: Math.round(row.priceRand * 100) },
       }));
-    lines.push({ itemId: item.id, quantity: row.quantity, unitPriceCents: Math.round(row.priceRand * 100) });
+    lines.push({
+      itemId: item.id,
+      quantity: row.quantity,
+      unitPriceCents: Math.round(row.priceRand * 100),
+      discountPercent: row.discountPercent,
+      taxRatePercent: row.taxRatePercent,
+    });
   }
 
-  const amountCents = lines.reduce((sum, l) => sum + l.quantity * l.unitPriceCents, 0);
+  const { totalCents: amountCents } = computeDocumentTotal(lines, documentDiscountPercent);
 
   // Replace, not append — a re-edit reflects the current state of the
   // quote, not a running history of every line ever typed in.
@@ -57,7 +71,13 @@ export async function updateQuoteLinesAction(formData: FormData) {
     prisma.transactionLine.deleteMany({ where: { transactionId: quoteId } }),
     prisma.transaction.update({
       where: { id: quoteId },
-      data: { amountCents, itemLines: { create: lines } },
+      data: {
+        amountCents,
+        discountPercent: documentDiscountPercent,
+        subject: subject || null,
+        poNumber: poNumber || null,
+        itemLines: { create: lines },
+      },
     }),
   ]);
 

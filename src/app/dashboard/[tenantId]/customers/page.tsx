@@ -74,6 +74,14 @@ export default async function CustomersPage({
             <span className="block font-medium text-[var(--kb-text-dim)]">Postal code</span>
             <input name="postalCode" className={inputClass} />
           </label>
+          <label className="text-xs">
+            <span className="block font-medium text-[var(--kb-text-dim)]">Country</span>
+            <input name="country" defaultValue="South Africa" className={inputClass} />
+          </label>
+          <label className="text-xs">
+            <span className="block font-medium text-[var(--kb-text-dim)]">Notes</span>
+            <input name="notes" className={inputClass} />
+          </label>
           <div className="col-span-2 flex justify-end gap-2">
             <Link href="?" className="kb-pill kb-pill-ghost text-xs">
               Cancel

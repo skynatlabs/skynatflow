@@ -27,6 +27,12 @@ export async function createQuoteAction(formData: FormData) {
   const lineItemNames = formData.getAll("lineItemName").map((v) => String(v).trim());
   const lineQuantities = formData.getAll("lineQuantity").map((v) => Number(v) || 1);
   const linePriceRands = formData.getAll("linePriceRand").map((v) => Number(v) || 0);
+  const lineDiscountPercents = formData.getAll("lineDiscountPercent").map((v) => Number(v) || 0);
+  const lineTaxRatePercents = formData.getAll("lineTaxRatePercent").map((v) => (v === "" ? null : Number(v)));
+  const documentDiscountPercent = Number(formData.get("documentDiscountPercent") ?? 0) || 0;
+  const subject = String(formData.get("subject") ?? "").trim();
+  const poNumber = String(formData.get("poNumber") ?? "").trim();
+  const salesPersonMembershipId = String(formData.get("salesPersonMembershipId") ?? "").trim();
 
   const rows = lineItemNames
     .map((itemName, i) => ({
@@ -34,6 +40,8 @@ export async function createQuoteAction(formData: FormData) {
       itemName,
       quantity: lineQuantities[i] ?? 1,
       priceRand: linePriceRands[i] ?? 0,
+      discountPercent: lineDiscountPercents[i] ?? 0,
+      taxRatePercent: lineTaxRatePercents[i] ?? undefined,
     }))
     .filter((r) => r.itemName && r.priceRand > 0);
 
@@ -79,7 +87,13 @@ export async function createQuoteAction(formData: FormData) {
         },
       }));
 
-    lines.push({ itemId: item.id, quantity: row.quantity, unitPriceCents: Math.round(row.priceRand * 100) });
+    lines.push({
+      itemId: item.id,
+      quantity: row.quantity,
+      unitPriceCents: Math.round(row.priceRand * 100),
+      discountPercent: row.discountPercent,
+      taxRatePercent: row.taxRatePercent ?? undefined,
+    });
   }
 
   const quote = await createQuote({
@@ -93,6 +107,10 @@ export async function createQuoteAction(formData: FormData) {
     systemInfo: quoteKind === QuoteKind.PROPOSAL ? systemInfo || undefined : undefined,
     performanceExpectancy: quoteKind === QuoteKind.PROPOSAL ? performanceExpectancy || undefined : undefined,
     projectTimeline: quoteKind === QuoteKind.PROPOSAL ? projectTimeline || undefined : undefined,
+    discountPercent: documentDiscountPercent,
+    subject: subject || undefined,
+    poNumber: poNumber || undefined,
+    salesPersonMembershipId: salesPersonMembershipId || undefined,
   });
 
   await sendQuote(quote.id);

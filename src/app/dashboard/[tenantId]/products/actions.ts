@@ -10,6 +10,7 @@ import { recordAudit } from "@/lib/core/audit";
 function readProductFields(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const sku = String(formData.get("sku") ?? "").trim();
+  const hsnCode = String(formData.get("hsnCode") ?? "").trim();
   const category = String(formData.get("category") ?? "").trim();
   const imageUrl = String(formData.get("imageUrl") ?? "").trim();
   const priceRand = Number(formData.get("priceRand") ?? 0);
@@ -29,6 +30,7 @@ function readProductFields(formData: FormData) {
   return {
     name,
     sku: sku || undefined,
+    hsnCode: hsnCode || undefined,
     category: category || undefined,
     imageUrl: imageUrl || undefined,
     unitPriceCents: Math.round(priceRand * 100),

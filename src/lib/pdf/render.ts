@@ -5,13 +5,16 @@
 // branding/QR treatment for free.
 
 import { renderToBuffer } from "@react-pdf/renderer";
-import type { Transaction, TransactionLine, Item, Party, Tenant } from "@prisma/client";
+import type { Transaction, TransactionLine, Item, Party, Tenant, Membership, User } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { DocumentTemplate, type DocumentData, type OptionalSectionKey } from "./DocumentTemplate";
 import { getPdfStyle } from "./styles";
 import { generateQrDataUrl } from "./qr";
 
-type TxWithLines = Transaction & { itemLines: (TransactionLine & { item: Item })[] };
+type TxWithLines = Transaction & {
+  itemLines: (TransactionLine & { item: Item })[];
+  salesPersonMembership?: (Membership & { user: User }) | null;
+};
 
 export async function getDefaultTemplate(tenantId: string) {
   return prisma.tenantPdfTemplate.findFirst({
@@ -45,10 +48,23 @@ export async function renderTransactionPdf(params: {
     partyPhone: params.party.phone ?? undefined,
     lines: params.transaction.itemLines.map((l) => ({
       description: l.item.name,
+      sku: l.item.sku,
       quantity: l.quantity,
       unitPriceCents: l.unitPriceCents,
+      discountPercent: l.discountPercent,
+      taxRatePercent: l.taxRatePercent,
     })),
     totalCents: params.transaction.amountCents,
+    subject: params.transaction.subject,
+    poNumber: params.transaction.poNumber,
+    documentDiscountPercent: params.transaction.discountPercent,
+    salesPerson: params.transaction.salesPersonMembership
+      ? {
+          name: params.transaction.salesPersonMembership.user.name,
+          email: params.transaction.salesPersonMembership.user.email,
+          phone: params.transaction.salesPersonMembership.user.phone,
+        }
+      : undefined,
     proposal: isProposal
       ? {
           introText: params.transaction.introText,

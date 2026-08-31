@@ -39,7 +39,11 @@ export default async function PortalQuotePage({
   const [quote, openDispute] = await Promise.all([
     prisma.transaction.findUniqueOrThrow({
       where: { id: quoteId },
-      include: { itemLines: { include: { item: true } }, tenant: true },
+      include: {
+        itemLines: { include: { item: true } },
+        tenant: true,
+        salesPersonMembership: { include: { user: true } },
+      },
     }),
     prisma.dispute.findFirst({
       where: { transactionId: quoteId, status: "OPEN" },
@@ -57,9 +61,13 @@ export default async function PortalQuotePage({
         </Link>
         <p className="mt-2 text-sm text-[var(--kb-text-dim)]">{quote.tenant.name}</p>
         <div className="flex items-start justify-between gap-4">
-          <h1 className="text-2xl font-bold text-[var(--kb-text)]">
-            {quote.quoteKind === "PROPOSAL" ? "Proposal" : "Quote"} for {party.name}
-          </h1>
+          <div>
+            <h1 className="text-2xl font-bold text-[var(--kb-text)]">
+              {quote.quoteKind === "PROPOSAL" ? "Proposal" : "Quote"} for {party.name}
+            </h1>
+            {quote.subject && <p className="mt-0.5 text-sm text-[var(--kb-text-dim)]">{quote.subject}</p>}
+            {quote.poNumber && <p className="mt-0.5 text-xs text-[var(--kb-text-dim)]">PO #: {quote.poNumber}</p>}
+          </div>
           <a
             href={`/portal/${token}/quotes/${quoteId}/pdf`}
             className="kb-pill shrink-0 text-xs"
@@ -135,6 +143,14 @@ export default async function PortalQuotePage({
             <SignatureCapture token={token} quoteId={quoteId} />
           )}
         </div>
+
+        {quote.salesPersonMembership && (
+          <p className="mt-3 text-xs text-[var(--kb-text-dim)]">
+            Prepared by {quote.salesPersonMembership.user.name ?? quote.salesPersonMembership.user.email}
+            {quote.salesPersonMembership.user.email && ` · ${quote.salesPersonMembership.user.email}`}
+            {quote.salesPersonMembership.user.phone && ` · ${quote.salesPersonMembership.user.phone}`}
+          </p>
+        )}
 
         {!isDecided && (
           <p className="mt-3 text-xs text-[var(--kb-text-dim)]">

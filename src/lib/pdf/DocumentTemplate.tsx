@@ -7,11 +7,15 @@
 
 import { Document, Page, Text, View, StyleSheet, Image, Font } from "@react-pdf/renderer";
 import type { PdfStyleConfig } from "./styles";
+import { computeDocumentTotal } from "@/lib/core/pricing";
 
 export interface DocumentLine {
   description: string;
+  sku?: string | null;
   quantity: number;
   unitPriceCents: number;
+  discountPercent?: number | null;
+  taxRatePercent?: number | null;
 }
 
 export interface DocumentData {
@@ -28,6 +32,14 @@ export interface DocumentData {
   totalCents: number;
   currency?: string;
   terms?: string;
+  subject?: string | null;
+  poNumber?: string | null;
+  documentDiscountPercent?: number | null;
+  salesPerson?: {
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
   proposal?: {
     introText?: string | null;
     scopeOfWork?: string | null;
@@ -87,15 +99,32 @@ export function DocumentTemplate({ style, data }: { style: PdfStyleConfig; data:
             <Text style={s.muted}>No. {data.docNumber}</Text>
             <Text style={s.muted}>Date: {data.date}</Text>
             {data.dueDate && <Text style={s.muted}>Due: {data.dueDate}</Text>}
+            {data.poNumber && <Text style={s.muted}>PO #: {data.poNumber}</Text>}
           </View>
         </View>
 
-        {!isSlip && (
+        {data.subject && !isSlip && (
           <View style={s.section}>
-            <Text style={s.sectionLabel}>To</Text>
-            <Text style={s.paragraph}>{data.partyName}</Text>
-            {data.partyEmail && <Text style={s.muted}>{data.partyEmail}</Text>}
-            {data.partyPhone && <Text style={s.muted}>{data.partyPhone}</Text>}
+            <Text style={s.paragraph}>{data.subject}</Text>
+          </View>
+        )}
+
+        {!isSlip && (
+          <View style={style.headerLayout === "split" ? s.headerSplit : undefined}>
+            <View style={s.section}>
+              <Text style={s.sectionLabel}>To</Text>
+              <Text style={s.paragraph}>{data.partyName}</Text>
+              {data.partyEmail && <Text style={s.muted}>{data.partyEmail}</Text>}
+              {data.partyPhone && <Text style={s.muted}>{data.partyPhone}</Text>}
+            </View>
+            {data.salesPerson?.name && (
+              <View style={s.section}>
+                <Text style={s.sectionLabel}>Sales rep</Text>
+                <Text style={s.paragraph}>{data.salesPerson.name}</Text>
+                {data.salesPerson.email && <Text style={s.muted}>{data.salesPerson.email}</Text>}
+                {data.salesPerson.phone && <Text style={s.muted}>{data.salesPerson.phone}</Text>}
+              </View>
+            )}
           </View>
         )}
 
@@ -147,17 +176,76 @@ export function DocumentTemplate({ style, data }: { style: PdfStyleConfig; data:
               <Text style={[s.tableHeadCell, s.colAmount]}>Amount</Text>
             </View>
           )}
-          {data.lines.map((line, i) => (
-            <View style={s.row} key={i}>
-              <Text style={s.colDesc}>{line.description}</Text>
-              <Text style={s.colQty}>{line.quantity}</Text>
-              <Text style={s.colAmount}>{money(line.quantity * line.unitPriceCents, data.currency)}</Text>
-            </View>
-          ))}
-          <View style={s.totalRow}>
-            <Text style={s.totalLabel}>Total</Text>
-            <Text style={s.totalValue}>{money(data.totalCents, data.currency)}</Text>
-          </View>
+          {data.lines.map((line, i) => {
+            const gross = line.quantity * line.unitPriceCents;
+            const afterDiscount = gross * (1 - (line.discountPercent ?? 0) / 100);
+            const lineTotal = afterDiscount * (1 + (line.taxRatePercent ?? 0) / 100);
+            return (
+              <View style={s.row} key={i}>
+                <View style={s.colDesc}>
+                  <Text>{line.description}</Text>
+                  {(line.sku || line.discountPercent || line.taxRatePercent) && (
+                    <Text style={s.lineSubtext}>
+                      {[
+                        line.sku && `SKU: ${line.sku}`,
+                        line.discountPercent ? `${line.discountPercent}% disc` : null,
+                        line.taxRatePercent ? `${line.taxRatePercent}% tax` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </Text>
+                  )}
+                </View>
+                <Text style={s.colQty}>{line.quantity}</Text>
+                <Text style={s.colAmount}>{money(lineTotal, data.currency)}</Text>
+              </View>
+            );
+          })}
+          {(() => {
+            const breakdown = computeDocumentTotal(
+              data.lines.map((l) => ({
+                quantity: l.quantity,
+                unitPriceCents: l.unitPriceCents,
+                discountPercent: l.discountPercent,
+                taxRatePercent: l.taxRatePercent,
+              })),
+              data.documentDiscountPercent ?? 0
+            );
+            return (
+              <>
+                {(breakdown.lineDiscountCents > 0 || breakdown.taxCents > 0 || breakdown.documentDiscountCents > 0) && (
+                  <View style={s.subtotalBlock}>
+                    <View style={s.subtotalRow}>
+                      <Text style={s.muted}>Subtotal</Text>
+                      <Text style={s.muted}>{money(breakdown.subtotalCents, data.currency)}</Text>
+                    </View>
+                    {breakdown.lineDiscountCents > 0 && (
+                      <View style={s.subtotalRow}>
+                        <Text style={s.muted}>Line discounts</Text>
+                        <Text style={s.muted}>&minus;{money(breakdown.lineDiscountCents, data.currency)}</Text>
+                      </View>
+                    )}
+                    {breakdown.taxCents > 0 && (
+                      <View style={s.subtotalRow}>
+                        <Text style={s.muted}>Tax</Text>
+                        <Text style={s.muted}>{money(breakdown.taxCents, data.currency)}</Text>
+                      </View>
+                    )}
+                    {breakdown.documentDiscountCents > 0 && (
+                      <View style={s.subtotalRow}>
+                        <Text style={s.muted}>Discount ({data.documentDiscountPercent}%)</Text>
+                        <Text style={s.muted}>&minus;{money(breakdown.documentDiscountCents, data.currency)}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+                <View style={s.totalRow}>
+                  <Text style={s.totalLabel}>Total</Text>
+                  <Text style={s.totalValue}>{money(data.totalCents, data.currency)}</Text>
+                </View>
+              </>
+            );
+          })()}
         </View>
 
         {!isSlip &&
@@ -242,6 +330,9 @@ function buildStyles(style: PdfStyleConfig) {
     totalRow: { flexDirection: "row", justifyContent: "space-between", paddingTop: 10, marginTop: 6, borderTop: `1pt solid ${style.textColor}` },
     totalLabel: { fontSize: 12, fontWeight: 700 },
     totalValue: { fontSize: 12, fontWeight: 700, color: style.accentColor },
+    lineSubtext: { fontSize: 7.5, color: style.mutedColor, marginTop: 2 },
+    subtotalBlock: { marginTop: 8, alignItems: "flex-end" },
+    subtotalRow: { flexDirection: "row", justifyContent: "space-between", width: 180, paddingVertical: 2 },
     footer: { position: "absolute", bottom: 30, left: 40, right: 40, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
     footerLeft: { flexDirection: "column", gap: 2 },
     footerLink: { fontSize: 8, color: style.mutedColor },
