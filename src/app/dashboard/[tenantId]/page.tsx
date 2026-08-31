@@ -5,7 +5,9 @@
 
 import Link from "next/link";
 import { findStaleTransactions } from "@/lib/core/money";
+import { listThisWeekFollowUps } from "@/lib/core/followUpReminders";
 import { prisma } from "@/lib/db";
+import { DailyVoiceBriefing } from "./DailyVoiceBriefing";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +44,7 @@ export default async function TenantHomePage({
   const { tenantId } = await params;
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
 
-  const [stale, customerCount, openInvoices, quotes, productCount, membershipCount] = await Promise.all([
+  const [stale, customerCount, openInvoices, quotes, productCount, membershipCount, thisWeek] = await Promise.all([
     findStaleTransactions({ tenantId, staleAfterDays: 3 }),
     prisma.party.count({ where: { tenantId, role: { in: ["CUSTOMER", "PATIENT"] } } }),
     prisma.transaction.findMany({
@@ -51,6 +53,7 @@ export default async function TenantHomePage({
     prisma.transaction.findMany({ where: { tenantId, type: "QUOTE" } }),
     prisma.item.count({ where: { tenantId } }),
     prisma.membership.count({ where: { tenantId } }),
+    listThisWeekFollowUps(tenantId),
   ]);
 
   // Guided setup checklist — visible momentum in the trial's first week,
@@ -95,8 +98,29 @@ export default async function TenantHomePage({
       ? { background: "var(--kb-panel-border)" }
       : { background: `conic-gradient(${stops.join(", ")})` };
 
+  // The voice briefing script — same source data as the This Week board
+  // and the "Needs your attention" list, so what's spoken always matches
+  // what's on screen. Kept to plain sentences (no markdown/emoji) since
+  // this is fed straight to speechSynthesis.
+  const overdueCount = stale.length;
+  const thisWeekNames = thisWeek.slice(0, 3).map((t) => t.party.name);
+  const briefingParts = [`Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}, ${tenant.name}.`];
+  if (overdueCount > 0) {
+    briefingParts.push(`You have ${overdueCount} ${overdueCount === 1 ? "quote or invoice that has" : "quotes and invoices that have"} gone quiet and need a follow-up.`);
+  }
+  if (thisWeek.length > 0) {
+    briefingParts.push(
+      `This week you're scheduled to follow up with ${thisWeekNames.join(", ")}${thisWeek.length > 3 ? `, and ${thisWeek.length - 3} more` : ""}.`
+    );
+  }
+  if (overdueCount === 0 && thisWeek.length === 0) {
+    briefingParts.push("Nothing urgent is waiting on you right now.");
+  }
+  const briefingText = briefingParts.join(" ");
+
   return (
     <main className="mx-auto max-w-6xl p-8">
+      <DailyVoiceBriefing tenantId={tenantId} text={briefingText} />
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[var(--kb-text)]">
@@ -188,6 +212,32 @@ export default async function TenantHomePage({
           <p className="mt-1 text-xs opacity-70">on file</p>
         </div>
       </div>
+
+      <section className="kb-card mt-6 p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-[var(--kb-text)]">This week — who to contact</h2>
+          <Link href={`/dashboard/${tenantId}/this-week`} className="text-xs font-semibold text-[var(--kb-accent-a)] hover:underline">
+            View all &rarr;
+          </Link>
+        </div>
+        {thisWeek.length === 0 ? (
+          <p className="mt-3 text-sm text-[var(--kb-text-dim)]">Nothing scheduled this week.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-[var(--kb-panel-border)]">
+            {thisWeek.slice(0, 5).map((t) => (
+              <li key={t.id} className="flex items-center justify-between py-2 text-sm">
+                <div>
+                  <span className="text-[var(--kb-text)]">{t.party.name}</span>
+                  {t.followUpNote && <span className="ml-2 text-xs text-[var(--kb-text-dim)]">— {t.followUpNote}</span>}
+                </div>
+                <span className="text-xs text-[var(--kb-text-dim)]">
+                  {t.nextFollowUpAt?.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="kb-card p-6">

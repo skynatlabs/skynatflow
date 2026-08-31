@@ -386,6 +386,10 @@ model Transaction {
   // follow-up cron checks this before falling back to
   // Tenant.followUpWindowDays/followUpRepeatDays.
   nextFollowUpAt        DateTime?
+  // Owner-set context for a manual reminder ("said he'll be ready in 2
+  // months") — shown next to the quote and on the This Week board so the
+  // reminder isn't just a bare date with no memory of why.
+  followUpNote          String?
 
   itemLines        TransactionLine[]
   paymentCheckouts PaymentCheckout[]

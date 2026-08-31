@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { recordPayment, recordRefund } from "@/lib/core/money";
+import { setManualReminder, clearManualReminder } from "@/lib/core/followUpReminders";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { assertCan } from "@/lib/core/access";
 import { recordAudit } from "@/lib/core/audit";
@@ -70,5 +71,30 @@ export async function setInvoiceSalesPersonAction(formData: FormData) {
   await loadOwnedInvoice(tenantId, invoiceId);
 
   await prisma.transaction.update({ where: { id: invoiceId }, data: { salesPersonMembershipId } });
+  revalidatePath(`/dashboard/${tenantId}/invoices/${invoiceId}`);
+}
+
+export async function setInvoiceReminderAction(formData: FormData) {
+  const tenantId = String(formData.get("tenantId") ?? "");
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  const remindAtRaw = String(formData.get("remindAt") ?? "");
+  const note = String(formData.get("note") ?? "").trim();
+  const access = await requireTenantAccess(tenantId);
+  assertCan(access.role, "invoice:create");
+
+  const remindAt = new Date(remindAtRaw);
+  if (!remindAtRaw || Number.isNaN(remindAt.getTime())) throw new Error("A valid date is required.");
+
+  await setManualReminder({ tenantId, transactionId: invoiceId, remindAt, note });
+  revalidatePath(`/dashboard/${tenantId}/invoices/${invoiceId}`);
+}
+
+export async function clearInvoiceReminderAction(formData: FormData) {
+  const tenantId = String(formData.get("tenantId") ?? "");
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  const access = await requireTenantAccess(tenantId);
+  assertCan(access.role, "invoice:create");
+
+  await clearManualReminder(tenantId, invoiceId);
   revalidatePath(`/dashboard/${tenantId}/invoices/${invoiceId}`);
 }

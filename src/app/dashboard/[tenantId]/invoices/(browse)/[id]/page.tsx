@@ -3,7 +3,13 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { totalPaid, totalRefunded } from "@/lib/core/money";
 import { getOrCreatePortalToken } from "@/lib/core/parties";
-import { recordPaymentAction, recordRefundAction, setInvoiceSalesPersonAction } from "./actions";
+import {
+  recordPaymentAction,
+  recordRefundAction,
+  setInvoiceSalesPersonAction,
+  setInvoiceReminderAction,
+  clearInvoiceReminderAction,
+} from "./actions";
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
@@ -177,6 +183,65 @@ export default async function InvoiceDetailPage({
             {invoice.salesPersonMembership.user.phone && ` · ${invoice.salesPersonMembership.user.phone}`}
           </p>
         )}
+      </div>
+
+      <div className="kb-card mt-4 p-6">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--kb-text-dim)]">
+          Reminder
+        </h2>
+        <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
+          "Call me back in 2 months" — set the date and the follow-up engine holds off until then
+          instead of chasing payment on the usual schedule.
+        </p>
+        {invoice.nextFollowUpAt && (
+          <div className="mt-3 rounded-lg bg-[var(--kb-panel)] p-3 text-sm">
+            <p className="font-medium text-[var(--kb-text)]">
+              {new Date(invoice.nextFollowUpAt).toLocaleDateString(undefined, {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </p>
+            {invoice.followUpNote && <p className="mt-0.5 text-[var(--kb-text-dim)]">{invoice.followUpNote}</p>}
+            <div className="mt-2 flex items-center gap-3">
+              <a
+                href={`/api/dashboard/${tenantId}/reminders/${id}/ics`}
+                className="text-xs font-semibold text-[var(--kb-accent-a)] hover:underline"
+              >
+                Add to calendar
+              </a>
+              <form action={clearInvoiceReminderAction}>
+                <input type="hidden" name="tenantId" value={tenantId} />
+                <input type="hidden" name="invoiceId" value={id} />
+                <button type="submit" className="text-xs text-[var(--kb-text-dim)] hover:underline">
+                  Clear reminder
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+        <form action={setInvoiceReminderAction} className="mt-3 space-y-2">
+          <input type="hidden" name="tenantId" value={tenantId} />
+          <input type="hidden" name="invoiceId" value={id} />
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              name="remindAt"
+              required
+              className="rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm"
+            />
+            <input
+              type="text"
+              name="note"
+              placeholder="Why? e.g. Said he'll pay after month-end"
+              className="flex-1 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm"
+            />
+          </div>
+          <button type="submit" className="kb-pill kb-pill-ghost text-xs">
+            {invoice.nextFollowUpAt ? "Update reminder" : "Set reminder"}
+          </button>
+        </form>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { sendQuote, recordResponse, convertToInvoice } from "@/lib/core/money";
+import { setManualReminder, clearManualReminder } from "@/lib/core/followUpReminders";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { assertCan } from "@/lib/core/access";
 import { recordAudit } from "@/lib/core/audit";
@@ -82,5 +83,30 @@ export async function setQuoteSalesPersonAction(formData: FormData) {
     where: { id: quoteId },
     data: { salesPersonMembershipId },
   });
+  revalidatePath(`/dashboard/${tenantId}/quotes/${quoteId}`);
+}
+
+export async function setQuoteReminderAction(formData: FormData) {
+  const tenantId = String(formData.get("tenantId") ?? "");
+  const quoteId = String(formData.get("quoteId") ?? "");
+  const remindAtRaw = String(formData.get("remindAt") ?? "");
+  const note = String(formData.get("note") ?? "").trim();
+  const access = await requireTenantAccess(tenantId);
+  assertCan(access.role, "quote:send");
+
+  const remindAt = new Date(remindAtRaw);
+  if (!remindAtRaw || Number.isNaN(remindAt.getTime())) throw new Error("A valid date is required.");
+
+  await setManualReminder({ tenantId, transactionId: quoteId, remindAt, note });
+  revalidatePath(`/dashboard/${tenantId}/quotes/${quoteId}`);
+}
+
+export async function clearQuoteReminderAction(formData: FormData) {
+  const tenantId = String(formData.get("tenantId") ?? "");
+  const quoteId = String(formData.get("quoteId") ?? "");
+  const access = await requireTenantAccess(tenantId);
+  assertCan(access.role, "quote:send");
+
+  await clearManualReminder(tenantId, quoteId);
   revalidatePath(`/dashboard/${tenantId}/quotes/${quoteId}`);
 }
