@@ -103,6 +103,8 @@ export function DocumentTemplate({ style, data }: { style: PdfStyleConfig; data:
           </View>
         </View>
 
+        {style.headerLayout !== "band" && <View style={s.headerDivider} />}
+
         {data.subject && !isSlip && (
           <View style={s.section}>
             <Text style={s.paragraph}>{data.subject}</Text>
@@ -248,45 +250,48 @@ export function DocumentTemplate({ style, data }: { style: PdfStyleConfig; data:
           })()}
         </View>
 
-        {!isSlip &&
-          (data.sectionOrder ?? DEFAULT_SECTION_ORDER)
-            .filter((key) => !data.hiddenSections?.includes(key))
-            .map((key) => {
-              if (key === "terms" && data.terms) {
-                return (
-                  <View style={s.section} key={key}>
-                    <Text style={s.sectionLabel}>Terms</Text>
-                    <Text style={s.muted}>{data.terms}</Text>
-                  </View>
-                );
-              }
-              if (key === "bankingDetails" && data.bankingDetails?.accountNumber) {
-                const b = data.bankingDetails;
-                return (
-                  <View style={s.section} key={key}>
-                    <Text style={s.sectionLabel}>Banking details</Text>
-                    {b.bankName && <Text style={s.muted}>Bank: {b.bankName}</Text>}
-                    {b.accountHolder && <Text style={s.muted}>Account holder: {b.accountHolder}</Text>}
-                    <Text style={s.muted}>Account number: {b.accountNumber}</Text>
-                    {b.branchCode && <Text style={s.muted}>Branch code: {b.branchCode}</Text>}
-                    {b.swift && <Text style={s.muted}>SWIFT: {b.swift}</Text>}
-                  </View>
-                );
-              }
-              if (key === "verify" && data.verifyWhatsappNumber) {
-                return (
-                  <View style={s.section} key={key}>
-                    <Text style={s.sectionLabel}>Verify this document</Text>
-                    <Text style={s.muted}>
-                      To confirm this {data.docLabel.toLowerCase()} genuinely came from{" "}
-                      {data.tenantName}, message {data.verifyWhatsappNumber} on WhatsApp — never pay
-                      or accept based on a document alone.
-                    </Text>
-                  </View>
-                );
-              }
-              return null;
-            })}
+        {!isSlip && (
+          <View style={s.optionalSections}>
+            {(data.sectionOrder ?? DEFAULT_SECTION_ORDER)
+              .filter((key) => !data.hiddenSections?.includes(key))
+              .map((key) => {
+                if (key === "terms" && data.terms) {
+                  return (
+                    <View style={s.section} key={key}>
+                      <Text style={s.sectionLabel}>Terms</Text>
+                      <Text style={s.muted}>{data.terms}</Text>
+                    </View>
+                  );
+                }
+                if (key === "bankingDetails" && data.bankingDetails?.accountNumber) {
+                  const b = data.bankingDetails;
+                  return (
+                    <View style={s.calloutBox} key={key}>
+                      <Text style={s.sectionLabel}>Banking details</Text>
+                      {b.bankName && <Text style={s.muted}>Bank: {b.bankName}</Text>}
+                      {b.accountHolder && <Text style={s.muted}>Account holder: {b.accountHolder}</Text>}
+                      <Text style={s.muted}>Account number: {b.accountNumber}</Text>
+                      {b.branchCode && <Text style={s.muted}>Branch code: {b.branchCode}</Text>}
+                      {b.swift && <Text style={s.muted}>SWIFT: {b.swift}</Text>}
+                    </View>
+                  );
+                }
+                if (key === "verify" && data.verifyWhatsappNumber) {
+                  return (
+                    <View style={s.calloutBox} key={key}>
+                      <Text style={s.sectionLabel}>Verify this document</Text>
+                      <Text style={s.muted}>
+                        To confirm this {data.docLabel.toLowerCase()} genuinely came from{" "}
+                        {data.tenantName}, message {data.verifyWhatsappNumber} on WhatsApp — never pay
+                        or accept based on a document alone.
+                      </Text>
+                    </View>
+                  );
+                }
+                return null;
+              })}
+          </View>
+        )}
 
         <View style={s.footer}>
           <View style={s.footerLeft}>
@@ -309,13 +314,41 @@ function buildStyles(style: PdfStyleConfig) {
     band: { position: "absolute", top: 0, left: 0, right: 0, height: 60, backgroundColor: style.accentColor },
     headerBlock: { marginTop: style.headerLayout === "band" ? 30 : 0, marginBottom: 20, alignItems: style.headerLayout === "centered" ? "center" : "flex-start" },
     headerSplit: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
+    headerDivider: { height: 2, backgroundColor: style.accentColor, marginBottom: 16, opacity: 0.8 },
+    optionalSections: { marginTop: 20 },
+    // A fixed light-gray fill, not an alpha-blended accent tint — react-pdf's
+    // handling of 8-digit hex alpha backgrounds is unreliable across accent
+    // colors (confirmed: washed out muted text to near-invisible against a
+    // bright accent like coral). A flat neutral gray guarantees contrast
+    // with textColor/mutedColor regardless of which accent color a
+    // tenant picks.
+    calloutBox: {
+      marginBottom: 14,
+      padding: 10,
+      backgroundColor: "#f4f4f6",
+      borderLeft: `2pt solid ${style.accentColor}`,
+    },
     headerLeft: { alignItems: style.headerLayout === "centered" ? "center" : "flex-start" },
     headerRight: { alignItems: style.headerLayout === "centered" ? "center" : "flex-end" },
     logoCircle: { width: 36, height: 36, borderRadius: 18, marginBottom: 6, objectFit: "cover" },
     logoSquare: { width: 36, height: 36, marginBottom: 6, objectFit: "cover" },
-    tenantName: { fontSize: 16, fontWeight: 700, color: style.headerLayout === "band" ? "#ffffff" : style.textColor },
+    // Never forced white for "band" layout: the decorative accent band is
+    // only ~60pt tall at the very top of the page, and this text (inside
+    // headerBlock, which also carries its own top margin) renders well
+    // below it — forcing white here made the tenant name/address
+    // literally invisible (white on the plain white page) on every
+    // band-layout template. The band is a decorative top stripe only,
+    // nothing is meant to sit visually on top of it.
+    tenantName: { fontSize: 16, fontWeight: 700, color: style.textColor },
     docLabel: { fontSize: 18, fontWeight: 700, color: style.accentColor, marginBottom: 4 },
-    muted: { fontSize: 9, color: style.headerLayout === "band" ? "#ffffff" : style.mutedColor },
+    // Plain secondary text used throughout the body (To section, terms,
+    // banking details, verify callout, footer) — always mutedColor. A
+    // previous version of this tied the color to headerLayout === "band",
+    // which meant EVERY use of this style anywhere in the document (not
+    // just inside the colored header strip) rendered white — invisible
+    // against the white page background everywhere outside the header.
+    // That's the bug that made band-layout templates look broken.
+    muted: { fontSize: 9, color: style.mutedColor },
     section: { marginBottom: 14 },
     sectionLabel: { fontSize: 8, textTransform: "uppercase", letterSpacing: 0.5, color: style.mutedColor, marginBottom: 3 },
     paragraph: { fontSize: 10, lineHeight: 1.5 },

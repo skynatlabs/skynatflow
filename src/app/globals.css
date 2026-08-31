@@ -94,7 +94,7 @@ body {
   --kb-accent-a: #ff3d00; /* vivid coral-red */
   --kb-accent-mid: #e0117a; /* saturated magenta */
   --kb-accent-b: #5b1fd6; /* deep violet */
-  --kb-navy: #050608; /* near-black, for full black-banded sections */
+  --kb-navy: #0c0f1e; /* deep navy, not pure black — reads as a rich brand color instead of a void */
   --kb-navy-soft: #0d0f1a;
 
   --kb-tint-blue: #cfe4ff;
