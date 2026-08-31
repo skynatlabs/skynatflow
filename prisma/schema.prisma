@@ -1248,6 +1248,15 @@ model TenantPdfTemplate {
   isDefault      Boolean  @default(false)
   accentColorHex String?
   logoDataUrl    String?
+  // Per-field overrides on top of the base style (styleKey) — the real
+  // "customize each part" controls: font, header layout, table header
+  // style, logo shape. Null = inherit whatever the base style says, so
+  // picking a style and never touching these still renders exactly like
+  // that style always has.
+  fontFamily      String? // "Helvetica" | "Times-Roman" | "Courier"
+  headerLayout    String? // "centered" | "split" | "band"
+  tableHeaderStyle String? // "dark" | "accent" | "line-only"
+  logoShape       String? // "circle" | "square" | "none"
   // Drag-to-reorder builder: which optional blocks appear (beyond the
   // fixed header/items-table/total anchors) and in what order. Stored as
   // a plain string array, e.g. ["customerInfo","terms","bankingDetails",

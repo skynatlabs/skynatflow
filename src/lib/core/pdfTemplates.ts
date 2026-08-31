@@ -64,6 +64,28 @@ export async function updateSectionLayout(params: {
   });
 }
 
+export async function updateStyleOverrides(params: {
+  tenantId: string;
+  templateId: string;
+  fontFamily?: string;
+  headerLayout?: string;
+  tableHeaderStyle?: string;
+  logoShape?: string;
+}) {
+  const template = await prisma.tenantPdfTemplate.findUniqueOrThrow({ where: { id: params.templateId } });
+  if (template.tenantId !== params.tenantId) throw new Error("Not found.");
+
+  return prisma.tenantPdfTemplate.update({
+    where: { id: params.templateId },
+    data: {
+      fontFamily: params.fontFamily || null,
+      headerLayout: params.headerLayout || null,
+      tableHeaderStyle: params.tableHeaderStyle || null,
+      logoShape: params.logoShape || null,
+    },
+  });
+}
+
 export async function deletePdfTemplate(tenantId: string, templateId: string) {
   const template = await prisma.tenantPdfTemplate.findUniqueOrThrow({ where: { id: templateId } });
   if (template.tenantId !== tenantId) throw new Error("Not found.");

@@ -8,7 +8,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import type { Transaction, TransactionLine, Item, Party, Tenant, Membership, User } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { DocumentTemplate, type DocumentData, type OptionalSectionKey } from "./DocumentTemplate";
-import { getPdfStyle } from "./styles";
+import { getPdfStyle, type PdfStyleConfig } from "./styles";
 import { generateQrDataUrl } from "./qr";
 
 type TxWithLines = Transaction & {
@@ -31,8 +31,20 @@ export async function renderTransactionPdf(params: {
   isSlip?: boolean;
 }) {
   const template = await getDefaultTemplate(params.tenant.id);
-  const style = getPdfStyle(template?.styleKey ?? (params.isSlip ? "slip-classic" : "minimal-mono"));
-  const resolvedStyle = template?.accentColorHex ? { ...style, accentColor: template.accentColorHex } : style;
+  const baseStyle = getPdfStyle(template?.styleKey ?? (params.isSlip ? "slip-classic" : "minimal-mono"));
+  // Per-field overrides on top of the base style — null/unset falls back
+  // to whatever the chosen base style already says, so a template that's
+  // never been touched beyond picking a style renders identically to before.
+  const resolvedStyle: PdfStyleConfig = {
+    ...baseStyle,
+    ...(template?.accentColorHex ? { accentColor: template.accentColorHex } : {}),
+    ...(template?.fontFamily ? { fontFamily: template.fontFamily as PdfStyleConfig["fontFamily"] } : {}),
+    ...(template?.headerLayout ? { headerLayout: template.headerLayout as PdfStyleConfig["headerLayout"] } : {}),
+    ...(template?.tableHeaderStyle
+      ? { tableHeaderStyle: template.tableHeaderStyle as PdfStyleConfig["tableHeaderStyle"] }
+      : {}),
+    ...(template?.logoShape ? { logoShape: template.logoShape as PdfStyleConfig["logoShape"] } : {}),
+  };
 
   const qrDataUrl = params.viewOnlineUrl ? await generateQrDataUrl(params.viewOnlineUrl) : undefined;
 
