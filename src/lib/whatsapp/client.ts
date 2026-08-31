@@ -3,8 +3,10 @@
 // integration — every send goes through here so the message also gets
 // logged against the right customer record.
 //
-// Needs WHATSAPP_API_KEY / WHATSAPP_PHONE_NUMBER_ID in .env — see the
-// Phase 2 checkpoint note.
+// Needs WHATSAPP_API_KEY / WHATSAPP_PHONE_NUMBER_ID — settable at
+// /admin/api-keys (checked first) or as env vars (fallback).
+
+import { getPlatformSecret } from "@/lib/platform/apiKeys";
 
 export interface SendWhatsAppMessageParams {
   to: string; // E.164, e.g. "+27821234567"
@@ -12,8 +14,10 @@ export interface SendWhatsAppMessageParams {
 }
 
 export async function sendWhatsAppMessage({ to, body }: SendWhatsAppMessageParams) {
-  const apiKey = process.env.WHATSAPP_API_KEY;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const [apiKey, phoneNumberId] = await Promise.all([
+    getPlatformSecret("WHATSAPP_API_KEY"),
+    getPlatformSecret("WHATSAPP_PHONE_NUMBER_ID"),
+  ]);
 
   if (!apiKey || !phoneNumberId) {
     // No credentials configured yet — this is expected until the Phase 2

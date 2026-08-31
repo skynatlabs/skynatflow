@@ -6,10 +6,12 @@
 //
 // Uses Resend — same "stub safely if no key" pattern as
 // src/lib/whatsapp/client.ts, so nothing breaks in local dev without an
-// account. Needs RESEND_API_KEY + EMAIL_FROM in .env — see the README
-// checkpoint list.
+// account. RESEND_API_KEY is settable at /admin/api-keys (checked first)
+// or as an env var; EMAIL_FROM stays env-only (a sender address, not a
+// secret).
 
 import { Resend } from "resend";
+import { getPlatformSecret } from "@/lib/platform/apiKeys";
 
 export interface SendEmailParams {
   to: string;
@@ -18,7 +20,7 @@ export interface SendEmailParams {
 }
 
 export async function sendEmail({ to, subject, html }: SendEmailParams) {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = await getPlatformSecret("RESEND_API_KEY");
   const from = process.env.EMAIL_FROM;
 
   if (!apiKey || !from) {

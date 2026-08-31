@@ -21,10 +21,13 @@ export const API_KEY_REGISTRY: ApiKeyMeta[] = [
   { key: "AUTH_GOOGLE_ID", label: "Google OAuth client ID", group: "Auth", helpText: "For \"Sign in with Google\" — console.cloud.google.com OAuth client" },
   { key: "AUTH_GOOGLE_SECRET", label: "Google OAuth client secret", group: "Auth", helpText: "Same OAuth client as above" },
   { key: "RESEND_API_KEY", label: "Resend (email)", group: "Communication", helpText: "resend.com/api-keys" },
-  { key: "WHATSAPP_ACCESS_TOKEN", label: "WhatsApp Business API token", group: "Communication", helpText: "developers.facebook.com WhatsApp Business Platform" },
+  { key: "WHATSAPP_API_KEY", label: "WhatsApp Business API token", group: "Communication", helpText: "developers.facebook.com WhatsApp Business Platform" },
   { key: "WHATSAPP_PHONE_NUMBER_ID", label: "WhatsApp phone number ID", group: "Communication", helpText: "From the same WhatsApp Business app" },
-  { key: "R2_ACCESS_KEY_ID", label: "Cloudflare R2 access key ID", group: "Storage", helpText: "For document backup uploads" },
-  { key: "R2_SECRET_ACCESS_KEY", label: "Cloudflare R2 secret access key", group: "Storage", helpText: "Same R2 bucket credential" },
+  { key: "STORAGE_ENDPOINT", label: "Cloudflare R2 endpoint", group: "Storage", helpText: "e.g. https://<account-id>.r2.cloudflarestorage.com — for CMS image uploads" },
+  { key: "STORAGE_ACCESS_KEY_ID", label: "Cloudflare R2 access key ID", group: "Storage", helpText: "Same R2 bucket credential" },
+  { key: "STORAGE_SECRET_ACCESS_KEY", label: "Cloudflare R2 secret access key", group: "Storage", helpText: "Same R2 bucket credential" },
+  { key: "STORAGE_BUCKET", label: "Cloudflare R2 bucket name", group: "Storage", helpText: "Same R2 bucket" },
+  { key: "STORAGE_PUBLIC_BASE_URL", label: "Cloudflare R2 public base URL", group: "Storage", helpText: "The public URL your bucket serves uploads from" },
 ];
 
 const REGISTRY_KEYS = new Set(API_KEY_REGISTRY.map((k) => k.key));
