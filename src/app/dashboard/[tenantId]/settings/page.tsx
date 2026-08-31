@@ -25,6 +25,7 @@ const GROUPS: {
     items: [
       { href: "mail", label: "Mail accounts", description: "Connect IMAP or use your flow-hosted inbound address." },
       { href: "booking", label: "Booking & scheduling", description: "Appointment and booking preferences." },
+      { href: "calendar", label: "Calendar sync", description: "Connect Google Calendar so reminders show up there too." },
     ],
   },
   {

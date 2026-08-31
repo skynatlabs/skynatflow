@@ -10,6 +10,7 @@
 
 import { prisma } from "@/lib/db";
 import { TransactionType } from "@prisma/client";
+import { syncReminderToCalendar, deleteCalendarEvent } from "@/lib/calendar/google";
 
 export async function setManualReminder(params: {
   tenantId: string;
@@ -17,12 +18,32 @@ export async function setManualReminder(params: {
   remindAt: Date;
   note?: string;
 }) {
-  const tx = await prisma.transaction.findUniqueOrThrow({ where: { id: params.transactionId } });
+  const tx = await prisma.transaction.findUniqueOrThrow({
+    where: { id: params.transactionId },
+    include: { party: true },
+  });
   if (tx.tenantId !== params.tenantId) throw new Error("Not found.");
+
+  // Live two-way sync: create or update the same calendar event rather
+  // than a fresh one each time — a no-op (returns null) if this tenant
+  // hasn't connected a calendar, same graceful-degradation posture as
+  // every other optional integration here.
+  const docType = tx.type === "QUOTE" ? "quote" : "invoice";
+  const calendarEventId = await syncReminderToCalendar({
+    tenantId: params.tenantId,
+    transactionId: params.transactionId,
+    summary: `Follow up with ${tx.party.name} — ${docType}`,
+    description: params.note || `Follow up on this ${docType}.`,
+    startAt: params.remindAt,
+  });
 
   return prisma.transaction.update({
     where: { id: params.transactionId },
-    data: { nextFollowUpAt: params.remindAt, followUpNote: params.note || null },
+    data: {
+      nextFollowUpAt: params.remindAt,
+      followUpNote: params.note || null,
+      calendarEventId: calendarEventId ?? tx.calendarEventId,
+    },
   });
 }
 
@@ -30,9 +51,13 @@ export async function clearManualReminder(tenantId: string, transactionId: strin
   const tx = await prisma.transaction.findUniqueOrThrow({ where: { id: transactionId } });
   if (tx.tenantId !== tenantId) throw new Error("Not found.");
 
+  if (tx.calendarEventId) {
+    await deleteCalendarEvent(tenantId, tx.calendarEventId);
+  }
+
   return prisma.transaction.update({
     where: { id: transactionId },
-    data: { nextFollowUpAt: null, followUpNote: null },
+    data: { nextFollowUpAt: null, followUpNote: null, calendarEventId: null },
   });
 }
 

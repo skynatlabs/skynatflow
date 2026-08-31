@@ -161,6 +161,7 @@ model Tenant {
   paymentGateways        PaymentGateway[]
   paymentCheckouts       PaymentCheckout[]
   ecommerceIntegrations  EcommerceIntegration[]
+  calendarIntegration    CalendarIntegration?
   ecommerceOrders        EcommerceOrder[]
   pdfTemplates           TenantPdfTemplate[]
   emailAccounts          EmailAccount[]
@@ -390,6 +391,11 @@ model Transaction {
   // months") — shown next to the quote and on the This Week board so the
   // reminder isn't just a bare date with no memory of why.
   followUpNote          String?
+  // Google Calendar event id for this reminder, if the tenant has
+  // connected a calendar — lets setManualReminder update the existing
+  // event instead of creating a duplicate, and clearManualReminder
+  // delete it instead of leaving an orphaned calendar entry.
+  calendarEventId       String?
 
   itemLines        TransactionLine[]
   paymentCheckouts PaymentCheckout[]
@@ -1404,4 +1410,23 @@ model PlatformApiKey {
   updatedAt DateTime @updatedAt
 
   @@map("platform_api_keys")
+}
+
+// A tenant's connected calendar — live two-way sync for reminders. One
+// per tenant today (Google only); the provider field exists so Outlook
+// can be added later without a schema change. Tokens are AES-256-GCM
+// encrypted at rest, same as IMAP passwords (src/lib/crypto.ts).
+model CalendarIntegration {
+  id                    String   @id @default(cuid())
+  tenantId              String   @unique
+  tenant                Tenant   @relation(fields: [tenantId], references: [id])
+  provider              String   @default("GOOGLE")
+  refreshTokenEnc       String
+  accessTokenEnc        String?
+  accessTokenExpiresAt  DateTime?
+  calendarId            String   @default("primary")
+  connectedByEmail      String? // whose Google account this is, shown in settings so it's obvious if the wrong person connected it
+  createdAt             DateTime @default(now())
+
+  @@map("calendar_integrations")
 }
