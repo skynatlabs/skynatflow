@@ -147,7 +147,7 @@ export function FloatingPaButton({ tenantId }: { tenantId: string }) {
     <>
       {open && (
         <div
-          className="fixed bottom-24 right-6 z-50 w-80 rounded-2xl border p-4"
+          className="fixed bottom-24 right-6 z-50 w-80 rounded-[10px] border p-4"
           style={{ background: "var(--kb-panel)", borderColor: "var(--kb-panel-border)", boxShadow: "0 20px 48px -16px rgba(0,0,0,0.35)" }}
         >
           <p className="mb-2 text-xs font-medium text-[var(--kb-text-dim)]">✦ Ask flow anything</p>

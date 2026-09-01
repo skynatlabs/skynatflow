@@ -103,7 +103,7 @@ export default async function TenantShellLayout({
             <span className="text-lg font-bold text-white">flow</span>
           </div>
 
-          <div className="mt-7 rounded-2xl px-3 py-3" style={{ background: "var(--kb-navy-soft)" }}>
+          <div className="mt-7 rounded-[10px] px-3 py-3" style={{ background: "var(--kb-navy-soft)" }}>
             <p className="truncate text-sm font-semibold text-white">{tenant.name}</p>
             <span
               className="mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
@@ -120,7 +120,7 @@ export default async function TenantShellLayout({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white"
                 >
                   <Icon className="h-[18px] w-[18px] shrink-0" />
                   <span className="truncate flex-1">{item.label}</span>
