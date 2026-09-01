@@ -21,10 +21,10 @@ export async function requireTenantAccess(tenantId: string): Promise<TenantAcces
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) throw new AuthRequiredError();
 
-  if (user.isSuperAdmin) {
-    return { userId: user.id, role: "OWNER", membershipId: null };
-  }
-
+  // isSuperAdmin is the /car (platform control) gate ONLY — it must never
+  // imply blanket access to a tenant's actual business data. A platform
+  // admin needs a real Membership on a tenant, same as anyone else, to
+  // open that tenant's dashboard.
   const membership = await prisma.membership.findUnique({
     where: { userId_tenantId: { userId: user.id, tenantId } },
   });

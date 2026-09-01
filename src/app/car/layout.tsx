@@ -8,29 +8,32 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     await requireSuperAdmin();
   } catch (err) {
     if (err instanceof AuthRequiredError) redirect("/login");
-    if (err instanceof ForbiddenError) notFound(); // don't leak that /admin exists
+    if (err instanceof ForbiddenError) notFound(); // don't leak that /car exists
     throw err;
   }
 
   return (
-    <div className="min-h-screen bg-[var(--kb-bg)]" data-theme="light">
+    <div className="kb-shell min-h-screen" data-theme="light">
       <header className="border-b border-[var(--kb-panel-border)] bg-[var(--kb-panel)]">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link href="/admin" className="flex items-center gap-2">
+          <Link href="/car" className="flex items-center gap-2">
             <FlowMark size={26} />
-            <span className="font-bold text-[var(--kb-text)]">Marketing CMS</span>
+            <span className="font-bold text-[var(--kb-text)]">Control</span>
           </Link>
           <div className="flex items-center gap-4">
-            <Link href="/admin/ai" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
+            <Link href="/car/tenants" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
+              Tenants
+            </Link>
+            <Link href="/car/ai" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
               AI provider
             </Link>
-            <Link href="/admin/voice" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
+            <Link href="/car/voice" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
               PA voice
             </Link>
-            <Link href="/admin/appearance" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
+            <Link href="/car/appearance" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
               Appearance
             </Link>
-            <Link href="/admin/api-keys" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
+            <Link href="/car/api-keys" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
               API keys
             </Link>
             <Link href="/dashboard" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">

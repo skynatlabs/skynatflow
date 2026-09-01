@@ -25,64 +25,65 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Dashboard brand theme — light, airy, and a little playful rather than
-   dense/serious: a soft grey-lavender canvas, white rounded cards with a
-   gentle shadow (no glass blur — that reads as heavy in a light theme),
-   a dark navy sidebar for contrast, one confident coral accent for primary
-   actions, and a small set of pastel tints for stat tiles so the page has
-   color without turning into a rainbow. */
+/* Dashboard brand theme, v2 — premium/crisp instead of soft/playful: a
+   near-monochrome graphite-and-white base with exactly ONE confident
+   accent color used sparingly (primary actions, key numbers), not five
+   competing pastel tints. Sharp corners (see .kb-card/.kb-pill radii
+   below) instead of pill shapes and soft glows — that contrast between
+   "mostly grayscale" and "one deliberate accent" is what reads as
+   expensive; a rainbow of pastel tiles reads as a template. */
 .kb-shell {
-  --kb-bg: #eef1fa;
+  --kb-bg: #f7f7f8;
   --kb-panel: #ffffff;
-  --kb-panel-border: #e8eaf3;
-  --kb-text: #1c2333;
-  --kb-text-dim: #8891a8;
-  --kb-accent-a: #ff6a3d; /* coral — primary actions, the one bold color */
-  --kb-accent-mid: #ec4899; /* magenta — richens gradients, matches the Flow mark */
-  --kb-accent-b: #6c7bff; /* soft violet — secondary accent, charts */
-  --kb-navy: #12172b;
-  --kb-navy-soft: #1c2340;
+  --kb-panel-border: #e4e4e7;
+  --kb-text: #18181b;
+  --kb-text-dim: #71717a;
+  --kb-accent-a: #b45309; /* one confident amber — primary actions, key numbers only */
+  --kb-accent-mid: #d97706;
+  --kb-accent-b: #92400e; /* deeper amber, gradient endpoint — no unrelated hues mixed in */
+  --kb-navy: #18181b; /* graphite, not navy-blue — reads neutral/premium rather than "corporate SaaS blue" */
+  --kb-navy-soft: #27272a;
 
-  /* Pastel tint set for stat tiles — muted, not neon, so nothing fights
-     for attention. Each has a matching -ink variant for its text/icon. */
-  --kb-tint-blue: #e8f0ff;
-  --kb-tint-blue-ink: #3d6fe0;
-  --kb-tint-yellow: #fff6dd;
-  --kb-tint-yellow-ink: #d99a1f;
-  --kb-tint-peach: #ffe0ec;
-  --kb-tint-peach-ink: #e0245e;
-  --kb-tint-violet: #f0edff;
-  --kb-tint-violet-ink: #6c5ce7;
-  --kb-tint-mint: #e2f9ee;
-  --kb-tint-mint-ink: #16a870;
+  /* Tint set is now near-neutral — every stat tile shares the same quiet
+     grey surface; only the -ink variant carries color, and only the
+     number/icon uses it. Five different pastel backgrounds is exactly
+     the "cheap template" look this replaces. */
+  --kb-tint-blue: #f4f4f5;
+  --kb-tint-blue-ink: #18181b;
+  --kb-tint-yellow: #f4f4f5;
+  --kb-tint-yellow-ink: #b45309;
+  --kb-tint-peach: #f4f4f5;
+  --kb-tint-peach-ink: #b45309;
+  --kb-tint-violet: #f4f4f5;
+  --kb-tint-violet-ink: #18181b;
+  --kb-tint-mint: #f4f4f5;
+  --kb-tint-mint-ink: #15803d;
 
   background: var(--kb-bg);
   color: var(--kb-text);
   min-height: 100vh;
 }
 
-/* Dark mode: same structure, inverted — navy canvas instead of navy-only
-   sidebar, tints deepened rather than dropped so it still feels colorful
-   rather than going monochrome. */
+/* Dark mode: same graphite/amber system, inverted. */
 .kb-shell[data-theme="dark"] {
-  --kb-bg: #0d1120;
-  --kb-panel: #161b30;
-  --kb-panel-border: #262c48;
-  --kb-text: #eef1fa;
-  --kb-text-dim: #8891a8;
-  --kb-navy: #090c18;
-  --kb-navy-soft: #12172b;
+  --kb-bg: #0c0c0d;
+  --kb-panel: #18181b;
+  --kb-panel-border: #303033;
+  --kb-text: #f4f4f5;
+  --kb-text-dim: #a1a1aa;
+  --kb-navy: #0a0a0b;
+  --kb-navy-soft: #18181b;
 
-  --kb-tint-blue: #1c2a4d;
-  --kb-tint-blue-ink: #7ba3ff;
-  --kb-tint-yellow: #3a2f14;
-  --kb-tint-yellow-ink: #f0c04d;
-  --kb-tint-peach: #3a1628;
-  --kb-tint-peach-ink: #ff7aa8;
-  --kb-tint-violet: #241f45;
-  --kb-tint-violet-ink: #a89bff;
-  --kb-tint-mint: #123626;
-  --kb-tint-mint-ink: #3ddb96;
+  --kb-tint-blue: #202023;
+  --kb-tint-blue-ink: #f4f4f5;
+  --kb-tint-yellow: #202023;
+  --kb-tint-yellow-ink: #f0a336;
+  --kb-tint-peach: #202023;
+  --kb-tint-peach-ink: #f0a336;
+  --kb-tint-violet: #202023;
+  --kb-tint-violet-ink: #f4f4f5;
+  --kb-tint-mint: #202023;
+  --kb-tint-mint-ink: #4ade80;
 }
 
 /* Marketing site override: bolder, more saturated than the dashboard's
@@ -152,12 +153,15 @@ body {
   color: var(--kb-text);
 }
 
-/* Cards: soft shadow, generous radius, no border-heavy "glass" look. */
+/* Cards: sharp radius, a crisp border doing the work a soft shadow used
+   to — a thin 1px edge reads as considered/premium, a colorful blurred
+   glow reads as a template trying to look "modern". Shadow is now just
+   enough to lift off the canvas, no color in it. */
 .kb-card {
   background: var(--kb-panel);
   border: 1px solid var(--kb-panel-border);
-  border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(20, 25, 50, 0.04), 0 8px 24px -12px rgba(20, 25, 50, 0.10);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 /* Kept as an alias so existing markup using .kb-glass doesn't need touching
@@ -165,8 +169,8 @@ body {
 .kb-glass {
   background: var(--kb-panel);
   border: 1px solid var(--kb-panel-border);
-  border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(20, 25, 50, 0.04), 0 8px 24px -12px rgba(20, 25, 50, 0.10);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .kb-gradient-text {
@@ -176,12 +180,14 @@ body {
   color: transparent;
 }
 
-/* Pill buttons — the primary interactive shape across the dashboard. */
+/* Buttons — kept the .kb-pill name for markup compatibility, but the
+   shape is no longer a pill: a tight 8px radius reads as a deliberate,
+   engineered control rather than a soft rounded chip. */
 .kb-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border-radius: 999px;
+  border-radius: 8px;
   padding: 8px 18px;
   font-size: 13px;
   font-weight: 600;
@@ -193,7 +199,7 @@ body {
 .kb-pill-primary {
   background: linear-gradient(120deg, var(--kb-accent-a), var(--kb-accent-mid));
   color: white;
-  box-shadow: 0 8px 20px -6px rgba(236, 72, 153, 0.5);
+  box-shadow: 0 4px 12px -4px rgba(180, 83, 9, 0.4);
 }
 .kb-pill-ghost {
   background: var(--kb-panel);
@@ -202,13 +208,13 @@ body {
 }
 
 /* Glossy gradient panel — richer, saturated depth for hero/feature
-   surfaces that should pop rather than blend into the pastel tiles. */
+   surfaces that should pop rather than blend into the neutral tiles. */
 .kb-glossy {
   position: relative;
-  border-radius: 20px;
+  border-radius: 10px;
   background: linear-gradient(145deg, var(--kb-accent-a), var(--kb-accent-mid) 55%, var(--kb-accent-b));
   color: white;
-  box-shadow: 0 16px 40px -12px rgba(139, 92, 246, 0.45);
+  box-shadow: 0 12px 28px -10px rgba(180, 83, 9, 0.35);
   overflow: hidden;
 }
 .kb-glossy::before {

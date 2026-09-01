@@ -11,5 +11,5 @@ export async function setVoiceProviderAction(formData: FormData) {
     throw new Error("Unknown provider.");
   }
   await setPlatformVoiceProvider(provider);
-  revalidatePath("/admin/voice");
+  revalidatePath("/car/voice");
 }

@@ -1,8 +1,10 @@
 // Tenant picker — with multiple verticals now live side by side (per your
 // "let's have all verticals done, we don't know which will perform best"
-// instruction), this is the switcher between them. Now backed by real auth:
-// shows only workspaces the signed-in user actually has a Membership on
-// (or every workspace, if they're a platform super admin).
+// instruction), this is the switcher between them. Backed by real auth:
+// shows only workspaces the signed-in user actually has a Membership on.
+// A platform super admin does NOT automatically see every tenant here —
+// that access lives at /car/tenants instead, kept separate from actual
+// business data.
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -19,17 +21,13 @@ export default async function DashboardIndexPage() {
     redirect("/login");
   }
 
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: session.user.id } });
-
-  const tenants = user.isSuperAdmin
-    ? await prisma.tenant.findMany({ orderBy: { createdAt: "asc" } })
-    : (
-        await prisma.membership.findMany({
-          where: { userId: user.id },
-          include: { tenant: true },
-          orderBy: { createdAt: "asc" },
-        })
-      ).map((m) => m.tenant);
+  const tenants = (
+    await prisma.membership.findMany({
+      where: { userId: session.user.id },
+      include: { tenant: true },
+      orderBy: { createdAt: "asc" },
+    })
+  ).map((m) => m.tenant);
 
   if (tenants.length === 0) {
     redirect("/onboarding");

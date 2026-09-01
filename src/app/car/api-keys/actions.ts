@@ -10,12 +10,12 @@ export async function setApiKeyAction(formData: FormData) {
   const value = String(formData.get("value") ?? "").trim();
   if (!value) return;
   await setPlatformSecret(key, value);
-  revalidatePath("/admin/api-keys");
+  revalidatePath("/car/api-keys");
 }
 
 export async function clearApiKeyAction(formData: FormData) {
   await requireSuperAdmin();
   const key = String(formData.get("key") ?? "");
   await clearPlatformSecret(key);
-  revalidatePath("/admin/api-keys");
+  revalidatePath("/car/api-keys");
 }

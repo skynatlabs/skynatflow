@@ -11,5 +11,5 @@ export async function setColorSkinAction(formData: FormData) {
     throw new Error("Unknown skin.");
   }
   await setPlatformColorSkin(skin);
-  revalidatePath("/admin/appearance");
+  revalidatePath("/car/appearance");
 }

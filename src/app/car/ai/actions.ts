@@ -11,5 +11,5 @@ export async function setAiProviderAction(formData: FormData) {
     throw new Error("Unknown provider.");
   }
   await setPlatformAiProvider(provider);
-  revalidatePath("/admin/ai");
+  revalidatePath("/car/ai");
 }

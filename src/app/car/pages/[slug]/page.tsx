@@ -14,7 +14,7 @@ export default async function AdminPageEditor({ params }: { params: Promise<{ sl
 
   return (
     <div>
-      <Link href="/admin" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
+      <Link href="/car" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
         &larr; All pages
       </Link>
       <div className="mt-2 flex items-center justify-between">

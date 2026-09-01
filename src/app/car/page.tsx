@@ -46,7 +46,7 @@ function PageRow({
   updatedAt: Date | null;
 }) {
   return (
-    <Link href={`/admin/pages/${slug}`} className="kb-card flex items-center justify-between p-4">
+    <Link href={`/car/pages/${slug}`} className="kb-card flex items-center justify-between p-4">
       <div>
         <p className="font-semibold text-[var(--kb-text)]">{title}</p>
         <p className="text-xs text-[var(--kb-text-dim)]">{path}</p>

@@ -38,6 +38,6 @@ export async function saveSectionAction(formData: FormData) {
     updatedByUserId: access.userId,
   });
 
-  revalidatePath(`/admin/pages/${slug}`);
+  revalidatePath(`/car/pages/${slug}`);
   revalidatePath(template.path);
 }
