@@ -35,8 +35,13 @@ function createClient() {
   return new PrismaClient({ adapter });
 }
 
+// Cache the client across invocations in every environment, production
+// included — on Vercel a serverless function's execution context is
+// often reused ("warm start"), and without this cache each request would
+// spin up a brand-new pg.Pool against Supabase's connection pooler. With
+// a low pool_size (session pooler defaults to ~15), a handful of
+// concurrent requests each opening their own pool exhausts it fast and
+// every DB-dependent request — AI commands included — starts failing
+// with "max clients reached in session mode".
 export const prisma = globalForPrisma.prisma ?? createClient();
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+globalForPrisma.prisma = prisma;
