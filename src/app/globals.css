@@ -12,12 +12,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* No prefers-color-scheme override here on purpose — every real page wraps
+   its content in .kb-shell, which handles light/dark itself via an
+   explicit cookie toggle (see ThemeToggle), not the OS preference. Letting
+   this plain fallback follow the OS scheme made <body> flip to near-black
+   whenever the viewer's system was in dark mode, which then flashed
+   through during scroll-bounce overscroll on any page — visible even on
+   pages that are otherwise always light, like the marketing site. */
 
 body {
   background: var(--background);
@@ -89,23 +90,29 @@ body {
    accents and deeper navy (used for black-banded sections) read better
    than the calm working-app tones. Scoped to .kb-marketing so the
    dashboard/portal/login surfaces (which also use .kb-shell) are untouched. */
+/* Marketing "split" palette — pink and orange are the one gradient pair
+   (headline highlight, primary CTA, hero card); blue and mint are each
+   their own SOLID accent, never blended into that gradient — mixing all
+   three into one continuous surface reads muddy/dark, per direct design
+   feedback on the concept mockups. Keep that discipline when adding new
+   marketing sections: --kb-accent-a/-mid together, --kb-accent-b alone. */
 .kb-shell.kb-marketing {
-  --kb-accent-a: #ff3d00; /* vivid coral-red */
-  --kb-accent-mid: #e0117a; /* saturated magenta */
-  --kb-accent-b: #5b1fd6; /* deep violet */
-  --kb-navy: #181f45; /* a real royal navy, unmistakably blue even at a glance — the earlier #0c0f1e was still dark enough to read as black */
+  --kb-accent-a: #fb5d6b; /* coral-pink */
+  --kb-accent-mid: #fb923c; /* orange — gradient partner for accent-a only */
+  --kb-accent-b: #1479e8; /* saturated azure — a standalone accent, not a 3rd gradient stop */
+  --kb-navy: #181f45;
   --kb-navy-soft: #232c5c;
 
-  --kb-tint-blue: #cfe4ff;
-  --kb-tint-blue-ink: #0b4fc4;
+  --kb-tint-blue: #dceafd;
+  --kb-tint-blue-ink: #1479e8;
   --kb-tint-yellow: #ffe9a3;
   --kb-tint-yellow-ink: #8a5a00;
   --kb-tint-peach: #ffc9a8;
   --kb-tint-peach-ink: #c23d17;
   --kb-tint-violet: #ddceff;
   --kb-tint-violet-ink: #4b1fb8;
-  --kb-tint-mint: #b9f3d6;
-  --kb-tint-mint-ink: #03794f;
+  --kb-tint-mint: #cdf2e2;
+  --kb-tint-mint-ink: #059669;
 }
 
 /* "Sunset" skin: a platform-wide alternative color skin, chosen by a
@@ -371,6 +378,14 @@ body {
   inset: 0;
   background: radial-gradient(120% 80% at 15% 0%, rgba(255, 255, 255, 0.35), transparent 55%);
   pointer-events: none;
+}
+
+/* Marketing's "split" palette keeps blue out of the pink/orange gradient
+   (see .kb-marketing above) — override the shared 3-stop .kb-glossy here
+   so it doesn't reintroduce the muddy blend. */
+.kb-marketing .kb-glossy {
+  background: linear-gradient(150deg, var(--kb-accent-a) 0%, var(--kb-accent-mid) 100%);
+  box-shadow: 0 16px 32px -12px color-mix(in srgb, var(--kb-accent-a) 45%, transparent);
 }
 
 /* Stat tile — modern "bento" treatment: a subtle diagonal wash from the

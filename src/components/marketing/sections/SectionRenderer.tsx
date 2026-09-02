@@ -43,24 +43,65 @@ export default function SectionRenderer({ section }: { section: ResolvedSection 
 
 function HeroSection({ section }: { section: ResolvedSection }) {
   return (
-    <section className="mx-auto max-w-5xl px-6 pb-16 pt-20 text-center">
-      <h1 className="mx-auto max-w-4xl text-4xl font-extrabold leading-[1.1] tracking-tight text-[var(--kb-text)] sm:text-5xl">
-        {section.heading ?? section.label}
-      </h1>
-      {section.subheading && (
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-[var(--kb-text-dim)]">{section.subheading}</p>
-      )}
-      {section.ctaLabel && section.ctaHref && (
-        <div className="mt-8">
-          <MotionLink href={section.ctaHref} className="kb-pill kb-pill-primary !px-6 !py-3 text-sm" {...ELASTIC_HOVER}>
-            {section.ctaLabel} &rarr;
-          </MotionLink>
+    <section className="relative overflow-hidden">
+      {/* Soft blurred color field — pink/orange kept as one gradient family,
+         blue as its own separate blob, never blended together (see the
+         .kb-marketing palette comment in globals.css). */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        <div
+          className="absolute -left-32 -top-40 h-[420px] w-[420px] rounded-full opacity-30 blur-[90px]"
+          style={{ background: "linear-gradient(135deg, var(--kb-accent-a), var(--kb-accent-mid))" }}
+        />
+        <div
+          className="absolute -right-40 top-10 h-[380px] w-[380px] rounded-full opacity-20 blur-[90px]"
+          style={{ background: "var(--kb-accent-b)" }}
+        />
+      </div>
+
+      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-14 px-6 pb-20 pt-24 lg:grid-cols-[1.05fr_1fr]">
+        <div className="text-center lg:text-left">
+          <h1
+            className="mx-auto max-w-xl text-4xl font-medium leading-[1.05] tracking-tight sm:text-5xl lg:mx-0"
+            style={{
+              fontFamily: "var(--font-display), Fraunces, serif",
+              background: "linear-gradient(100deg, var(--kb-accent-a) 10%, var(--kb-accent-mid) 90%)",
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              color: "transparent",
+            }}
+          >
+            {section.heading ?? section.label}
+          </h1>
+          {section.subheading && (
+            <p className="mx-auto mt-6 max-w-lg text-lg text-[var(--kb-text-dim)] lg:mx-0">{section.subheading}</p>
+          )}
+          {section.ctaLabel && section.ctaHref && (
+            <div className="mt-9">
+              <MotionLink href={section.ctaHref} className="kb-pill kb-pill-primary !px-6 !py-3 text-sm" {...ELASTIC_HOVER}>
+                {section.ctaLabel} &rarr;
+              </MotionLink>
+            </div>
+          )}
         </div>
-      )}
-      {section.imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={section.imageUrl} alt="" className="mx-auto mt-12 max-w-4xl rounded-2xl border border-[var(--kb-panel-border)]" />
-      )}
+
+        {section.imageUrl ? (
+          <div className="relative mx-auto w-full max-w-md lg:mx-0">
+            <div
+              className="absolute inset-0 translate-x-3 translate-y-3 rounded-[26px] opacity-70 blur-sm"
+              style={{ background: "linear-gradient(150deg, var(--kb-accent-a), var(--kb-accent-mid))" }}
+              aria-hidden
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={section.imageUrl}
+              alt=""
+              className="relative rounded-[26px] border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] shadow-xl"
+            />
+          </div>
+        ) : (
+          <div className="kb-glossy relative mx-auto aspect-[4/3] w-full max-w-md rounded-[26px] lg:mx-0" />
+        )}
+      </div>
     </section>
   );
 }
