@@ -47,7 +47,7 @@ export async function setPlatformAiProvider(provider: AiProvider): Promise<void>
 export type ColorSkin = "default" | "sunset" | "professional" | "creative" | "futuristic";
 
 export const COLOR_SKIN_LABELS: Record<ColorSkin, string> = {
-  default: "Default (navy & coral)",
+  default: "Default (indigo & violet)",
   sunset: "Sunset (charcoal & amber)",
   professional: "Professional (teal, clean & corporate)",
   creative: "Creative (colorful, bold gradients)",

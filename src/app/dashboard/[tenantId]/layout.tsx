@@ -94,10 +94,10 @@ export default async function TenantShellLayout({
   return (
     <div className="kb-shell flex" data-theme={theme} data-skin={skin}>
       <aside
-        className="sticky top-0 flex h-screen w-64 flex-col justify-between p-5"
+        className="sticky top-0 flex h-screen w-64 shrink-0 flex-col p-5"
         style={{ background: "var(--kb-navy)" }}
       >
-        <div>
+        <div className="shrink-0">
           <div className="flex items-center gap-2 px-2">
             <FlowMark size={28} />
             <span className="text-lg font-bold text-white">flow</span>
@@ -112,30 +112,35 @@ export default async function TenantShellLayout({
               {niche.label}
             </span>
           </div>
-
-          <nav className="mt-6 space-y-1">
-            {nav.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white"
-                >
-                  <Icon className="h-[18px] w-[18px] shrink-0" />
-                  <span className="truncate flex-1">{item.label}</span>
-                  {"badge" in item && item.badge ? (
-                    <span className="rounded-full bg-[var(--kb-accent-a)] px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      {item.badge}
-                    </span>
-                  ) : null}
-                </Link>
-              );
-            })}
-          </nav>
         </div>
 
-        <div className="space-y-3">
+        {/* Nav scrolls independently — the list has grown to ~30 items across
+           all niches, which no longer fits h-screen alongside the pinned
+           header/footer blocks. Without its own overflow, items past the
+           fold (and the sign-out/theme-toggle footer) were simply
+           unreachable. */}
+        <nav className="mt-6 min-h-0 flex-1 space-y-1 overflow-y-auto">
+          {nav.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white"
+              >
+                <Icon className="h-[18px] w-[18px] shrink-0" />
+                <span className="truncate flex-1">{item.label}</span>
+                {"badge" in item && item.badge ? (
+                  <span className="rounded-full bg-[var(--kb-accent-a)] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {item.badge}
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="shrink-0 space-y-3 pt-3">
           <ThemeToggle current={theme} />
           <Link
             href="/account/security"
