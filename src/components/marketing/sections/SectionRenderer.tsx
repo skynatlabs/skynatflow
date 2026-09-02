@@ -45,22 +45,31 @@ function HeroSection({ section }: { section: ResolvedSection }) {
     <section className="relative overflow-hidden">
       {/* Soft blurred color field — pink/orange kept as one gradient family,
          blue as its own separate blob, never blended together (see the
-         .kb-marketing palette comment in globals.css). */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+         .kb-marketing palette comment in globals.css). Three blobs, sized
+         and placed to match the approved concept mockup exactly. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div
-          className="absolute -left-32 -top-40 h-[420px] w-[420px] rounded-full opacity-30 blur-[90px]"
+          className="absolute -left-32 -top-40 h-[480px] w-[480px] rounded-full opacity-30 blur-[90px]"
           style={{ background: "linear-gradient(135deg, var(--kb-accent-a), var(--kb-accent-mid))" }}
         />
         <div
-          className="absolute -right-40 top-10 h-[380px] w-[380px] rounded-full opacity-20 blur-[90px]"
+          className="absolute -right-40 top-[15%] h-[420px] w-[420px] rounded-full opacity-25 blur-[90px]"
           style={{ background: "var(--kb-accent-b)" }}
+        />
+        <div
+          className="absolute -bottom-36 left-[28%] h-[380px] w-[380px] rounded-full opacity-20 blur-[90px]"
+          style={{ background: "var(--kb-accent-mid)" }}
         />
       </div>
 
-      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-14 px-6 pb-20 pt-24 lg:grid-cols-[1.05fr_1fr]">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-14 px-6 pb-24 pt-24 lg:grid-cols-[1.05fr_1fr]">
         <div className="text-center lg:text-left">
+          <span className="kb-card-light inline-flex items-center gap-2 rounded-full border border-[var(--kb-panel-border)] px-3.5 py-1.5 text-xs font-bold text-[var(--kb-text-dim)]">
+            <span className="h-2 w-2 rounded-full" style={{ background: "var(--kb-accent-b)" }} />
+            Built for busy business owners
+          </span>
           <h1
-            className="mx-auto max-w-xl text-4xl font-medium leading-[1.05] tracking-tight sm:text-5xl lg:mx-0"
+            className="mx-auto mt-6 max-w-xl text-4xl font-medium leading-[1.05] tracking-tight sm:text-5xl lg:mx-0"
             style={{
               fontFamily: "var(--font-display), Fraunces, serif",
               background: "linear-gradient(100deg, var(--kb-accent-a) 10%, var(--kb-accent-mid) 90%)",
@@ -98,10 +107,59 @@ function HeroSection({ section }: { section: ResolvedSection }) {
             />
           </div>
         ) : (
-          <div className="kb-glossy relative mx-auto aspect-[4/3] w-full max-w-md rounded-[26px] lg:mx-0" />
+          <HeroIllustration />
         )}
       </div>
     </section>
+  );
+}
+
+// Default hero visual when no CMS image is set — an illustrative sample
+// quote card (example data, not a claim about this company's real
+// performance) plus two floating widget chips, matching the approved
+// concept mockup's composition. Purely decorative UI, same category as any
+// product-screenshot hero graphic.
+function HeroIllustration() {
+  return (
+    <div className="relative mx-auto h-[420px] w-full max-w-md lg:mx-0">
+      <div
+        className="kb-scatter absolute right-2 top-0 w-[300px] rounded-[22px] p-6 text-white shadow-2xl"
+        style={{ background: "linear-gradient(150deg, var(--kb-accent-a) 0%, var(--kb-accent-mid) 100%)" }}
+      >
+        <div className="flex items-start justify-between">
+          <span className="text-[11px] font-bold uppercase tracking-wide opacity-75">Quote #1042</span>
+          <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-extrabold">Accepted</span>
+        </div>
+        <p className="mt-5 font-serif text-4xl font-medium" style={{ fontFamily: "var(--font-display), Fraunces, serif" }}>
+          R85,000
+        </p>
+        <p className="mt-1 text-sm opacity-85">Jane Homeowner · 8kVA solar system</p>
+        <div className="mt-6 flex h-10 items-end gap-1">
+          {[40, 65, 30, 80, 50, 95, 60, 75, 45].map((h, i) => (
+            <span key={i} className="w-1.5 rounded-sm bg-white/50" style={{ height: `${h}%` }} />
+          ))}
+        </div>
+      </div>
+
+      <div className="kb-scatter kb-card-light absolute left-0 top-[230px] w-[190px] overflow-hidden rounded-2xl border-t-[3px] p-4" style={{ borderTopColor: "var(--kb-accent-b)" }}>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--kb-text-dim)]">Collected, 12wk</p>
+        <p className="mt-1 text-lg font-semibold" style={{ color: "var(--kb-accent-b)" }}>R612,400</p>
+        <p className="mt-0.5 text-xs font-bold" style={{ color: "var(--kb-tint-mint-ink)" }}>&uarr; 18% vs last period</p>
+      </div>
+
+      <div className="kb-scatter kb-card-light absolute left-10 bottom-0 flex w-[220px] items-center gap-3 overflow-hidden rounded-2xl border-t-[3px] p-4" style={{ borderTopColor: "var(--kb-tint-mint-ink)" }}>
+        <div
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
+          style={{ background: `conic-gradient(var(--kb-tint-mint-ink) 0deg 252deg, var(--kb-panel-border) 252deg 360deg)` }}
+        >
+          <div className="h-8 w-8 rounded-full" style={{ background: "var(--kb-panel)" }} />
+        </div>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--kb-text-dim)]">Pipeline won</p>
+          <p className="text-base font-semibold text-[var(--kb-text)]">70%</p>
+        </div>
+      </div>
+    </div>
   );
 }
 
