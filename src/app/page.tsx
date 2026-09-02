@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { auth } from "@/auth";
-import { MarketingFonts, MarketingNav, MarketingFooterStatic, PricingTeaser, IndustryCardsScroll, MARKETING_CSS } from "@/components/marketing/chrome";
+import { MarketingFonts, MarketingNav, MarketingFooterStatic, PricingTeaser, IndustryCardsScroll, LogoMarquee, MARKETING_CSS } from "@/components/marketing/chrome";
 
 // The home page — hand-authored raw HTML/CSS matching the approved concept
 // mockup exactly, deliberately NOT going through the CMS/React component
@@ -95,17 +95,11 @@ export default async function Home() {
         </div>
       </div>
 
-      {/* ================= LOGOS STRIP ================= */}
+      {/* ================= LOGOS MARQUEE ================= */}
       <section className="logos">
         <p className="logos-label">Trusted by trades &amp; service businesses across South Africa</p>
-        <div className="logos-row">
-          <span>SolarWorks</span>
-          <span>Corner Store Co-op</span>
-          <span>Fleet Logistics SA</span>
-          <span>Family Practice Group</span>
-          <span>BulkSupply</span>
-        </div>
       </section>
+      <LogoMarquee />
 
       {/* ================= AI PA — the thing the user explicitly asked not
          to be forgotten: the assistant that carries out tasks so the owner

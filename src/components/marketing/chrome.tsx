@@ -112,8 +112,8 @@ export function MarketingNav() {
     <div className="wrap" style={{ paddingBottom: 0 }}>
       <nav>
         <a className="brand" href="/">
-          <span className="mark" />
-          flow
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/flow-logo.png" alt="flow" />
         </a>
         <div className="navlinks">
           <a href="/benefits">Product</a>
@@ -173,13 +173,37 @@ export function IndustryCardsScroll() {
   );
 }
 
+// Two-row logo marquee, rows drifting opposite directions. Placeholder
+// names until real customer logos are ready to swap in — same "not a real
+// claim" logic as the trust-stats decision earlier: these read as
+// decorative brand chips, not a specific factual customer list.
+const MARQUEE_ROW_1 = ["SolarWorks", "Corner Store Co-op", "Fleet Logistics SA", "Family Practice Group", "BulkSupply", "Metro Wholesale"];
+const MARQUEE_ROW_2 = ["Harbor Logistics", "GreenTech Installs", "Riverside Clinic", "Summit Retail Group", "Coastal Ecommerce Co.", "Unity Nonprofit Network"];
+
+export function LogoMarquee() {
+  return (
+    <div className="marquee-wrap">
+      <div className="marquee-row marquee-left">
+        {[...MARQUEE_ROW_1, ...MARQUEE_ROW_1].map((name, i) => (
+          <span key={i}>{name}</span>
+        ))}
+      </div>
+      <div className="marquee-row marquee-right">
+        {[...MARQUEE_ROW_2, ...MARQUEE_ROW_2].map((name, i) => (
+          <span key={i}>{name}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function MarketingFooterStatic() {
   return (
     <footer className="footer">
       <div className="footer-inner">
         <div className="brand">
-          <span className="mark" />
-          flow
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/flow-logo.png" alt="flow" />
         </div>
         <div className="footer-links">
           <a href="/benefits">Product</a>
@@ -229,8 +253,25 @@ export const MARKETING_CSS = `
   .mkt .wrap { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 28px 32px 40px; }
 
   .mkt nav { display: flex; align-items: center; justify-content: space-between; padding: 6px 4px 20px; }
-  .mkt .brand { display: flex; align-items: center; gap: 10px; font-family: "Fraunces", serif; font-weight: 600; font-size: 1.35rem; letter-spacing: -0.01em; color: var(--ink); text-decoration: none; }
-  .mkt .brand .mark { width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, var(--a), var(--a-mid)); box-shadow: 0 6px 16px -6px rgba(251, 93, 107, 0.4); }
+  .mkt .brand { display: flex; align-items: center; text-decoration: none; }
+  .mkt .brand img { height: 30px; width: auto; display: block; }
+  .mkt .footer .brand img { height: 34px; filter: brightness(0) invert(1); }
+
+  /* Two-row logo marquee — rows drift opposite directions, each list
+     duplicated so the loop is seamless. Pauses for reduced-motion users. */
+  .mkt .marquee-wrap { overflow: hidden; padding: 28px 0; }
+  .mkt .marquee-row { display: flex; gap: 48px; width: max-content; }
+  .mkt .marquee-row + .marquee-row { margin-top: 22px; }
+  .mkt .marquee-row span {
+    font-family: "Fraunces", serif; font-weight: 500; font-size: 1.15rem;
+    color: var(--ink-dim); opacity: 0.55; white-space: nowrap;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .mkt .marquee-left { animation: mktMarqueeLeft 32s linear infinite; }
+    .mkt .marquee-right { animation: mktMarqueeRight 32s linear infinite; }
+  }
+  @keyframes mktMarqueeLeft { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @keyframes mktMarqueeRight { from { transform: translateX(-50%); } to { transform: translateX(0); } }
   .mkt .navlinks { display: flex; gap: 30px; font-size: 0.9rem; font-weight: 600; color: var(--ink-dim); }
   .mkt .navlinks a { color: inherit; text-decoration: none; }
   .mkt .navlinks a:hover, .mkt .navlinks a:focus-visible { color: var(--ink); }
