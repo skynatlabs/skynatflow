@@ -26,21 +26,22 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Dashboard brand theme, v3 — a confident indigo/violet accent on a crisp
-   graphite-and-white base (the old amber/brown read cheap and dated —
-   replaced with the same cool indigo→violet→cyan family used across the
-   modern reference dashboards: Concured, UBank, Revenlo). Sharp corners
-   (see .kb-card/.kb-pill radii below) instead of pill shapes and soft
-   glows — considered, not templated. */
+/* Dashboard brand theme, v4 — matches the marketing site's approved
+   pink/orange/blue "split" palette exactly (see .kb-marketing below,
+   which is now just this same palette at a richer saturation for
+   selling rather than a different family). Pink+orange stay one
+   gradient pair; blue and mint are each their own solid accent, never
+   blended into a 3-stop gradient — same discipline as the marketing
+   site. Structure (radii, shadows, layout) is untouched — colors only. */
 .kb-shell {
-  --kb-bg: #f6f6fb;
+  --kb-bg: #f7f6fb;
   --kb-panel: #ffffff;
   --kb-panel-border: #e6e6f2;
   --kb-text: #171725;
   --kb-text-dim: #6b6b80;
-  --kb-accent-a: #4f46e5; /* indigo — primary actions, key numbers */
-  --kb-accent-mid: #7c3aed; /* violet midpoint for gradients */
-  --kb-accent-b: #0ea5e9; /* cyan gradient endpoint — cool family throughout, no warm tones */
+  --kb-accent-a: #fb5d6b; /* coral-pink — primary actions, key numbers */
+  --kb-accent-mid: #fb923c; /* orange — gradient partner for accent-a only */
+  --kb-accent-b: #1479e8; /* saturated azure — a standalone accent, not a 3rd gradient stop */
   --kb-navy: #171725;
   --kb-navy-soft: #24243a;
 
@@ -50,38 +51,38 @@ body {
   --kb-tint-blue: #f4f4fa;
   --kb-tint-blue-ink: #171725;
   --kb-tint-yellow: #f4f4fa;
-  --kb-tint-yellow-ink: #4f46e5;
+  --kb-tint-yellow-ink: #fb5d6b;
   --kb-tint-peach: #f4f4fa;
-  --kb-tint-peach-ink: #7c3aed;
+  --kb-tint-peach-ink: #fb923c;
   --kb-tint-violet: #f4f4fa;
   --kb-tint-violet-ink: #171725;
   --kb-tint-mint: #f4f4fa;
-  --kb-tint-mint-ink: #0d9488;
+  --kb-tint-mint-ink: #059669;
 
   background: var(--kb-bg);
   color: var(--kb-text);
   min-height: 100vh;
 }
 
-/* Dark mode: same indigo/violet system, inverted. */
+/* Dark mode: same pink/orange/blue system, inverted. */
 .kb-shell[data-theme="dark"] {
-  --kb-bg: #0b0b14;
-  --kb-panel: #15151f;
-  --kb-panel-border: #2a2a3d;
+  --kb-bg: #0b0a14;
+  --kb-panel: #15131f;
+  --kb-panel-border: #2a273d;
   --kb-text: #f4f4fa;
-  --kb-text-dim: #9d9dbd;
-  --kb-navy: #08080f;
-  --kb-navy-soft: #15151f;
+  --kb-text-dim: #9d9abd;
+  --kb-navy: #08070f;
+  --kb-navy-soft: #15131f;
 
-  --kb-tint-blue: #1c1c2e;
+  --kb-tint-blue: #1e1c2e;
   --kb-tint-blue-ink: #f4f4fa;
-  --kb-tint-yellow: #1c1c2e;
-  --kb-tint-yellow-ink: #818cf8;
-  --kb-tint-peach: #1c1c2e;
-  --kb-tint-peach-ink: #a78bfa;
-  --kb-tint-violet: #1c1c2e;
+  --kb-tint-yellow: #1e1c2e;
+  --kb-tint-yellow-ink: #fb8a95;
+  --kb-tint-peach: #1e1c2e;
+  --kb-tint-peach-ink: #fbaa6b;
+  --kb-tint-violet: #1e1c2e;
   --kb-tint-violet-ink: #f4f4fa;
-  --kb-tint-mint: #1c1c2e;
+  --kb-tint-mint: #1e1c2e;
   --kb-tint-mint-ink: #2dd4bf;
 }
 
