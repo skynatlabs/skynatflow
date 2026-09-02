@@ -59,16 +59,14 @@ export default async function AppointmentsPage({
         {upcoming.length === 0 ? (
           <p className="mt-2 text-sm text-[var(--kb-text-dim)]">Nothing booked yet.</p>
         ) : (
-          <ul className="kb-card mt-2 divide-y divide-[var(--kb-panel-border)]">
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {upcoming.map((a) => (
-              <li key={a.id} className="flex items-center justify-between p-4">
-                <div>
-                  <p className="font-medium text-[var(--kb-text)]">{a.party?.name ?? "Unknown"}</p>
-                  <p className="text-xs text-[var(--kb-text-dim)]">{when(a.scheduledAt!)}</p>
-                </div>
-              </li>
+              <div key={a.id} className="kb-tile kb-tint-blue">
+                <p className="font-semibold">{a.party?.name ?? "Unknown"}</p>
+                <p className="mt-1 text-xs opacity-70">{when(a.scheduledAt!)}</p>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
@@ -77,29 +75,31 @@ export default async function AppointmentsPage({
         {past.length === 0 ? (
           <p className="mt-2 text-sm text-[var(--kb-text-dim)]">No past appointments yet.</p>
         ) : (
-          <ul className="kb-card mt-2 divide-y divide-[var(--kb-panel-border)]">
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {past.map((a) => (
-              <li key={a.id} className="flex items-center justify-between p-4">
+              <div key={a.id} className="kb-tile kb-tint-violet flex flex-col justify-between">
                 <div>
-                  <p className="font-medium text-[var(--kb-text)]">{a.party?.name ?? "Unknown"}</p>
-                  <p className="text-xs text-[var(--kb-text-dim)]">{when(a.scheduledAt!)}</p>
+                  <p className="font-semibold">{a.party?.name ?? "Unknown"}</p>
+                  <p className="mt-1 text-xs opacity-70">{when(a.scheduledAt!)}</p>
                 </div>
-                {a.noShow ? (
-                  <span className="kb-pill text-xs" style={{ background: "var(--kb-tint-peach)", color: "var(--kb-tint-peach-ink)" }}>
-                    No-show — nudged
-                  </span>
-                ) : (
-                  <form action={markNoShowAction}>
-                    <input type="hidden" name="tenantId" value={tenantId} />
-                    <input type="hidden" name="eventId" value={a.id} />
-                    <button type="submit" className="kb-pill kb-pill-ghost text-xs">
-                      Mark no-show
-                    </button>
-                  </form>
-                )}
-              </li>
+                <div className="mt-3">
+                  {a.noShow ? (
+                    <span className="kb-pill text-xs" style={{ background: "var(--kb-tint-peach)", color: "var(--kb-tint-peach-ink)" }}>
+                      No-show — nudged
+                    </span>
+                  ) : (
+                    <form action={markNoShowAction}>
+                      <input type="hidden" name="tenantId" value={tenantId} />
+                      <input type="hidden" name="eventId" value={a.id} />
+                      <button type="submit" className="kb-pill kb-pill-ghost text-xs">
+                        Mark no-show
+                      </button>
+                    </form>
+                  )}
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </section>
     </main>

@@ -94,33 +94,28 @@ export default async function ProductsPage({
           No products yet. Add your first one — every quote after this gets faster.
         </div>
       ) : (
-        <ul className="kb-card mt-6 divide-y divide-[var(--kb-panel-border)]">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {products.map((p) => (
-            <li key={p.id}>
-              <Link
-                href={`/dashboard/${tenantId}/products/${p.id}`}
-                className="flex items-center justify-between px-5 py-4 hover:bg-[var(--kb-panel-hover,rgba(0,0,0,0.02))]"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate font-medium text-[var(--kb-text)]">{p.name}</p>
-                    {!p.isActive && (
-                      <span className="shrink-0 rounded-full bg-[var(--kb-tint-peach)] px-2 py-0.5 text-[10px] font-semibold uppercase text-[var(--kb-tint-peach-ink)]">
-                        Hidden
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-0.5 truncate text-xs text-[var(--kb-text-dim)]">
-                    {[p.sku, p.category].filter(Boolean).join(" · ") || "No SKU or category"}
-                  </p>
-                </div>
-                <span className="shrink-0 font-semibold text-[var(--kb-text)]">
-                  {money(p.unitPriceCents)}
-                </span>
-              </Link>
-            </li>
+            <Link
+              key={p.id}
+              href={`/dashboard/${tenantId}/products/${p.id}`}
+              className="kb-tile kb-tint-mint transition-transform hover:-translate-y-0.5"
+            >
+              <div className="flex items-center gap-2">
+                <p className="truncate font-semibold">{p.name}</p>
+                {!p.isActive && (
+                  <span className="shrink-0 rounded-full bg-black/10 px-2 py-0.5 text-[10px] font-semibold uppercase">
+                    Hidden
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 truncate text-xs opacity-70">
+                {[p.sku, p.category].filter(Boolean).join(" · ") || "No SKU or category"}
+              </p>
+              <p className="mt-3 text-lg font-extrabold">{money(p.unitPriceCents)}</p>
+            </Link>
           ))}
-        </ul>
+        </div>
       )}
 
       {pageCount > 1 && (

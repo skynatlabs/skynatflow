@@ -46,26 +46,22 @@ export default async function StatementsIndexPage({
         </div>
       )}
 
-      <ul className="kb-card mt-6 divide-y divide-[var(--kb-panel-border)]">
-        {withBalance.map((c) => (
-          <li key={c.id}>
+      {withBalance.length === 0 ? (
+        <p className="mt-6 text-sm text-[var(--kb-text-dim)]">No customer currently owes a balance.</p>
+      ) : (
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {withBalance.map((c) => (
             <Link
+              key={c.id}
               href={`/dashboard/${tenantId}/statements/${c.id}`}
-              className="flex items-center justify-between px-5 py-3 hover:bg-black/[0.02]"
+              className={`kb-tile transition-transform hover:-translate-y-0.5 ${c.balance > 0 ? "kb-tint-peach" : "kb-tint-mint"}`}
             >
-              <span className="text-sm font-medium text-[var(--kb-text)]">{c.name}</span>
-              <span className={`text-sm font-semibold ${c.balance > 0 ? "text-[var(--kb-tint-peach-ink)]" : "text-[var(--kb-text)]"}`}>
-                {money(c.balance)}
-              </span>
+              <p className="truncate font-semibold">{c.name}</p>
+              <p className="mt-2 text-xl font-extrabold">{money(c.balance)}</p>
             </Link>
-          </li>
-        ))}
-        {withBalance.length === 0 && (
-          <li className="px-5 py-4 text-sm text-[var(--kb-text-dim)]">
-            No customer currently owes a balance.
-          </li>
-        )}
-      </ul>
+          ))}
+        </div>
+      )}
     </main>
   );
 }

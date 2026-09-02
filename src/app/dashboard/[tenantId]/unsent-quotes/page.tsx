@@ -40,25 +40,25 @@ export default async function UnsentQuotesPage({
           Nothing waiting — every quote has gone out on time.
         </div>
       ) : (
-        <ul className="kb-card mt-6 divide-y divide-[var(--kb-panel-border)]">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {breaches.map((b) => (
-            <li key={b.id} className="flex items-center justify-between px-5 py-4">
+            <div key={b.id} className="kb-tile kb-tint-peach flex flex-col justify-between">
               <div>
-                <p className="font-medium text-[var(--kb-text)]">{b.partyName}</p>
-                <p className="text-xs text-[var(--kb-tint-peach-ink)]">
+                <p className="font-semibold">{b.partyName}</p>
+                <p className="mt-1 text-xs opacity-80">
                   {money(b.amountCents)} · waiting {b.minutesWaiting} min
                 </p>
               </div>
-              <form action={sendQuoteNowAction}>
+              <form action={sendQuoteNowAction} className="mt-4">
                 <input type="hidden" name="tenantId" value={tenantId} />
                 <input type="hidden" name="quoteId" value={b.id} />
                 <button type="submit" className="kb-pill kb-pill-primary text-xs">
                   Send now
                 </button>
               </form>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </main>
   );

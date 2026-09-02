@@ -128,25 +128,20 @@ export default async function CustomersPage({
           a worked example, or add one above.
         </p>
       ) : (
-        <ul className="kb-card mt-6 divide-y divide-[var(--kb-panel-border)]">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {customers.map((c) => (
-            <li key={c.id} className="flex items-center justify-between p-4">
-              <div>
-                <p className="font-medium text-[var(--kb-text)]">{c.name}</p>
-                <p className="text-sm text-[var(--kb-text-dim)]">
-                  {c.companyName ? `${c.companyName} · ` : ""}
-                  {c.phone ?? c.email ?? "no contact on file"}
-                </p>
-              </div>
-              <Link
-                href={`/dashboard/${tenantId}/customers/${c.id}`}
-                className="text-sm text-[var(--kb-accent-a)] hover:underline"
-              >
-                View history
-              </Link>
-            </li>
+            <Link
+              key={c.id}
+              href={`/dashboard/${tenantId}/customers/${c.id}`}
+              className="kb-tile kb-tint-blue transition-transform hover:-translate-y-0.5"
+            >
+              <p className="truncate font-semibold">{c.name}</p>
+              <p className="mt-1 truncate text-xs opacity-70">{c.companyName ?? " "}</p>
+              <p className="mt-3 truncate text-xs opacity-70">{c.phone ?? c.email ?? "no contact on file"}</p>
+              <p className="mt-3 text-xs font-semibold text-[var(--kb-accent-a)]">View history &rarr;</p>
+            </Link>
           ))}
-        </ul>
+        </div>
       )}
 
       {pageCount > 1 && (

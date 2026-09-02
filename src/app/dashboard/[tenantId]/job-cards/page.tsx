@@ -97,7 +97,7 @@ export default async function JobCardsPage({
         </form>
       </details>
 
-      <section className="mt-6 space-y-4">
+      <section className={jobCards.length === 0 ? "mt-6" : "mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2"}>
         {jobCards.length === 0 ? (
           <div className="kb-card p-8 text-center text-sm text-[var(--kb-text-dim)]">No job cards yet.</div>
         ) : (
