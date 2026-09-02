@@ -67,6 +67,19 @@ export function PricingTeaser() {
                 {plan.id !== "enterprise" && <span style={{ fontSize: "0.9rem", opacity: 0.7 }}>/mo</span>}
               </p>
               <p className={`price-desc ${mutedClass}`}>{plan.priceNote}</p>
+              <ul style={{ marginTop: 14, paddingLeft: 0, listStyle: "none", fontSize: "0.85rem", lineHeight: 1.65 }}>
+                {plan.features.map((f) => (
+                  <li key={f}>&#10003; {f}</li>
+                ))}
+              </ul>
+              {plan.extraSeatPrice && (
+                <p className={`price-desc ${mutedClass}`} style={{ marginTop: 12 }}>
+                  Extra seats: {plan.extraSeatPrice}
+                </p>
+              )}
+              <p className={`price-desc ${mutedClass}`} style={{ marginTop: 10, fontSize: "0.78rem", fontStyle: "italic" }}>
+                {plan.aiNote}
+              </p>
             </div>
           );
         })}
