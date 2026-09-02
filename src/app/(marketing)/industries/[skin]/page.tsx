@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { NicheSkin } from "@prisma/client";
 import { NICHE_CONFIGS, NicheConfig } from "@/lib/niches/config";
-import { PricingTeaser, FULL_ENGINE_FEATURES } from "@/components/marketing/chrome";
+import { PricingTeaser, FULL_ENGINE_FEATURES, INDUSTRY_IMAGES, unsplashUrl } from "@/components/marketing/chrome";
 
 function resolveSkin(param: string): NicheSkin | null {
   const upper = param.toUpperCase();
@@ -35,6 +35,7 @@ export default async function IndustryPage({ params }: { params: Promise<{ skin:
   const skin = resolveSkin((await params).skin);
   if (!skin) notFound();
   const config = NICHE_CONFIGS[skin];
+  const img = INDUSTRY_IMAGES[skin];
 
   return (
     <>
@@ -44,20 +45,40 @@ export default async function IndustryPage({ params }: { params: Promise<{ skin:
           <div className="blob b2" />
         </div>
         <div className="wrap" style={{ paddingBottom: 40 }}>
-          <section className="hero hero-centered">
-            <span className="eyebrow">
-              <span className="dot" />
-              Built for {config.label.toLowerCase()}
-            </span>
-            <h1>{config.tagline}</h1>
-            <p className="sub">
-              Same flow engine, tuned for how {config.label.toLowerCase()} actually works — your{" "}
-              {config.customerLabel.toLowerCase()}s, your pipeline stages, your vocabulary.
-            </p>
-            <div className="cta-row">
-              <a className="cta-primary" href="/signup">
-                Start free trial &rarr;
-              </a>
+          <section className="hero">
+            <div>
+              <span className="eyebrow">
+                <span className="dot" />
+                Built for {config.label.toLowerCase()}
+              </span>
+              <h1>{config.tagline}</h1>
+              <p className="sub">
+                Same flow engine, tuned for how {config.label.toLowerCase()} actually works — your{" "}
+                {config.customerLabel.toLowerCase()}s, your pipeline stages, your vocabulary.
+              </p>
+              <div className="cta-row">
+                <a className="cta-primary" href="/signup">
+                  Start free trial &rarr;
+                </a>
+              </div>
+            </div>
+            <div style={{ position: "relative" }}>
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  transform: "translate(10px, 10px)",
+                  borderRadius: 26,
+                  background: "linear-gradient(150deg, var(--a), var(--a-mid))",
+                  opacity: 0.5,
+                }}
+              />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={unsplashUrl(img.photoId, 700)}
+                alt={img.alt}
+                style={{ position: "relative", width: "100%", borderRadius: 26, display: "block", boxShadow: "0 24px 50px -20px rgba(23,23,37,0.35)" }}
+              />
             </div>
           </section>
         </div>

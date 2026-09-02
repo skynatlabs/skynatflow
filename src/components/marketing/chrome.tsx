@@ -4,7 +4,29 @@
 // each repeat this — only src/app/page.tsx (the home page, which sits
 // outside this route group) has its own copy.
 
+import Link from "next/link";
 import { PRICING_PLANS, TRIAL_DAYS } from "@/lib/marketing/pricing";
+import { NICHE_CONFIGS } from "@/lib/niches/config";
+import { NicheSkin } from "@prisma/client";
+
+// One real photo per industry (verified Unsplash direct-CDN URLs, free to
+// hotlink under Unsplash's license) plus the accent color that industry's
+// card uses on the home page. Every niche in NICHE_CONFIGS must have an
+// entry here — see the "industries we serve" list this maps to.
+export const INDUSTRY_IMAGES: Record<NicheSkin, { photoId: string; alt: string; accent: "card-accent" | "card-accent2" | "card-dark" | "card-light" }> = {
+  SERVICES: { photoId: "1509391366360-2e959784a276", alt: "Solar panel installation on a rooftop", accent: "card-accent" },
+  RETAIL: { photoId: "1736236560164-bc741c70bca5", alt: "Interior of a modern retail store", accent: "card-light" },
+  LOGISTICS: { photoId: "1616432043562-3671ea2e5242", alt: "Delivery truck being loaded", accent: "card-dark" },
+  MEDICAL: { photoId: "1576091160550-2173dba999ef", alt: "Medical clinic reception area", accent: "card-accent2" },
+  WHOLESALE: { photoId: "1587293852726-70cdb56c2866", alt: "Wholesale warehouse with pallets of stock", accent: "card-light" },
+  ECOMMERCE: { photoId: "1656543802898-41c8c46683a7", alt: "Shipping boxes ready for e-commerce fulfillment", accent: "card-accent" },
+  CORPORATE: { photoId: "1758691737124-05c5bffe46f0", alt: "Corporate office team working together", accent: "card-dark" },
+  NONPROFIT: { photoId: "1628717341663-0007b0ee2597", alt: "Community volunteers working together", accent: "card-accent2" },
+};
+
+export function unsplashUrl(photoId: string, width = 800) {
+  return `https://images.unsplash.com/photo-${photoId}?w=${width}&q=80&auto=format&fit=crop`;
+}
 
 // The full platform feature set — real capabilities, not niche-specific —
 // shown on every industry page so nobody lands there and misses that the
@@ -72,6 +94,7 @@ export function MarketingFonts() {
 }
 
 export function MarketingNav() {
+  const niches = Object.values(NICHE_CONFIGS);
   return (
     <div className="wrap" style={{ paddingBottom: 0 }}>
       <nav>
@@ -81,7 +104,18 @@ export function MarketingNav() {
         </a>
         <div className="navlinks">
           <a href="/benefits">Product</a>
-          <a href="/industries/services">Industries</a>
+          <div className="nav-dropdown">
+            <a href="/industries/services">
+              Industries <span aria-hidden style={{ fontSize: "0.7em" }}>&#9662;</span>
+            </a>
+            <div className="nav-dropdown-menu">
+              {niches.map((n) => (
+                <a key={n.skin} href={`/industries/${n.skin.toLowerCase()}`}>
+                  {n.label}
+                </a>
+              ))}
+            </div>
+          </div>
           <a href="/pricing">Pricing</a>
           <a href="/case-studies">Customers</a>
         </div>
@@ -90,6 +124,39 @@ export function MarketingNav() {
         </a>
       </nav>
     </div>
+  );
+}
+
+// One card per industry, real photo top-half / info bottom-half, colors
+// cycling across the site's own palette rather than one flat repeated
+// tint. Horizontal scroll so 8 cards don't force a tall grid — small,
+// browsable, not a wall.
+export function IndustryCardsScroll() {
+  const niches = Object.values(NICHE_CONFIGS);
+  return (
+    <section className="section" style={{ maxWidth: "100%", padding: "70px 0" }}>
+      <div className="section-head">
+        <span className="kicker">Industries we serve</span>
+        <h2>One engine, eight ways to run your business</h2>
+        <p className="section-sub">Pick your industry to see flow tuned for how you actually work.</p>
+      </div>
+      <div className="industry-scroll">
+        {niches.map((n) => {
+          const img = INDUSTRY_IMAGES[n.skin];
+          const mutedClass = img.accent === "card-light" ? "" : "muted";
+          return (
+            <Link key={n.skin} href={`/industries/${n.skin.toLowerCase()}`} className={`industry-card scatter-card ${img.accent}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={unsplashUrl(img.photoId, 500)} alt={img.alt} loading="lazy" />
+              <div className="industry-card-body">
+                <h3>{n.label}</h3>
+                <p className={mutedClass}>{n.tagline}</p>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -154,6 +221,52 @@ export const MARKETING_CSS = `
   .mkt .navlinks { display: flex; gap: 30px; font-size: 0.9rem; font-weight: 600; color: var(--ink-dim); }
   .mkt .navlinks a { color: inherit; text-decoration: none; }
   .mkt .navlinks a:hover, .mkt .navlinks a:focus-visible { color: var(--ink); }
+
+  /* Industries dropdown — CSS-only (no JS needed): the menu is positioned
+     off-screen until the trigger or menu itself is hovered/focused. */
+  .mkt .nav-dropdown { position: relative; }
+  .mkt .nav-dropdown-menu {
+    position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    margin-top: 14px; padding: 10px; border-radius: 14px;
+    background: var(--bg-soft); border: 1px solid var(--line);
+    box-shadow: 0 20px 40px -16px rgba(23, 23, 37, 0.25);
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px;
+    width: 460px;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.15s ease;
+    z-index: 20;
+  }
+  .mkt .nav-dropdown:hover .nav-dropdown-menu,
+  .mkt .nav-dropdown:focus-within .nav-dropdown-menu {
+    opacity: 1; visibility: visible; pointer-events: auto;
+  }
+  .mkt .nav-dropdown-menu a {
+    display: block; padding: 10px 12px; border-radius: 8px;
+    font-size: 0.85rem; font-weight: 600; color: var(--ink) !important;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mkt .nav-dropdown-menu a:hover { background: var(--bg); }
+
+  /* Horizontal-scroll industry cards */
+  .mkt .industry-scroll {
+    display: flex; gap: 20px; overflow-x: auto; padding: 10px 32px 20px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mkt .industry-card {
+    scroll-snap-align: start;
+    flex: 0 0 auto;
+    width: 260px;
+    border-radius: 20px;
+    overflow: hidden;
+    text-decoration: none;
+    display: block;
+    box-shadow: 0 16px 34px -18px rgba(23, 23, 37, 0.22);
+  }
+  .mkt .industry-card img { display: block; width: 100%; height: 140px; object-fit: cover; }
+  .mkt .industry-card-body { padding: 18px; }
+  .mkt .industry-card-body h3 { margin: 0 0 6px; font-size: 1.02rem; font-weight: 800; }
+  .mkt .industry-card-body p { margin: 0; font-size: 0.85rem; line-height: 1.45; }
   .mkt .navcta { padding: 10px 20px; border-radius: 10px; background: var(--ink); color: var(--bg-soft); font-weight: 700; font-size: 0.88rem; text-decoration: none; box-shadow: 0 8px 20px -8px rgba(23, 23, 37, 0.4); }
 
   .mkt .hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; }

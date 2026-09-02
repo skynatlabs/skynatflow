@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { auth } from "@/auth";
-import { MarketingFonts, MarketingNav, MarketingFooterStatic, PricingTeaser, MARKETING_CSS } from "@/components/marketing/chrome";
+import { MarketingFonts, MarketingNav, MarketingFooterStatic, PricingTeaser, IndustryCardsScroll, MARKETING_CSS } from "@/components/marketing/chrome";
 
 // The home page — hand-authored raw HTML/CSS matching the approved concept
 // mockup exactly, deliberately NOT going through the CMS/React component
@@ -11,9 +11,9 @@ import { MarketingFonts, MarketingNav, MarketingFooterStatic, PricingTeaser, MAR
 // marketing page (see chrome.tsx) — only the hero and unique sections
 // below are specific to this page.
 export const metadata: Metadata = {
-  title: "flow — Quote fast. Get paid faster.",
+  title: "flow — Agentic business management",
   description:
-    "Quoting, invoicing, follow-ups, and an AI PA that runs the busywork — one AI-native platform for how SMEs actually work. By Skynat.",
+    "The agentic platform for business management, invoicing, and CRM — flow quotes, follows up, and chases payment on its own, so you run the business instead of the busywork. By Skynat.",
 };
 
 export default async function Home() {
@@ -41,7 +41,7 @@ export default async function Home() {
             <div>
               <span className="eyebrow">
                 <span className="dot" />
-                Built for busy business owners
+                An agentic platform for running your business
               </span>
               <h1>
                 Quote fast. Get paid faster. Let <em>flow</em> chase the rest.
@@ -160,11 +160,11 @@ export default async function Home() {
       {/* ================= FEATURES ================= */}
       <section className="section">
         <div className="section-head">
-          <span className="kicker">What flow does</span>
+          <span className="kicker">Agentic business management</span>
           <h2>Everything between &quot;sent a quote&quot; and &quot;got paid,&quot; handled</h2>
           <p className="section-sub">
-            No more chasing across WhatsApp, email, and a spreadsheet to find out where a deal actually
-            stands.
+            Invoicing, CRM, and project tracking that don&apos;t just store your data — they act on it. No
+            more chasing across WhatsApp, email, and a spreadsheet to find out where a deal actually stands.
           </p>
         </div>
 
@@ -215,49 +215,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ================= INDUSTRIES ================= */}
-      <section className="section">
-        <div className="section-head">
-          <span className="kicker">Built for your trade</span>
-          <h2>One engine, tuned for how your industry actually works</h2>
-          <p className="section-sub">
-            Same core — quotes, invoices, follow-ups — with the fields and workflow that fit your business.
-          </p>
-        </div>
-
-        <div className="feature-grid">
-          <a className="feature-card scatter-card card-accent" href="/industries/services">
-            <div className="feature-icon">☀️</div>
-            <h3>Solar &amp; trades</h3>
-            <p className="muted">Job cards and site-visit scheduling tied straight to the quote that sold the job.</p>
-          </a>
-          <a className="feature-card scatter-card card-light" href="/industries/retail">
-            <div className="feature-icon" style={{ ["--edge" as string]: "var(--mint)", background: "var(--mint)" }}>
-              🏬
-            </div>
-            <h3>Retail &amp; wholesale</h3>
-            <p>Stock demand heatmap so reordering is a decision, not a guess.</p>
-          </a>
-          <a className="feature-card scatter-card card-dark" href="/industries/logistics">
-            <div className="feature-icon" style={{ background: "var(--a-2)" }}>
-              🚚
-            </div>
-            <h3>Logistics &amp; delivery</h3>
-            <p className="muted">Fuel logs and fleet costs sitting next to the invoices they&apos;re tied to.</p>
-          </a>
-        </div>
-
-        <p className="also-serving">
-          Also built for <strong>medical &amp; patient care</strong>, <strong>corporate services</strong>, and{" "}
-          <strong>nonprofits</strong> — same engine, industry-specific fields.
-        </p>
-
-        <div className="cta-inline">
-          <a className="cta-primary" href="/industries/medical" style={{ background: "linear-gradient(120deg, var(--a-2), #0d5bb8)" }}>
-            Find your industry &rarr;
-          </a>
-        </div>
-      </section>
+      <IndustryCardsScroll />
 
       {/* ================= HOW IT WORKS ================= */}
       <section className="section">

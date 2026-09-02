@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "flow — AI Business Operating System",
+  title: "flow — Agentic Business Operating System",
   description:
-    "Quoting, invoicing, inventory, delivery, and a customer portal — one AI-native platform for how SMEs actually work. By Skynat.",
+    "Invoicing, CRM, and project management that act on your business, not just record it — an agentic platform for how SMEs actually work. By Skynat.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

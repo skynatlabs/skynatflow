@@ -39,8 +39,21 @@ export default function AboutPage() {
         <p style={{ maxWidth: 680, margin: "0 auto", color: "var(--ink-dim)", fontSize: "1.05rem", lineHeight: 1.7, textAlign: "center" }}>
           Most business software is built for enterprises and trimmed down for small businesses — which
           means small businesses inherit enterprise complexity without enterprise headcount to manage it.
-          flow starts from the opposite direction: one shared engine, seven industry skins, and an AI layer
+          flow starts from the opposite direction: one shared engine, eight industry skins, and an AI layer
           that does the chasing so you don&apos;t have to.
+        </p>
+      </section>
+
+      <section className="section">
+        <div className="section-head">
+          <span className="kicker">Where we&apos;re headed</span>
+          <h2>Becoming a fully agentic platform</h2>
+        </div>
+        <p style={{ maxWidth: 680, margin: "0 auto", color: "var(--ink-dim)", fontSize: "1.05rem", lineHeight: 1.7, textAlign: "center" }}>
+          The AI PA, voice assistant, and automated follow-ups are the first layer of a bigger direction:
+          flow is being built toward handling more of the day-to-day operations of a business on its
+          own — quoting, invoicing, CRM, and project work — through natural conversation instead of forms
+          and menus, always with a human approving what actually goes out.
         </p>
       </section>
 
