@@ -5,6 +5,7 @@
 
 import Link from "next/link";
 import { listThisWeekFollowUps } from "@/lib/core/followUpReminders";
+import { BreakdownBarChart } from "@/components/dashboard/MiniCharts";
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
@@ -28,6 +29,19 @@ export default async function ThisWeekPage({
   const { tenantId } = await params;
   const items = await listThisWeekFollowUps(tenantId);
 
+  const dayCounts = items.reduce<Record<string, number>>((acc, t) => {
+    if (!t.nextFollowUpAt) return acc;
+    const overdue = t.nextFollowUpAt < new Date();
+    const key = overdue ? "Overdue" : dayLabel(t.nextFollowUpAt);
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
+  const barData = Object.entries(dayCounts).map(([name, value]) => ({
+    name,
+    value,
+    color: name === "Overdue" ? "#e2445c" : "var(--kb-accent-a)",
+  }));
+
   return (
     <main className="mx-auto max-w-2xl p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">This week</h1>
@@ -35,6 +49,12 @@ export default async function ThisWeekPage({
         Who to contact and why — every reminder and follow-up due in the next 7 days, or already
         overdue.
       </p>
+
+      {barData.length > 0 && (
+        <div className="mt-6">
+          <BreakdownBarChart title="Follow-ups due, by day" data={barData} />
+        </div>
+      )}
 
       {items.length === 0 ? (
         <div className="kb-card mt-6 p-8 text-center text-sm text-[var(--kb-text-dim)]">

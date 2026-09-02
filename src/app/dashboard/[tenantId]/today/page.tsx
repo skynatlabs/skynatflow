@@ -4,6 +4,21 @@
 
 import Link from "next/link";
 import { getTodayPlan } from "@/lib/core/dayPlan";
+import { BreakdownBarChart } from "@/components/dashboard/MiniCharts";
+
+const KIND_LABEL: Record<string, string> = {
+  appointment: "Appointments",
+  job_card: "Job cards",
+  quote: "Quotes",
+  invoice: "Invoices",
+};
+
+const KIND_COLOR: Record<string, string> = {
+  appointment: "var(--kb-tint-blue-ink)",
+  job_card: "var(--kb-tint-violet-ink)",
+  quote: "var(--kb-tint-yellow-ink)",
+  invoice: "var(--kb-tint-peach-ink)",
+};
 
 function time(date: Date) {
   return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
@@ -24,6 +39,16 @@ export default async function TodayPage({
   const { tenantId } = await params;
   const plan = await getTodayPlan(tenantId);
 
+  const kindCounts = [...plan.timed, ...plan.untimed].reduce<Record<string, number>>((acc, item) => {
+    acc[item.kind] = (acc[item.kind] ?? 0) + 1;
+    return acc;
+  }, {});
+  const barData = Object.entries(kindCounts).map(([kind, count]) => ({
+    name: KIND_LABEL[kind] ?? kind,
+    value: count,
+    color: KIND_COLOR[kind] ?? "#94a3b8",
+  }));
+
   function hrefFor(item: { kind: string; id: string }) {
     if (item.kind === "job_card") return `/dashboard/${tenantId}/job-cards`;
     if (item.kind === "invoice") return `/dashboard/${tenantId}/invoices/${item.id}`;
@@ -38,6 +63,12 @@ export default async function TodayPage({
         Real times for what's actually booked, everything else ranked by what needs you most —
         nothing here has a made-up time slot.
       </p>
+
+      {barData.length > 0 && (
+        <div className="mt-6">
+          <BreakdownBarChart title="Today's items by type" data={barData} />
+        </div>
+      )}
 
       <section className="mt-6">
         <h2 className="text-sm font-semibold text-[var(--kb-text-dim)]">Scheduled</h2>

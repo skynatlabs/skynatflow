@@ -3,6 +3,7 @@ import { listCustomersPaginated } from "@/lib/core/parties";
 import { prisma } from "@/lib/db";
 import { nicheConfig } from "@/lib/niches/config";
 import { createCustomerAction } from "./actions";
+import { TrendAreaChart } from "@/components/dashboard/MiniCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +20,33 @@ export default async function CustomersPage({
   const { tenantId } = await params;
   const { page: pageParam, add } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? 1));
-  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+  sixMonthsAgo.setDate(1);
+  const [tenant, { items: customers, total, pageCount }, recentCustomers] = await Promise.all([
+    prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } }),
+    listCustomersPaginated(tenantId, page),
+    prisma.party.findMany({
+      where: { tenantId, role: { in: ["CUSTOMER", "PATIENT"] }, createdAt: { gte: sixMonthsAgo } },
+      select: { createdAt: true },
+    }),
+  ]);
   const niche = nicheConfig(tenant.niche);
-  const { items: customers, total, pageCount } = await listCustomersPaginated(tenantId, page);
+
+  const months: { start: Date; end: Date }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const start = new Date();
+    start.setDate(1);
+    start.setMonth(start.getMonth() - i);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + 1);
+    months.push({ start, end });
+  }
+  const trendData = months.map(({ start, end }) => ({
+    label: start.toLocaleDateString(undefined, { month: "short" }),
+    value: recentCustomers.filter((c) => c.createdAt >= start && c.createdAt < end).length,
+  }));
 
   return (
     <main className="mx-auto max-w-3xl p-8">
@@ -37,6 +62,10 @@ export default async function CustomersPage({
             + New quote
           </Link>
         </div>
+      </div>
+
+      <div className="mt-6">
+        <TrendAreaChart title={`New ${niche.customerLabel.toLowerCase()}s, last 6 months`} data={trendData} />
       </div>
 
       {add === "1" && (

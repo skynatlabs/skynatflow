@@ -1,7 +1,14 @@
 import { prisma } from "@/lib/db";
 import { approveDraftAction, skipDraftAction } from "./actions";
+import { BreakdownDonut } from "@/components/dashboard/MiniCharts";
 
 export const dynamic = "force-dynamic";
+
+const STATUS_COLOR: Record<string, string> = {
+  PENDING: "var(--kb-tint-yellow-ink)",
+  SENT: "var(--kb-tint-mint-ink)",
+  SKIPPED: "#94a3b8",
+};
 
 export default async function AiDraftsPage({
   params,
@@ -9,11 +16,20 @@ export default async function AiDraftsPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
-  const drafts = await prisma.aiDraft.findMany({
-    where: { tenantId, status: "PENDING" },
-    include: { party: true },
-    orderBy: { createdAt: "asc" },
-  });
+  const [drafts, statusGroups] = await Promise.all([
+    prisma.aiDraft.findMany({
+      where: { tenantId, status: "PENDING" },
+      include: { party: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.aiDraft.groupBy({ by: ["status"], where: { tenantId }, _count: { _all: true } }),
+  ]);
+
+  const donutData = statusGroups.map((g) => ({
+    name: g.status.charAt(0) + g.status.slice(1).toLowerCase(),
+    value: g._count._all,
+    color: STATUS_COLOR[g.status] ?? "#94a3b8",
+  }));
 
   return (
     <main className="mx-auto max-w-2xl p-8">
@@ -22,6 +38,12 @@ export default async function AiDraftsPage({
         Nothing here reaches a customer until you approve it. Edit the text first if you want —
         what you send is what goes out.
       </p>
+
+      {donutData.length > 0 && (
+        <div className="mt-6">
+          <BreakdownDonut title="Drafts by status" data={donutData} />
+        </div>
+      )}
 
       <div className="mt-6 space-y-4">
         {drafts.map((d) => (

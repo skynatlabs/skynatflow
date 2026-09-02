@@ -6,6 +6,7 @@
 
 import { prisma } from "@/lib/db";
 import { markNoShowAction } from "./actions";
+import { BreakdownBarChart } from "@/components/dashboard/MiniCharts";
 
 function when(date: Date) {
   return date.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -29,6 +30,18 @@ export default async function AppointmentsPage({
   const upcoming = appointments.filter((a) => a.scheduledAt! >= now);
   const past = appointments.filter((a) => a.scheduledAt! < now);
 
+  const days: { start: Date; end: Date; label: string }[] = [];
+  for (let i = -3; i <= 3; i++) {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    const end = new Date(start.getTime() + 86400000);
+    days.push({ start, end, label: start.toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) });
+  }
+  const barData = days.map(({ start, end, label }) => ({
+    name: label,
+    value: appointments.filter((a) => a.scheduledAt! >= start && a.scheduledAt! < end).length,
+    color: "var(--kb-accent-a)",
+  }));
+
   return (
     <main className="mx-auto max-w-2xl p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Appointments</h1>
@@ -36,6 +49,10 @@ export default async function AppointmentsPage({
         Booked site visits and consultations. Mark a past one as a no-show and flow sends the
         rebooking nudge immediately.
       </p>
+
+      <div className="mt-6">
+        <BreakdownBarChart title="Appointments, this week (±3 days)" data={barData} />
+      </div>
 
       <section className="mt-6">
         <h2 className="text-sm font-semibold text-[var(--kb-text-dim)]">Upcoming</h2>

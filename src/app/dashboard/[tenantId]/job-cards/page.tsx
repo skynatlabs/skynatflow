@@ -5,8 +5,15 @@
 import { prisma } from "@/lib/db";
 import { listJobCards } from "@/lib/core/jobCards";
 import { createJobCardAction, toggleJobCardTaskAction, setJobCardStatusAction, completeJobCardAction } from "./actions";
+import { BreakdownDonut } from "@/components/dashboard/MiniCharts";
 
 const STATUS_LABEL: Record<string, string> = { SCHEDULED: "Scheduled", IN_PROGRESS: "In progress", DONE: "Done" };
+
+const STATUS_COLOR: Record<string, string> = {
+  SCHEDULED: "var(--kb-tint-blue-ink)",
+  IN_PROGRESS: "var(--kb-tint-yellow-ink)",
+  DONE: "var(--kb-tint-mint-ink)",
+};
 
 export default async function JobCardsPage({
   params,
@@ -25,6 +32,16 @@ export default async function JobCardsPage({
     prisma.membership.findMany({ where: { tenantId }, include: { user: true } }),
   ]);
 
+  const statusCounts = jobCards.reduce<Record<string, number>>((acc, jc) => {
+    acc[jc.status] = (acc[jc.status] ?? 0) + 1;
+    return acc;
+  }, {});
+  const donutData = Object.entries(statusCounts).map(([status, count]) => ({
+    name: STATUS_LABEL[status] ?? status,
+    value: count,
+    color: STATUS_COLOR[status] ?? "#94a3b8",
+  }));
+
   return (
     <main className="mx-auto max-w-3xl p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Job cards</h1>
@@ -32,6 +49,12 @@ export default async function JobCardsPage({
         A work order per job — assign it, checklist the steps, mark it done once every step is
         actually ticked off. Linked to the quote/invoice it's the work behind.
       </p>
+
+      {donutData.length > 0 && (
+        <div className="mt-6">
+          <BreakdownDonut title="Job cards by status" data={donutData} />
+        </div>
+      )}
 
       <details className="kb-card mt-6 p-4">
         <summary className="cursor-pointer text-sm font-medium text-[var(--kb-text)]">+ New job card</summary>

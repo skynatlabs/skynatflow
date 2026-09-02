@@ -1,6 +1,7 @@
 import { listNotifications } from "@/lib/core/notifications2";
 import { listInboundEmails } from "@/lib/core/email";
 import { markEmailReadAction, markNotificationReadAction, markAllNotificationsReadAction } from "./actions";
+import { BreakdownDonut } from "@/components/dashboard/MiniCharts";
 
 const CATEGORY_TINT: Record<string, string> = {
   STATEMENT: "kb-tint-blue",
@@ -8,6 +9,14 @@ const CATEGORY_TINT: Record<string, string> = {
   LEGAL: "kb-tint-peach",
   QUOTE_REPLY: "kb-tint-mint",
   OTHER: "kb-tint-violet",
+};
+
+const CATEGORY_COLOR: Record<string, string> = {
+  STATEMENT: "var(--kb-tint-blue-ink)",
+  INVOICE: "var(--kb-tint-yellow-ink)",
+  LEGAL: "var(--kb-tint-peach-ink)",
+  QUOTE_REPLY: "var(--kb-tint-mint-ink)",
+  OTHER: "var(--kb-tint-violet-ink)",
 };
 
 export default async function InboxPage({
@@ -20,6 +29,16 @@ export default async function InboxPage({
     listNotifications(tenantId),
     listInboundEmails(tenantId),
   ]);
+
+  const categoryCounts = emails.reduce<Record<string, number>>((acc, e) => {
+    acc[e.category] = (acc[e.category] ?? 0) + 1;
+    return acc;
+  }, {});
+  const donutData = Object.entries(categoryCounts).map(([category, count]) => ({
+    name: category.replace("_", " "),
+    value: count,
+    color: CATEGORY_COLOR[category] ?? "#94a3b8",
+  }));
 
   return (
     <main className="mx-auto max-w-3xl p-8">
@@ -36,6 +55,12 @@ export default async function InboxPage({
           <button type="submit" className="kb-pill kb-pill-ghost text-xs">Mark all read</button>
         </form>
       </div>
+
+      {donutData.length > 0 && (
+        <div className="mt-6">
+          <BreakdownDonut title="Mail by category" data={donutData} />
+        </div>
+      )}
 
       <section className="mt-6">
         <h2 className="text-lg font-semibold text-[var(--kb-text)]">Notifications</h2>

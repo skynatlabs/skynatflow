@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { resolveDisputeAction } from "./actions";
+import { BreakdownDonut } from "@/components/dashboard/MiniCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,7 @@ export default async function DisputesPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
-  const [open, resolved] = await Promise.all([
+  const [open, resolved, resolvedCount] = await Promise.all([
     prisma.dispute.findMany({
       where: { tenantId, status: "OPEN" },
       include: { party: true },
@@ -21,7 +22,13 @@ export default async function DisputesPage({
       orderBy: { resolvedAt: "desc" },
       take: 20,
     }),
+    prisma.dispute.count({ where: { tenantId, status: "RESOLVED" } }),
   ]);
+
+  const donutData = [
+    { name: "Open", value: open.length, color: "#e2445c" },
+    { name: "Resolved", value: resolvedCount, color: "var(--kb-tint-mint-ink)" },
+  ];
 
   return (
     <main className="mx-auto max-w-2xl p-8">
@@ -29,6 +36,12 @@ export default async function DisputesPage({
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         "Something's not right" flags raised from the customer portal on a quote or invoice.
       </p>
+
+      {(open.length > 0 || resolvedCount > 0) && (
+        <div className="mt-6">
+          <BreakdownDonut title="Reports by status" data={donutData} />
+        </div>
+      )}
 
       <div className="mt-6 space-y-4">
         {open.map((d) => (

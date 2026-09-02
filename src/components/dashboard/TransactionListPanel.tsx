@@ -48,12 +48,21 @@ export function TransactionListPanel({
   const [pageCount, setPageCount] = useState(1);
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
   const [loading, setLoading] = useState(true);
+
+  // Debounce the search box — fetching on every keystroke hammers the API
+  // for no benefit once someone's mid-word; 300ms is short enough to still
+  // feel instant once they pause.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q), 300);
+    return () => clearTimeout(t);
+  }, [q]);
 
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams({ type, page: String(page) });
-    if (q.trim()) params.set("q", q.trim());
+    if (debouncedQ.trim()) params.set("q", debouncedQ.trim());
     fetch(`/api/dashboard/${tenantId}/transactions?${params}`)
       .then((r) => r.json())
       .then((data) => {
@@ -62,7 +71,7 @@ export function TransactionListPanel({
         setTotal(data.total);
       })
       .finally(() => setLoading(false));
-  }, [tenantId, type, page, q]);
+  }, [tenantId, type, page, debouncedQ]);
 
   return (
     <div className="flex h-full w-80 shrink-0 flex-col border-r border-[var(--kb-panel-border)]">

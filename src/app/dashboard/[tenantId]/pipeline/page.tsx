@@ -10,6 +10,14 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { markQuoteOutcomeAction } from "./actions";
+import { BreakdownBarChart } from "@/components/dashboard/MiniCharts";
+
+const COLUMN_COLOR: Record<string, string> = {
+  DRAFT: "var(--kb-tint-blue-ink)",
+  SENT: "var(--kb-tint-yellow-ink)",
+  ACCEPTED: "var(--kb-tint-mint-ink)",
+  DECLINED: "var(--kb-tint-peach-ink)",
+};
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
@@ -56,12 +64,22 @@ export default async function PipelinePage({
     (columns.find((c) => c.key === "SENT")?.amountCents ?? 0);
   const won = columns.find((c) => c.key === "ACCEPTED")?.amountCents ?? 0;
 
+  const barData = columns.map((col) => ({
+    name: col.label,
+    value: Math.round(col.amountCents / 100),
+    color: COLUMN_COLOR[col.key] ?? "#94a3b8",
+  }));
+
   return (
     <main className="mx-auto max-w-6xl p-8">
       <h1 className="text-2xl font-bold text-[var(--kb-text)]">Pipeline</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Every quote, at a glance — {money(inPlay)} still in play, {money(won)} won.
       </p>
+
+      <div className="mt-6">
+        <BreakdownBarChart title="Pipeline value by stage (ZAR)" data={barData} />
+      </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {columns.map((col) => (

@@ -7,13 +7,28 @@ export default async function AdminAppearancePage() {
   const skins: { id: ColorSkin; helpText: string; swatches: string[] }[] = [
     {
       id: "default",
-      helpText: "Navy sidebar, coral/magenta/violet accents — the original palette.",
-      swatches: ["#12172b", "#ff6a3d", "#6c7bff"],
+      helpText: "Graphite sidebar, indigo/violet/cyan accents — the default palette.",
+      swatches: ["#171725", "#4f46e5", "#0ea5e9"],
     },
     {
       id: "sunset",
       helpText: "Same dark neutral sidebar, but every accent, highlight, and stat tile shifts to a rich charcoal/amber/white palette instead of the default coral/violet.",
       swatches: ["#1c1108", "#d94a0a", "#f0871f"],
+    },
+    {
+      id: "professional",
+      helpText: "Clean, corporate look: teal accents on white/graphite, inspired by modern CRM dashboards. Has its own light and dark variant — toggle with the moon/sun switch.",
+      swatches: ["#0f766e", "#14b8a6", "#134e4a"],
+    },
+    {
+      id: "creative",
+      helpText: "Bold, colorful gradients — pink, violet, and cyan accents over a rich dark canvas. Has its own light and dark variant.",
+      swatches: ["#7c3aed", "#ec4899", "#06b6d4"],
+    },
+    {
+      id: "futuristic",
+      helpText: "Sci-fi glass look: cool cyan/electric-blue accents, crisp edges. Has its own light and dark variant.",
+      swatches: ["#0ea5e9", "#22d3ee", "#0f172a"],
     },
   ];
 

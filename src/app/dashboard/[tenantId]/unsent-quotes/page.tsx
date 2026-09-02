@@ -12,6 +12,7 @@ export default async function UnsentQuotesPage({
 }) {
   const { tenantId } = await params;
   const breaches = await getQuoteSlaBreaches(tenantId);
+  const totalAmountCents = breaches.reduce((s, b) => s + b.amountCents, 0);
 
   return (
     <main className="mx-auto max-w-2xl p-8">
@@ -20,6 +21,19 @@ export default async function UnsentQuotesPage({
         The faster a quote goes out, the more likely you win the job — most customers have moved
         on to another option within 30 minutes of asking.
       </p>
+
+      {breaches.length > 0 && (
+        <div className="mt-6 grid grid-cols-2 gap-4">
+          <div className="kb-tile kb-tint-yellow">
+            <p className="text-xs font-semibold uppercase tracking-wide opacity-70">Waiting</p>
+            <p className="mt-2 text-3xl font-extrabold">{breaches.length}</p>
+          </div>
+          <div className="kb-tile kb-tint-peach">
+            <p className="text-xs font-semibold uppercase tracking-wide opacity-70">Value stuck</p>
+            <p className="mt-2 text-3xl font-extrabold">{money(totalAmountCents)}</p>
+          </div>
+        </div>
+      )}
 
       {breaches.length === 0 ? (
         <div className="kb-card mt-6 p-8 text-center text-sm text-[var(--kb-text-dim)]">

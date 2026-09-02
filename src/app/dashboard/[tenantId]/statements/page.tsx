@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { customerBalance } from "@/lib/core/money";
+import { BreakdownBarChart } from "@/components/dashboard/MiniCharts";
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
@@ -22,12 +23,28 @@ export default async function StatementsIndexPage({
   );
   const withBalance = balances.filter((c) => c.balance !== 0);
 
+  const barData = withBalance
+    .filter((c) => c.balance > 0)
+    .sort((a, b) => b.balance - a.balance)
+    .slice(0, 8)
+    .map((c) => ({
+      name: c.name,
+      value: Math.round(c.balance / 100),
+      color: "var(--kb-tint-peach-ink)",
+    }));
+
   return (
     <main className="mx-auto max-w-2xl p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Statements</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Every customer's running account balance — every invoice against every payment they've made.
       </p>
+
+      {barData.length > 0 && (
+        <div className="mt-6">
+          <BreakdownBarChart title="Top balances owed (ZAR)" data={barData} />
+        </div>
+      )}
 
       <ul className="kb-card mt-6 divide-y divide-[var(--kb-panel-border)]">
         {withBalance.map((c) => (

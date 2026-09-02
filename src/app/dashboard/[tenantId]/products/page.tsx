@@ -1,5 +1,16 @@
 import Link from "next/link";
 import { listProductsPaginated } from "@/lib/core/catalog";
+import { prisma } from "@/lib/db";
+import { BreakdownBarChart } from "@/components/dashboard/MiniCharts";
+
+const CATEGORY_COLORS = [
+  "var(--kb-accent-a)",
+  "var(--kb-tint-mint-ink)",
+  "var(--kb-tint-yellow-ink)",
+  "var(--kb-tint-blue-ink)",
+  "var(--kb-tint-peach-ink)",
+  "var(--kb-tint-violet-ink)",
+];
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
@@ -15,7 +26,19 @@ export default async function ProductsPage({
   const { tenantId } = await params;
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? 1));
-  const { items: products, total, pageCount } = await listProductsPaginated(tenantId, page);
+  const [{ items: products, total, pageCount }, categoryGroups] = await Promise.all([
+    listProductsPaginated(tenantId, page),
+    prisma.item.groupBy({ by: ["category"], where: { tenantId }, _count: { _all: true } }),
+  ]);
+
+  const barData = categoryGroups
+    .sort((a, b) => b._count._all - a._count._all)
+    .slice(0, 8)
+    .map((g, i) => ({
+      name: g.category ?? "Uncategorized",
+      value: g._count._all,
+      color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+    }));
 
   return (
     <main className="mx-auto max-w-3xl p-8">
@@ -59,6 +82,12 @@ export default async function ProductsPage({
           </Link>
         </div>
       </div>
+
+      {barData.length > 0 && (
+        <div className="mt-6">
+          <BreakdownBarChart title="Products by category" data={barData} />
+        </div>
+      )}
 
       {products.length === 0 ? (
         <div className="kb-card mt-6 p-8 text-center text-sm text-[var(--kb-text-dim)]">

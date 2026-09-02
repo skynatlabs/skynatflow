@@ -44,16 +44,22 @@ export async function setPlatformAiProvider(provider: AiProvider): Promise<void>
   });
 }
 
-export type ColorSkin = "default" | "sunset";
+export type ColorSkin = "default" | "sunset" | "professional" | "creative" | "futuristic";
 
 export const COLOR_SKIN_LABELS: Record<ColorSkin, string> = {
   default: "Default (navy & coral)",
   sunset: "Sunset (charcoal & amber)",
+  professional: "Professional (teal, clean & corporate)",
+  creative: "Creative (colorful, bold gradients)",
+  futuristic: "Futuristic (neon glass, sci-fi)",
 };
+
+const VALID_SKINS: ColorSkin[] = ["default", "sunset", "professional", "creative", "futuristic"];
 
 export async function getPlatformColorSkin(): Promise<ColorSkin> {
   const setting = await prisma.platformSetting.findUnique({ where: { id: "singleton" } });
-  return setting?.colorSkin === "sunset" ? "sunset" : "default";
+  const skin = setting?.colorSkin;
+  return VALID_SKINS.includes(skin as ColorSkin) ? (skin as ColorSkin) : "default";
 }
 
 export async function setPlatformColorSkin(skin: ColorSkin): Promise<void> {

@@ -1,12 +1,20 @@
 import { getDemandHeatmap, getReorderSuggestions, getExpiryRisk } from "@/lib/core/inventory";
 import { listProducts } from "@/lib/core/catalog";
 import { recordBatchAction } from "./actions";
+import { BreakdownDonut } from "@/components/dashboard/MiniCharts";
 
 const CLASS_LABEL: Record<string, { label: string; tint: string }> = {
   fast: { label: "Fast mover", tint: "kb-tint-mint" },
   slow: { label: "Slow mover", tint: "kb-tint-yellow" },
   dead: { label: "Dead stock", tint: "kb-tint-peach" },
   unrated: { label: "No sales data", tint: "kb-tint-blue" },
+};
+
+const CLASS_COLOR: Record<string, string> = {
+  fast: "var(--kb-tint-mint-ink)",
+  slow: "var(--kb-tint-yellow-ink)",
+  dead: "var(--kb-tint-peach-ink)",
+  unrated: "var(--kb-tint-blue-ink)",
 };
 
 export default async function InventoryPage({
@@ -24,6 +32,16 @@ export default async function InventoryPage({
 
   const stockTracked = heatmap.filter((r) => r.stockQty != null);
 
+  const classCounts = heatmap.reduce<Record<string, number>>((acc, r) => {
+    acc[r.demandClass] = (acc[r.demandClass] ?? 0) + 1;
+    return acc;
+  }, {});
+  const donutData = Object.entries(classCounts).map(([cls, count]) => ({
+    name: CLASS_LABEL[cls]?.label ?? cls,
+    value: count,
+    color: CLASS_COLOR[cls] ?? "#94a3b8",
+  }));
+
   return (
     <main className="mx-auto max-w-4xl p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Inventory optimization</h1>
@@ -31,6 +49,20 @@ export default async function InventoryPage({
         Demand ranked from your actual sales data — no manual stocktake needed to see what's
         hot, what's dead, and what's about to expire.
       </p>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-4 self-start">
+          <div className="kb-tile kb-tint-yellow">
+            <p className="text-xs font-semibold uppercase tracking-wide opacity-70">To reorder</p>
+            <p className="mt-2 text-3xl font-extrabold">{reorders.length}</p>
+          </div>
+          <div className="kb-tile kb-tint-peach">
+            <p className="text-xs font-semibold uppercase tracking-wide opacity-70">Expiring soon</p>
+            <p className="mt-2 text-3xl font-extrabold">{expiring.length}</p>
+          </div>
+        </div>
+        <BreakdownDonut title="Demand mix" data={donutData} />
+      </div>
 
       {/* Reorder suggestions */}
       <section className="mt-8">
