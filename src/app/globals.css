@@ -388,6 +388,49 @@ body {
   box-shadow: 0 16px 32px -12px color-mix(in srgb, var(--kb-accent-a) 45%, transparent);
 }
 
+/* ================= marketing floating-card system =================
+   Approved concept: cards drift ambiently like the hero's quote card, in
+   mixed light/dark/accent treatments — never a uniform grid of identical
+   tiles. Each keyframe bakes in its own resting rotation as the 0%/100%
+   state; different cards get different keyframes/durations/negative
+   delays so nothing moves in unison. Hover takes over completely. */
+@keyframes kb-floatA { 0%,100% { transform: rotate(-4deg) translateY(6px); } 50% { transform: rotate(-2deg) translateY(-6px); } }
+@keyframes kb-floatB { 0%,100% { transform: rotate(2deg) translateY(-14px); } 50% { transform: rotate(4deg) translateY(-4px); } }
+@keyframes kb-floatC { 0%,100% { transform: rotate(-2deg) translateY(10px); } 50% { transform: rotate(-4deg) translateY(0px); } }
+@keyframes kb-floatD { 0%,100% { transform: rotate(3deg) translateY(-6px); } 50% { transform: rotate(1deg) translateY(4px); } }
+@keyframes kb-floatE { 0%,100% { transform: rotate(-3deg) translateY(4px); } 50% { transform: rotate(-1deg) translateY(-8px); } }
+@keyframes kb-floatF { 0%,100% { transform: rotate(2deg) translateY(-10px); } 50% { transform: rotate(4deg) translateY(2px); } }
+
+.kb-scatter { will-change: transform; transition: transform 0.25s ease, box-shadow 0.25s ease; position: relative; }
+@media (prefers-reduced-motion: no-preference) {
+  .kb-scatter:nth-of-type(6n+1) { animation: kb-floatA 8s ease-in-out infinite; animation-delay: -1s; }
+  .kb-scatter:nth-of-type(6n+2) { animation: kb-floatB 9.5s ease-in-out infinite; animation-delay: -3s; }
+  .kb-scatter:nth-of-type(6n+3) { animation: kb-floatC 7s ease-in-out infinite; animation-delay: -5s; }
+  .kb-scatter:nth-of-type(6n+4) { animation: kb-floatD 10s ease-in-out infinite; animation-delay: -2s; }
+  .kb-scatter:nth-of-type(6n+5) { animation: kb-floatE 8.5s ease-in-out infinite; animation-delay: -6s; }
+  .kb-scatter:nth-of-type(6n+6) { animation: kb-floatF 9s ease-in-out infinite; animation-delay: -4s; }
+  .kb-scatter:hover { animation: none; }
+}
+.kb-scatter:hover { transform: rotate(0deg) translateY(-8px) !important; box-shadow: 0 26px 46px -18px rgba(23, 23, 37, 0.28); z-index: 2 !important; }
+
+.kb-card-light { background: var(--kb-panel); border: 1px solid var(--kb-panel-border); color: var(--kb-text); box-shadow: 0 16px 34px -18px rgba(23, 23, 37, 0.16); }
+.kb-card-dark { background: var(--kb-navy); border: none; color: white; box-shadow: 0 16px 34px -18px rgba(23, 23, 37, 0.3); }
+.kb-card-dark .kb-muted { color: rgba(255,255,255,0.62); }
+.kb-card-accent {
+  background: linear-gradient(150deg, var(--kb-accent-a) 0%, var(--kb-accent-mid) 100%);
+  border: none; color: white;
+  box-shadow: 0 16px 34px -14px color-mix(in srgb, var(--kb-accent-a) 55%, transparent);
+}
+.kb-card-accent .kb-muted { color: rgba(255,255,255,0.78); }
+.kb-card-accent2 {
+  background: linear-gradient(150deg, var(--kb-accent-b) 0%, color-mix(in srgb, var(--kb-accent-b) 60%, black) 100%);
+  border: none; color: white;
+  box-shadow: 0 16px 34px -14px color-mix(in srgb, var(--kb-accent-b) 55%, transparent);
+}
+.kb-card-accent2 .kb-muted { color: rgba(255,255,255,0.78); }
+.kb-card-outline { background: transparent; border: 1.5px dashed var(--kb-panel-border); color: var(--kb-text); box-shadow: none; }
+.kb-muted { color: var(--kb-text-dim); }
+
 /* Stat tile — modern "bento" treatment: a subtle diagonal wash from the
    tint color into the panel surface (not a flat pastel block), a thin
    colored top edge instead of a border-all, and a lift + glow on hover

@@ -7,7 +7,6 @@
 // shape this renders.
 
 import Link from "next/link";
-import { motion } from "motion/react";
 import MotionLink from "@/components/marketing/MotionLink";
 import type { ResolvedSection } from "@/lib/core/cms";
 
@@ -140,10 +139,12 @@ function ImageTextSection({ section }: { section: ResolvedSection }) {
   );
 }
 
-// Cycled instead of a single flat color across every card — a wash of one
-// tint (mint) read as monotonous; rotating through the richer marketing
-// palette keeps each grid visually varied without picking per-item colors.
-const GRID_TINTS = ["kb-tint-blue", "kb-tint-violet", "kb-tint-peach", "kb-tint-yellow"];
+// Cycled instead of a single flat color across every card — a flat grid of
+// identical white tiles is exactly what the approved concept mockup moved
+// away from. Each card gets its own resting treatment (light/dark/two
+// accent gradients) and its own ambient float animation, so a row of cards
+// reads as things placed on the page rather than a table.
+const CARD_VARIANTS = ["kb-card-light", "kb-card-dark", "kb-card-accent", "kb-card-accent2"];
 
 function GridSection({ section }: { section: ResolvedSection }) {
   const items = section.items as GridItem[];
@@ -158,17 +159,21 @@ function GridSection({ section }: { section: ResolvedSection }) {
         </div>
       )}
       {items.length > 0 && (
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item, i) => (
-            <div key={i} className={`kb-tile ${GRID_TINTS[i % GRID_TINTS.length]}`}>
-              {item.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.imageUrl} alt="" className="h-8 w-8 rounded" />
-              )}
-              {item.title && <p className="mt-3 text-lg font-bold">{item.title}</p>}
-              {item.body && <p className="mt-2 text-sm opacity-80">{item.body}</p>}
-            </div>
-          ))}
+        <div className="mt-10 flex flex-wrap justify-center gap-7">
+          {items.map((item, i) => {
+            const variant = CARD_VARIANTS[i % CARD_VARIANTS.length];
+            const mutedClass = variant === "kb-card-light" ? "text-[var(--kb-text-dim)]" : "kb-muted";
+            return (
+              <div key={i} className={`kb-scatter ${variant} w-[280px] rounded-[20px] p-7`}>
+                {item.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.imageUrl} alt="" className="h-8 w-8 rounded" />
+                )}
+                {item.title && <p className="mt-3 text-lg font-bold">{item.title}</p>}
+                {item.body && <p className={`mt-2 text-sm ${mutedClass}`}>{item.body}</p>}
+              </div>
+            );
+          })}
         </div>
       )}
     </section>
@@ -183,22 +188,26 @@ function TestimonialsSection({ section }: { section: ResolvedSection }) {
         <h2 className="text-center text-3xl font-extrabold text-[var(--kb-text)]">{section.heading}</h2>
       )}
       {items.length > 0 && (
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item, i) => (
-            <div key={i} className="kb-card p-5">
-              {item.body && <p className="text-sm text-[var(--kb-text)]">&ldquo;{item.body}&rdquo;</p>}
-              <div className="mt-4 flex items-center gap-3">
-                {item.imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.imageUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
-                )}
-                <div>
-                  {item.name && <p className="text-sm font-semibold text-[var(--kb-text)]">{item.name}</p>}
-                  {item.role && <p className="text-xs text-[var(--kb-text-dim)]">{item.role}</p>}
+        <div className="mt-10 flex flex-wrap justify-center gap-7">
+          {items.map((item, i) => {
+            const variant = CARD_VARIANTS[i % CARD_VARIANTS.length];
+            const mutedClass = variant === "kb-card-light" ? "text-[var(--kb-text-dim)]" : "kb-muted";
+            return (
+              <div key={i} className={`kb-scatter ${variant} w-[300px] rounded-[20px] p-6`}>
+                {item.body && <p className="text-sm">&ldquo;{item.body}&rdquo;</p>}
+                <div className="mt-4 flex items-center gap-3">
+                  {item.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={item.imageUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
+                  )}
+                  <div>
+                    {item.name && <p className="text-sm font-semibold">{item.name}</p>}
+                    {item.role && <p className={`text-xs ${mutedClass}`}>{item.role}</p>}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>
@@ -253,23 +262,21 @@ function CardsSection({ section }: { section: ResolvedSection }) {
         </div>
       )}
       {items.length > 0 && (
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 flex flex-wrap justify-center gap-7">
           {items.map((item, i) => {
+            const variant = CARD_VARIANTS[i % CARD_VARIANTS.length];
+            const mutedClass = variant === "kb-card-light" ? "text-[var(--kb-text-dim)]" : "kb-muted";
             const card = (
-              <motion.div
-                className="kb-card h-full overflow-hidden p-0"
-                whileHover={{ y: -6, scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 300, damping: 18 }}
-              >
+              <div className={`kb-scatter ${variant} h-full w-[280px] overflow-hidden rounded-[20px]`}>
                 {item.imageUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={item.imageUrl} alt="" className="h-36 w-full object-cover" />
                 )}
                 <div className="p-5">
-                  {item.title && <p className="font-bold text-[var(--kb-text)]">{item.title}</p>}
-                  {item.body && <p className="mt-2 text-sm text-[var(--kb-text-dim)]">{item.body}</p>}
+                  {item.title && <p className="font-bold">{item.title}</p>}
+                  {item.body && <p className={`mt-2 text-sm ${mutedClass}`}>{item.body}</p>}
                 </div>
-              </motion.div>
+              </div>
             );
             return item.href ? (
               <Link key={i} href={item.href}>{card}</Link>
