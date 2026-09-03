@@ -34,7 +34,7 @@ export async function approveExpenseAction(formData: FormData) {
   assertCan(access.role, "staff:manage");
   if (!access.membershipId) throw new Error("No staff account on this workspace.");
 
-  await approveExpense(String(formData.get("expenseId") ?? ""), access.membershipId);
+  await approveExpense(tenantId, String(formData.get("expenseId") ?? ""), access.membershipId);
   revalidatePath(`/dashboard/${tenantId}/expenses`);
 }
 
@@ -44,6 +44,6 @@ export async function rejectExpenseAction(formData: FormData) {
   assertCan(access.role, "staff:manage");
   if (!access.membershipId) throw new Error("No staff account on this workspace.");
 
-  await rejectExpense(String(formData.get("expenseId") ?? ""), access.membershipId);
+  await rejectExpense(tenantId, String(formData.get("expenseId") ?? ""), access.membershipId);
   revalidatePath(`/dashboard/${tenantId}/expenses`);
 }

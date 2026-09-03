@@ -50,6 +50,6 @@ export async function endLeaseAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   await requireTenantAccess(tenantId);
 
-  await endLease(String(formData.get("leaseId") ?? ""));
+  await endLease(tenantId, String(formData.get("leaseId") ?? ""));
   revalidatePath(`/dashboard/${tenantId}/properties`);
 }

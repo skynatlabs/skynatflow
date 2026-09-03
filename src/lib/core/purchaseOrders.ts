@@ -123,10 +123,19 @@ export async function markPurchaseOrderReceived(tenantId: string, purchaseOrderI
   ]);
 }
 
-export async function listPurchaseOrders(tenantId: string) {
-  return prisma.purchaseOrder.findMany({
-    where: { tenantId },
-    include: { supplier: true, lines: { include: { item: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+const PURCHASE_ORDERS_PAGE_SIZE = 25;
+
+export async function listPurchaseOrders(tenantId: string, page = 1) {
+  const where = { tenantId };
+  const [items, total] = await Promise.all([
+    prisma.purchaseOrder.findMany({
+      where,
+      include: { supplier: true, lines: { include: { item: true } } },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PURCHASE_ORDERS_PAGE_SIZE,
+      take: PURCHASE_ORDERS_PAGE_SIZE,
+    }),
+    prisma.purchaseOrder.count({ where }),
+  ]);
+  return { items, total, pageCount: Math.max(1, Math.ceil(total / PURCHASE_ORDERS_PAGE_SIZE)) };
 }

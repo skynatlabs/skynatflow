@@ -21,20 +21,20 @@ export async function submitClaimAction(formData: FormData) {
 export async function markDeniedAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   await requireTenantAccess(tenantId);
-  await markClaimDenied(String(formData.get("claimId") ?? ""), String(formData.get("denialReason") ?? "").trim());
+  await markClaimDenied(tenantId, String(formData.get("claimId") ?? ""), String(formData.get("denialReason") ?? "").trim());
   revalidatePath(`/dashboard/${tenantId}/claims`);
 }
 
 export async function markReworkedAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   await requireTenantAccess(tenantId);
-  await markClaimReworked(String(formData.get("claimId") ?? ""));
+  await markClaimReworked(tenantId, String(formData.get("claimId") ?? ""));
   revalidatePath(`/dashboard/${tenantId}/claims`);
 }
 
 export async function markPaidAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   await requireTenantAccess(tenantId);
-  await markClaimPaid(String(formData.get("claimId") ?? ""));
+  await markClaimPaid(tenantId, String(formData.get("claimId") ?? ""));
   revalidatePath(`/dashboard/${tenantId}/claims`);
 }

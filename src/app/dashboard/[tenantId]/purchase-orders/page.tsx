@@ -7,6 +7,7 @@ import { getReorderSuggestions } from "@/lib/core/inventory";
 import { listPurchaseOrders } from "@/lib/core/purchaseOrders";
 import { listCustomers } from "@/lib/core/parties";
 import { addSupplierAction, createPurchaseOrderAction, sendPurchaseOrderAction, markReceivedAction } from "./actions";
+import { Pagination } from "@/components/dashboard/Pagination";
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
@@ -14,14 +15,18 @@ function money(cents: number) {
 
 export default async function PurchaseOrdersPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantId: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { tenantId } = await params;
-  const [reorderSuggestions, suppliers, purchaseOrders] = await Promise.all([
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam ?? 1));
+  const [reorderSuggestions, suppliers, { items: purchaseOrders, pageCount }] = await Promise.all([
     getReorderSuggestions(tenantId),
     listCustomers(tenantId, ["SUPPLIER"]),
-    listPurchaseOrders(tenantId),
+    listPurchaseOrders(tenantId, page),
   ]);
 
   return (
@@ -126,6 +131,7 @@ export default async function PurchaseOrdersPage({
             ))}
           </ul>
         )}
+        <Pagination page={page} pageCount={pageCount} />
       </section>
     </main>
   );

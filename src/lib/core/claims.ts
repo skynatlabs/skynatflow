@@ -15,18 +15,27 @@ export async function submitClaim(params: {
   return prisma.insuranceClaim.create({ data: params });
 }
 
-export async function markClaimDenied(claimId: string, denialReason: string) {
+async function requireOwnedClaim(tenantId: string, claimId: string) {
+  const claim = await prisma.insuranceClaim.findUnique({ where: { id: claimId } });
+  if (!claim || claim.tenantId !== tenantId) throw new Error("Claim not found.");
+  return claim;
+}
+
+export async function markClaimDenied(tenantId: string, claimId: string, denialReason: string) {
+  await requireOwnedClaim(tenantId, claimId);
   return prisma.insuranceClaim.update({
     where: { id: claimId },
     data: { status: "DENIED", denialReason },
   });
 }
 
-export async function markClaimReworked(claimId: string) {
+export async function markClaimReworked(tenantId: string, claimId: string) {
+  await requireOwnedClaim(tenantId, claimId);
   return prisma.insuranceClaim.update({ where: { id: claimId }, data: { status: "REWORKED" } });
 }
 
-export async function markClaimPaid(claimId: string) {
+export async function markClaimPaid(tenantId: string, claimId: string) {
+  await requireOwnedClaim(tenantId, claimId);
   return prisma.insuranceClaim.update({
     where: { id: claimId },
     data: { status: "PAID", resolvedAt: new Date() },
@@ -47,6 +56,7 @@ export async function getAgingDenials(tenantId: string): Promise<AgingDenial[]> 
   const denials = await prisma.insuranceClaim.findMany({
     where: { tenantId, status: "DENIED" },
     orderBy: { submittedAt: "asc" },
+    take: 200,
   });
 
   const now = Date.now();
@@ -59,6 +69,18 @@ export async function getAgingDenials(tenantId: string): Promise<AgingDenial[]> 
   }));
 }
 
-export async function listClaims(tenantId: string) {
-  return prisma.insuranceClaim.findMany({ where: { tenantId }, orderBy: { submittedAt: "desc" } });
+const CLAIMS_PAGE_SIZE = 25;
+
+export async function listClaims(tenantId: string, page = 1) {
+  const where = { tenantId };
+  const [items, total] = await Promise.all([
+    prisma.insuranceClaim.findMany({
+      where,
+      orderBy: { submittedAt: "desc" },
+      skip: (page - 1) * CLAIMS_PAGE_SIZE,
+      take: CLAIMS_PAGE_SIZE,
+    }),
+    prisma.insuranceClaim.count({ where }),
+  ]);
+  return { items, total, pageCount: Math.max(1, Math.ceil(total / CLAIMS_PAGE_SIZE)) };
 }

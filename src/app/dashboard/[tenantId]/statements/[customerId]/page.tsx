@@ -1,30 +1,55 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { Pagination } from "@/components/dashboard/Pagination";
+
+const STATEMENT_PAGE_SIZE = 50;
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
 }
 
+function ledgerEffect(type: string, amountCents: number) {
+  if (type === "PAYMENT") return -amountCents;
+  return amountCents; // INVOICE and REFUND both add to the balance owed
+}
+
 export default async function CustomerStatementPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantId: string; customerId: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { tenantId, customerId } = await params;
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam ?? 1));
   const party = await prisma.party.findUnique({ where: { id: customerId } });
   if (!party || party.tenantId !== tenantId) notFound();
 
-  const transactions = await prisma.transaction.findMany({
-    where: { tenantId, partyId: customerId, type: { in: ["INVOICE", "PAYMENT", "REFUND"] } },
-    orderBy: { createdAt: "asc" },
-  });
+  const where = { tenantId, partyId: customerId, type: { in: ["INVOICE" as const, "PAYMENT" as const, "REFUND" as const] } };
+  const skip = (page - 1) * STATEMENT_PAGE_SIZE;
 
-  let running = 0;
+  const [priorRows, transactions, total] = await Promise.all([
+    prisma.transaction.findMany({
+      where,
+      orderBy: { createdAt: "asc" },
+      take: skip,
+      select: { type: true, amountCents: true },
+    }),
+    prisma.transaction.findMany({
+      where,
+      orderBy: { createdAt: "asc" },
+      skip,
+      take: STATEMENT_PAGE_SIZE,
+    }),
+    prisma.transaction.count({ where }),
+  ]);
+  const pageCount = Math.max(1, Math.ceil(total / STATEMENT_PAGE_SIZE));
+
+  let running = priorRows.reduce((sum, t) => sum + ledgerEffect(t.type, t.amountCents), 0);
   const rows = transactions.map((t) => {
-    if (t.type === "INVOICE") running += t.amountCents;
-    if (t.type === "PAYMENT") running -= t.amountCents;
-    if (t.type === "REFUND") running += t.amountCents;
+    running += ledgerEffect(t.type, t.amountCents);
     return { ...t, running };
   });
 
@@ -80,6 +105,7 @@ export default async function CustomerStatementPage({
           </tbody>
         </table>
       </div>
+      <Pagination page={page} pageCount={pageCount} />
     </main>
   );
 }

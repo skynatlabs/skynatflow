@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { listClaims, getAgingDenials } from "@/lib/core/claims";
 import { submitClaimAction, markDeniedAction, markReworkedAction, markPaidAction } from "./actions";
+import { Pagination } from "@/components/dashboard/Pagination";
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
@@ -15,12 +16,16 @@ const STATUS_TINT: Record<string, string> = {
 
 export default async function ClaimsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantId: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { tenantId } = await params;
-  const [claims, agingDenials, invoices] = await Promise.all([
-    listClaims(tenantId),
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam ?? 1));
+  const [{ items: claims, pageCount }, agingDenials, invoices] = await Promise.all([
+    listClaims(tenantId, page),
     getAgingDenials(tenantId),
     prisma.transaction.findMany({
       where: { tenantId, type: "INVOICE" },
@@ -91,6 +96,7 @@ export default async function ClaimsPage({
           </li>
         ))}
       </ul>
+      <Pagination page={page} pageCount={pageCount} />
 
       <h2 className="mt-8 text-lg font-semibold text-[var(--kb-text)]">Submit a claim</h2>
       <form action={submitClaimAction} className="kb-card mt-3 flex flex-wrap items-end gap-3 p-4">

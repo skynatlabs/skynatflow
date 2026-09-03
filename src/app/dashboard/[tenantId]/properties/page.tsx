@@ -1,6 +1,7 @@
-import { listProperties, listLeases, getExpiringLeases } from "@/lib/core/property";
+import { listProperties, listAvailableProperties, listLeases, getExpiringLeases } from "@/lib/core/property";
 import { listCustomers } from "@/lib/core/parties";
 import { addPropertyAction, addLeaseAction, endLeaseAction } from "./actions";
+import { Pagination } from "@/components/dashboard/Pagination";
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
@@ -8,17 +9,23 @@ function money(cents: number) {
 
 export default async function PropertiesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantId: string }>;
+  searchParams: Promise<{ propertiesPage?: string; leasesPage?: string }>;
 }) {
   const { tenantId } = await params;
-  const [properties, leases, expiring, renters] = await Promise.all([
-    listProperties(tenantId),
-    listLeases(tenantId),
-    getExpiringLeases(tenantId),
-    listCustomers(tenantId),
-  ]);
-  const availableProperties = properties.filter((p) => p.status === "AVAILABLE");
+  const { propertiesPage: propertiesPageParam, leasesPage: leasesPageParam } = await searchParams;
+  const propertiesPage = Math.max(1, Number(propertiesPageParam ?? 1));
+  const leasesPage = Math.max(1, Number(leasesPageParam ?? 1));
+  const [{ items: properties, pageCount: propertiesPageCount }, { items: leases, pageCount: leasesPageCount }, expiring, availableProperties, renters] =
+    await Promise.all([
+      listProperties(tenantId, propertiesPage),
+      listLeases(tenantId, leasesPage),
+      getExpiringLeases(tenantId),
+      listAvailableProperties(tenantId),
+      listCustomers(tenantId),
+    ]);
 
   return (
     <main className="mx-auto max-w-3xl p-8">
@@ -57,6 +64,12 @@ export default async function PropertiesPage({
             <li className="px-5 py-4 text-sm text-[var(--kb-text-dim)]">No properties yet.</li>
           )}
         </ul>
+        <Pagination
+          page={propertiesPage}
+          pageCount={propertiesPageCount}
+          paramName="propertiesPage"
+          extraParams={{ leasesPage }}
+        />
 
         <form action={addPropertyAction} className="kb-card mt-3 flex flex-wrap items-end gap-3 p-4">
           <input type="hidden" name="tenantId" value={tenantId} />
@@ -106,6 +119,12 @@ export default async function PropertiesPage({
             <li className="px-5 py-4 text-sm text-[var(--kb-text-dim)]">No leases yet.</li>
           )}
         </ul>
+        <Pagination
+          page={leasesPage}
+          pageCount={leasesPageCount}
+          paramName="leasesPage"
+          extraParams={{ propertiesPage }}
+        />
 
         <form action={addLeaseAction} className="kb-card mt-3 flex flex-wrap items-end gap-3 p-4">
           <input type="hidden" name="tenantId" value={tenantId} />

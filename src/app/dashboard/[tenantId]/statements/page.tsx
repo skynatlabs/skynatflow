@@ -13,9 +13,14 @@ export default async function StatementsIndexPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  // Balance is computed per-customer (not a stored/indexed column), so this
+  // can't be paginated at the DB level without first materializing every
+  // customer's balance — capping the candidate set bounds the worst case
+  // for a very large customer base until balances are cached/aggregated.
   const customers = await prisma.party.findMany({
     where: { tenantId },
     orderBy: { name: "asc" },
+    take: 500,
   });
 
   const balances = await Promise.all(

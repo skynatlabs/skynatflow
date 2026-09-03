@@ -1,6 +1,7 @@
 import { listExpenses } from "@/lib/core/expenses";
 import { submitExpenseAction, approveExpenseAction, rejectExpenseAction } from "./actions";
 import { ReceiptUploadForm } from "./ReceiptUploadForm";
+import { Pagination } from "@/components/dashboard/Pagination";
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
@@ -14,11 +15,15 @@ const STATUS_TINT: Record<string, string> = {
 
 export default async function ExpensesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantId: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { tenantId } = await params;
-  const expenses = await listExpenses(tenantId);
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam ?? 1));
+  const { items: expenses, pageCount } = await listExpenses(tenantId, undefined, page);
 
   return (
     <main className="mx-auto max-w-2xl p-8">
@@ -64,6 +69,7 @@ export default async function ExpensesPage({
           </li>
         ))}
       </ul>
+      <Pagination page={page} pageCount={pageCount} />
     </main>
   );
 }

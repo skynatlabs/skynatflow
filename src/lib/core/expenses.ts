@@ -15,29 +15,53 @@ export async function submitExpense(params: {
   return prisma.expense.create({ data: params });
 }
 
-export async function approveExpense(expenseId: string, approvedById: string) {
+async function requireOwnedExpense(tenantId: string, expenseId: string) {
+  const expense = await prisma.expense.findUnique({ where: { id: expenseId } });
+  if (!expense || expense.tenantId !== tenantId) throw new Error("Expense not found.");
+  return expense;
+}
+
+export async function approveExpense(tenantId: string, expenseId: string, approvedById: string) {
+  await requireOwnedExpense(tenantId, expenseId);
   return prisma.expense.update({
     where: { id: expenseId },
     data: { status: "APPROVED", approvedById },
   });
 }
 
-export async function rejectExpense(expenseId: string, approvedById: string) {
+export async function rejectExpense(tenantId: string, expenseId: string, approvedById: string) {
+  await requireOwnedExpense(tenantId, expenseId);
   return prisma.expense.update({
     where: { id: expenseId },
     data: { status: "REJECTED", approvedById },
   });
 }
 
-export async function listExpenses(tenantId: string, status?: "PENDING" | "APPROVED" | "REJECTED") {
-  const expenses = await prisma.expense.findMany({
-    where: { tenantId, status },
-    orderBy: { createdAt: "desc" },
-  });
+const EXPENSES_PAGE_SIZE = 25;
+
+export async function listExpenses(
+  tenantId: string,
+  status?: "PENDING" | "APPROVED" | "REJECTED",
+  page = 1
+) {
+  const where = { tenantId, status };
+  const [expenses, total] = await Promise.all([
+    prisma.expense.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * EXPENSES_PAGE_SIZE,
+      take: EXPENSES_PAGE_SIZE,
+    }),
+    prisma.expense.count({ where }),
+  ]);
   const memberships = await prisma.membership.findMany({
     where: { id: { in: expenses.map((e) => e.submittedById) } },
     include: { user: true },
   });
   const nameById = new Map(memberships.map((m) => [m.id, m.user.name ?? m.user.email]));
-  return expenses.map((e) => ({ ...e, submittedByName: nameById.get(e.submittedById) ?? "Someone" }));
+  return {
+    items: expenses.map((e) => ({ ...e, submittedByName: nameById.get(e.submittedById) ?? "Someone" })),
+    total,
+    pageCount: Math.max(1, Math.ceil(total / EXPENSES_PAGE_SIZE)),
+  };
 }
