@@ -35,5 +35,5 @@ function daysUntil(date: Date) {
 }
 
 export async function listGoals(tenantId: string) {
-  return prisma.goal.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+  return prisma.goal.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take: 200 });
 }

@@ -27,10 +27,15 @@ export interface FuelAnomaly {
 }
 
 export async function getFuelAnomalies(tenantId: string, thresholdPercent = 25): Promise<FuelAnomaly[]> {
-  const logs = await prisma.fuelLog.findMany({
+  // Most recent 1000 fills, oldest-first for the per-driver rolling
+  // average below — anomaly detection should weigh recent behavior, not
+  // get swamped by a fleet's entire multi-year fuel history.
+  const recentLogs = await prisma.fuelLog.findMany({
     where: { tenantId },
-    orderBy: { loggedAt: "asc" },
+    orderBy: { loggedAt: "desc" },
+    take: 1000,
   });
+  const logs = recentLogs.reverse();
 
   const byDriver = new Map<string, typeof logs>();
   for (const log of logs) {

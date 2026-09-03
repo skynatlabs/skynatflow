@@ -51,6 +51,7 @@ export async function getShrinkageReport(tenantId: string): Promise<ShrinkageRow
     where: { tenantId },
     include: { item: true },
     orderBy: { createdAt: "desc" },
+    take: 500,
   });
   const stocktakes = all.filter((s) => s.expectedQty !== s.countedQty);
 

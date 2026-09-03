@@ -21,6 +21,7 @@ export default async function AiDraftsPage({
       where: { tenantId, status: "PENDING" },
       include: { party: true },
       orderBy: { createdAt: "asc" },
+      take: 200,
     }),
     prisma.aiDraft.groupBy({ by: ["status"], where: { tenantId }, _count: { _all: true } }),
   ]);

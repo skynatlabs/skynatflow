@@ -27,5 +27,6 @@ export async function listTasks(tenantId: string) {
   return prisma.task.findMany({
     where: { tenantId },
     orderBy: [{ status: "asc" }, { dueAt: "asc" }],
+    take: 300,
   });
 }

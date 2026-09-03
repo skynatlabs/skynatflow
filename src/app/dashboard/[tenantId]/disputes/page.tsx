@@ -15,6 +15,7 @@ export default async function DisputesPage({
       where: { tenantId, status: "OPEN" },
       include: { party: true },
       orderBy: { createdAt: "asc" },
+      take: 200,
     }),
     prisma.dispute.findMany({
       where: { tenantId, status: "RESOLVED" },

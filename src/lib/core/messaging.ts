@@ -51,6 +51,7 @@ export async function listThreadsForMember(tenantId: string, membershipId: strin
     where: { tenantId, participantIds: { has: membershipId } },
     orderBy: { createdAt: "desc" },
     include: { messages: { orderBy: { createdAt: "desc" }, take: 1 } },
+    take: 100,
   });
 
   const allParticipantIds = Array.from(new Set(threads.flatMap((t) => t.participantIds)));
@@ -73,10 +74,14 @@ export async function listMessages(tenantId: string, threadId: string) {
   const thread = await prisma.messageThread.findUnique({ where: { id: threadId } });
   if (!thread || thread.tenantId !== tenantId) return null;
 
-  const messages = await prisma.message.findMany({
+  // Most recent 200, oldest-first for display — a long-running thread
+  // shouldn't force loading its entire history on every poll.
+  const recent = await prisma.message.findMany({
     where: { threadId },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
+    take: 200,
   });
+  const messages = recent.reverse();
   const memberships = await prisma.membership.findMany({
     where: { id: { in: messages.map((m) => m.authorId) } },
     include: { user: true },

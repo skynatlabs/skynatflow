@@ -72,5 +72,6 @@ export async function listJobCards(tenantId: string) {
     where: { tenantId },
     include: { party: true, assignedTo: { include: { user: true } }, tasks: true, transaction: true },
     orderBy: [{ status: "asc" }, { scheduledAt: "asc" }],
+    take: 300,
   });
 }
