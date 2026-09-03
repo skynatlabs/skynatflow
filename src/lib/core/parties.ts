@@ -106,9 +106,16 @@ export async function listCustomersPaginated(
 // Full picture behind one customer record: every quote, invoice, payment,
 // and delivery/visit against them, in one call — this is what makes the
 // "unified customer record" claim in the strategic report real, not marketing.
+//
+// The party lookup is scoped to tenantId, not just the id from the URL —
+// without that, a stale link, a deleted customer, or a party id belonging
+// to a different tenant would either throw an unhandled 500 (findUniqueOrThrow
+// on a not-found id) or silently leak another tenant's customer record.
+// Returns null when the customer doesn't belong to this tenant so the page
+// can render a real 404 instead of crashing.
 export async function customerHistory(tenantId: string, partyId: string) {
   const [party, transactions, events] = await Promise.all([
-    prisma.party.findUniqueOrThrow({ where: { id: partyId } }),
+    prisma.party.findFirst({ where: { id: partyId, tenantId } }),
     prisma.transaction.findMany({
       where: { tenantId, partyId },
       orderBy: { createdAt: "desc" },
@@ -119,6 +126,7 @@ export async function customerHistory(tenantId: string, partyId: string) {
       orderBy: { createdAt: "desc" },
     }),
   ]);
+  if (!party) return null;
 
   return { party, transactions, events };
 }

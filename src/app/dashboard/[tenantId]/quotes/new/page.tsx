@@ -51,7 +51,7 @@ export default async function NewQuotePage({
   const suggestedRep = source ? null : await suggestSalesPersonForNewLead(tenantId);
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
+    <main className="mx-auto max-w-4xl p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">
         {source ? "Duplicate quote" : `New quote for a ${niche.customerLabel.toLowerCase()}`}
       </h1>

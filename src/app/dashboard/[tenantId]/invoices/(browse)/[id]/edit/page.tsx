@@ -32,7 +32,7 @@ export default async function EditInvoicePage({
   }));
 
   return (
-    <div className="mx-auto max-w-3xl p-8">
+    <div className="mx-auto max-w-4xl p-8">
       <Link href={`/dashboard/${tenantId}/invoices/${id}`} className="text-xs text-[var(--kb-text-dim)] hover:underline">
         &larr; Back
       </Link>

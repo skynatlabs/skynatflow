@@ -4,6 +4,7 @@
 // enforced by the tenant layout (requireTenantAccess).
 
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { customerHistory, getOrCreatePortalToken } from "@/lib/core/parties";
 import { totalPaid, totalRefunded } from "@/lib/core/money";
 import { listRecurringInvoices } from "@/lib/core/recurring";
@@ -33,8 +34,16 @@ export default async function CustomerHistoryPage({
   params: Promise<{ tenantId: string; id: string }>;
 }) {
   const { tenantId, id } = await params;
-  const [{ party, transactions, events }, portalToken, allRecurring, comments, memberships] = await Promise.all([
-    customerHistory(tenantId, id),
+
+  // Checked before anything else that would touch this partyId (e.g.
+  // getOrCreatePortalToken) — those don't scope to tenantId themselves, so
+  // a stale link or a party id from another tenant needs to be rejected
+  // right here rather than falling through to them.
+  const history = await customerHistory(tenantId, id);
+  if (!history) notFound();
+  const { party, transactions, events } = history;
+
+  const [portalToken, allRecurring, comments, memberships] = await Promise.all([
     getOrCreatePortalToken(id),
     listRecurringInvoices(tenantId),
     listComments(tenantId, "Party", id),
