@@ -14,8 +14,8 @@ export async function resolveDisputeAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   assertCan(access.role, "quote:send");
 
-  const dispute = await prisma.dispute.findUniqueOrThrow({ where: { id: disputeId } });
-  if (dispute.tenantId !== tenantId) throw new Error("Not found.");
+  const dispute = await prisma.dispute.findUnique({ where: { id: disputeId } });
+  if (!dispute || dispute.tenantId !== tenantId) throw new Error("Dispute not found.");
 
   await prisma.dispute.update({
     where: { id: disputeId },

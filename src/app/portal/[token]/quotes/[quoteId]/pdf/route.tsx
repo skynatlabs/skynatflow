@@ -33,13 +33,19 @@ export async function GET(
 
   const viewOnlineUrl = new URL(`/portal/${token}/quotes/${quoteId}`, request.url).toString();
 
-  const buffer = await renderTransactionPdf({
-    transaction: quote,
-    party,
-    tenant: quote.tenant,
-    docLabel: quote.quoteKind === "PROPOSAL" ? "Proposal" : "Quote",
-    viewOnlineUrl,
-  });
+  let buffer: Buffer;
+  try {
+    buffer = await renderTransactionPdf({
+      transaction: quote,
+      party,
+      tenant: quote.tenant,
+      docLabel: quote.quoteKind === "PROPOSAL" ? "Proposal" : "Quote",
+      viewOnlineUrl,
+    });
+  } catch (err) {
+    console.error(`Failed to render quote PDF ${quoteId}`, err);
+    return NextResponse.json({ error: "Couldn't generate this PDF right now — please try again." }, { status: 500 });
+  }
 
   return new Response(new Uint8Array(buffer), {
     headers: {

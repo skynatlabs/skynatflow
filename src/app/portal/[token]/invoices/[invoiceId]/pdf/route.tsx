@@ -27,13 +27,19 @@ export async function GET(
 
   const viewOnlineUrl = new URL(`/portal/${token}/invoices/${invoiceId}`, request.url).toString();
 
-  const buffer = await renderTransactionPdf({
-    transaction: invoice,
-    party,
-    tenant: invoice.tenant,
-    docLabel: "Invoice",
-    viewOnlineUrl,
-  });
+  let buffer: Buffer;
+  try {
+    buffer = await renderTransactionPdf({
+      transaction: invoice,
+      party,
+      tenant: invoice.tenant,
+      docLabel: "Invoice",
+      viewOnlineUrl,
+    });
+  } catch (err) {
+    console.error(`Failed to render invoice PDF ${invoiceId}`, err);
+    return NextResponse.json({ error: "Couldn't generate this PDF right now — please try again." }, { status: 500 });
+  }
 
   return new Response(new Uint8Array(buffer), {
     headers: {

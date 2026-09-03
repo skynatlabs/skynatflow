@@ -15,8 +15,8 @@ export async function markQuoteOutcomeAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   assertCan(access.role, "quote:send");
 
-  const existing = await prisma.transaction.findUniqueOrThrow({ where: { id: quoteId } });
-  if (existing.tenantId !== tenantId) throw new Error("Not found.");
+  const existing = await prisma.transaction.findUnique({ where: { id: quoteId } });
+  if (!existing || existing.tenantId !== tenantId) throw new Error("Quote not found.");
 
   await recordResponse(quoteId, outcome);
 

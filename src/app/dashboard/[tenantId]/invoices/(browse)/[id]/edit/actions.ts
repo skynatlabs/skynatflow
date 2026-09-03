@@ -15,8 +15,8 @@ export async function updateInvoiceLinesAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   assertCan(access.role, "invoice:create");
 
-  const invoice = await prisma.transaction.findUniqueOrThrow({ where: { id: invoiceId } });
-  if (invoice.tenantId !== tenantId || invoice.type !== "INVOICE") throw new Error("Not found.");
+  const invoice = await prisma.transaction.findUnique({ where: { id: invoiceId } });
+  if (!invoice || invoice.tenantId !== tenantId || invoice.type !== "INVOICE") throw new Error("Invoice not found.");
   if (LOCKED_STATUSES.has(invoice.status)) {
     throw new Error("A paid or refunded invoice can't be edited.");
   }

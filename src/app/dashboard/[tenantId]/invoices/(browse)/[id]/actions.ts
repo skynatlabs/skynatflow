@@ -9,8 +9,8 @@ import { assertCan } from "@/lib/core/access";
 import { recordAudit } from "@/lib/core/audit";
 
 async function loadOwnedInvoice(tenantId: string, invoiceId: string) {
-  const invoice = await prisma.transaction.findUniqueOrThrow({ where: { id: invoiceId } });
-  if (invoice.tenantId !== tenantId || invoice.type !== "INVOICE") throw new Error("Not found.");
+  const invoice = await prisma.transaction.findUnique({ where: { id: invoiceId } });
+  if (!invoice || invoice.tenantId !== tenantId || invoice.type !== "INVOICE") throw new Error("Invoice not found.");
   return invoice;
 }
 

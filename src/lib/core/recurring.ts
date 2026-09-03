@@ -64,37 +64,45 @@ export async function runDueRecurringInvoices(): Promise<{ generated: number }> 
 
   let generated = 0;
   for (const template of due) {
-    const lines = template.lines as unknown as RecurringLine[];
-    const amountCents = lines.reduce((sum, l) => sum + l.quantity * l.unitPriceCents, 0);
-    const dueAt = new Date();
-    dueAt.setDate(dueAt.getDate() + template.dueInDays);
+    // One tenant's malformed template must never abort the batch and leave
+    // every other tenant's due recurring invoices ungenerated for this run.
+    try {
+      const lines = Array.isArray(template.lines) ? (template.lines as unknown as RecurringLine[]) : [];
+      if (lines.length === 0) throw new Error(`Recurring invoice ${template.id} has no valid line items.`);
 
-    await prisma.transaction.create({
-      data: {
-        tenantId: template.tenantId,
-        partyId: template.partyId,
-        type: TransactionType.INVOICE,
-        status: TransactionStatus.SENT,
-        amountCents,
-        dueAt,
-        itemLines: {
-          create: lines.map((l) => ({
-            itemId: l.itemId,
-            quantity: l.quantity,
-            unitPriceCents: l.unitPriceCents,
-          })),
+      const amountCents = lines.reduce((sum, l) => sum + (l.quantity ?? 0) * (l.unitPriceCents ?? 0), 0);
+      const dueAt = new Date();
+      dueAt.setDate(dueAt.getDate() + template.dueInDays);
+
+      await prisma.transaction.create({
+        data: {
+          tenantId: template.tenantId,
+          partyId: template.partyId,
+          type: TransactionType.INVOICE,
+          status: TransactionStatus.SENT,
+          amountCents,
+          dueAt,
+          itemLines: {
+            create: lines.map((l) => ({
+              itemId: l.itemId,
+              quantity: l.quantity,
+              unitPriceCents: l.unitPriceCents,
+            })),
+          },
         },
-      },
-    });
+      });
 
-    await prisma.recurringInvoice.update({
-      where: { id: template.id },
-      data: {
-        lastRunAt: new Date(),
-        nextRunAt: computeNextRun(template.nextRunAt, template.frequency),
-      },
-    });
-    generated++;
+      await prisma.recurringInvoice.update({
+        where: { id: template.id },
+        data: {
+          lastRunAt: new Date(),
+          nextRunAt: computeNextRun(template.nextRunAt, template.frequency),
+        },
+      });
+      generated++;
+    } catch (err) {
+      console.error(`runDueRecurringInvoices: failed for template ${template.id}`, err);
+    }
   }
 
   return { generated };

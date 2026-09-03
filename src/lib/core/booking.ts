@@ -23,8 +23,11 @@ export const DEFAULT_BOOKING_CONFIG: BookingConfig = {
 };
 
 export function getBookingConfig(tenant: { bookingConfig: unknown }): BookingConfig {
-  if (!tenant.bookingConfig) return DEFAULT_BOOKING_CONFIG;
-  return { ...DEFAULT_BOOKING_CONFIG, ...(tenant.bookingConfig as Partial<BookingConfig>) };
+  if (!tenant.bookingConfig || typeof tenant.bookingConfig !== "object") return DEFAULT_BOOKING_CONFIG;
+  const stored = tenant.bookingConfig as Partial<BookingConfig>;
+  const merged = { ...DEFAULT_BOOKING_CONFIG, ...stored };
+  if (!Array.isArray(merged.workDays)) merged.workDays = DEFAULT_BOOKING_CONFIG.workDays;
+  return merged;
 }
 
 export async function setBookingConfig(tenantId: string, config: BookingConfig) {

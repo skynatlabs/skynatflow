@@ -10,8 +10,8 @@ async function verifyOwnership(token: string, quoteId: string) {
   const party = await findPartyByPortalToken(token);
   if (!party) throw new Error("Invalid portal link.");
 
-  const quote = await prisma.transaction.findUniqueOrThrow({ where: { id: quoteId } });
-  if (quote.partyId !== party.id) {
+  const quote = await prisma.transaction.findUnique({ where: { id: quoteId } });
+  if (!quote || quote.partyId !== party.id) {
     // Never let one customer's token act on another customer's quote.
     throw new Error("This quote does not belong to this portal link.");
   }

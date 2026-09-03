@@ -25,6 +25,9 @@ export default async function PortalCheckoutConfirmPage({
   const party = await findPartyByPortalToken(token);
   if (!party || !checkoutId) notFound();
 
+  const invoice = await prisma.transaction.findUnique({ where: { id: invoiceId } });
+  if (!invoice || invoice.partyId !== party.id || invoice.type !== "INVOICE") notFound();
+
   const checkout = await prisma.paymentCheckout.findUnique({ where: { id: checkoutId } });
   if (!checkout || checkout.invoiceId !== invoiceId) notFound();
 

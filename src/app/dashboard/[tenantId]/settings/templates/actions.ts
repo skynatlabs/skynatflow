@@ -32,8 +32,8 @@ export async function deleteTemplateAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   assertCan(access.role, "quote:create");
 
-  const existing = await prisma.proposalTemplate.findUniqueOrThrow({ where: { id: templateId } });
-  if (existing.tenantId !== tenantId) throw new Error("Not found.");
+  const existing = await prisma.proposalTemplate.findUnique({ where: { id: templateId } });
+  if (!existing || existing.tenantId !== tenantId) throw new Error("Template not found.");
 
   await deleteProposalTemplate(templateId);
   revalidatePath(`/dashboard/${tenantId}/settings/templates`);

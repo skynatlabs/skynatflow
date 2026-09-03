@@ -15,8 +15,8 @@ export async function updateQuoteLinesAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   assertCan(access.role, "quote:create");
 
-  const quote = await prisma.transaction.findUniqueOrThrow({ where: { id: quoteId } });
-  if (quote.tenantId !== tenantId || quote.type !== "QUOTE") throw new Error("Not found.");
+  const quote = await prisma.transaction.findUnique({ where: { id: quoteId } });
+  if (!quote || quote.tenantId !== tenantId || quote.type !== "QUOTE") throw new Error("Quote not found.");
   if (LOCKED_STATUSES.has(quote.status)) {
     throw new Error("This quote has already been decided and can't be edited.");
   }

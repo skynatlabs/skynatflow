@@ -85,9 +85,10 @@ export async function syncWooProductsAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   assertCan(access.role, "product:manage");
 
-  const integration = await prisma.ecommerceIntegration.findUniqueOrThrow({
+  const integration = await prisma.ecommerceIntegration.findUnique({
     where: { tenantId_platform: { tenantId, platform: "WOOCOMMERCE" } },
   });
+  if (!integration) throw new Error("Connect WooCommerce first.");
   await syncWooProducts(integration.id);
   revalidatePath(`/dashboard/${tenantId}/settings/ecommerce`);
 }

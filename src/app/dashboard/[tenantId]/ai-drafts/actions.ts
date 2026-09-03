@@ -9,11 +9,11 @@ import { assertCan } from "@/lib/core/access";
 import { recordAudit } from "@/lib/core/audit";
 
 async function loadDraft(tenantId: string, draftId: string) {
-  const draft = await prisma.aiDraft.findUniqueOrThrow({
+  const draft = await prisma.aiDraft.findUnique({
     where: { id: draftId },
     include: { party: true },
   });
-  if (draft.tenantId !== tenantId) throw new Error("Not found.");
+  if (!draft || draft.tenantId !== tenantId) throw new Error("Draft not found.");
   if (draft.status !== "PENDING") throw new Error("Already resolved.");
   return draft;
 }

@@ -68,8 +68,8 @@ export async function updateProductAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   assertCan(access.role, "product:manage");
 
-  const existing = await prisma.item.findUniqueOrThrow({ where: { id: productId } });
-  if (existing.tenantId !== tenantId) throw new Error("Not found.");
+  const existing = await prisma.item.findUnique({ where: { id: productId } });
+  if (!existing || existing.tenantId !== tenantId) throw new Error("Product not found.");
 
   const fields = readProductFields(formData);
   await updateProduct(productId, fields);
@@ -94,8 +94,8 @@ export async function toggleProductActiveAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   assertCan(access.role, "product:manage");
 
-  const existing = await prisma.item.findUniqueOrThrow({ where: { id: productId } });
-  if (existing.tenantId !== tenantId) throw new Error("Not found.");
+  const existing = await prisma.item.findUnique({ where: { id: productId } });
+  if (!existing || existing.tenantId !== tenantId) throw new Error("Product not found.");
 
   await setProductActive(productId, nextActive);
 

@@ -19,8 +19,8 @@ export async function updateCustomerAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   assertCan(access.role, "quote:create");
 
-  const party = await prisma.party.findUniqueOrThrow({ where: { id: customerId } });
-  if (party.tenantId !== tenantId) throw new Error("Not found.");
+  const party = await prisma.party.findUnique({ where: { id: customerId } });
+  if (!party || party.tenantId !== tenantId) throw new Error("Customer not found.");
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Name is required.");
@@ -45,9 +45,9 @@ export async function updateCustomerAction(formData: FormData) {
 }
 
 async function verifyInvoiceInTenant(tenantId: string, invoiceId: string) {
-  const invoice = await prisma.transaction.findUniqueOrThrow({ where: { id: invoiceId } });
-  if (invoice.tenantId !== tenantId || invoice.type !== "INVOICE") {
-    throw new Error("Not found.");
+  const invoice = await prisma.transaction.findUnique({ where: { id: invoiceId } });
+  if (!invoice || invoice.tenantId !== tenantId || invoice.type !== "INVOICE") {
+    throw new Error("Invoice not found.");
   }
   return invoice;
 }
@@ -60,8 +60,8 @@ export async function convertToInvoiceAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   assertCan(access.role, "invoice:create");
 
-  const quote = await prisma.transaction.findUniqueOrThrow({ where: { id: quoteId } });
-  if (quote.tenantId !== tenantId || quote.type !== "QUOTE") throw new Error("Not found.");
+  const quote = await prisma.transaction.findUnique({ where: { id: quoteId } });
+  if (!quote || quote.tenantId !== tenantId || quote.type !== "QUOTE") throw new Error("Quote not found.");
 
   const invoice = await convertToInvoice({ quoteId });
 
@@ -204,8 +204,8 @@ export async function toggleRecurringInvoiceAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   assertCan(access.role, "invoice:create");
 
-  const existing = await prisma.recurringInvoice.findUniqueOrThrow({ where: { id: templateId } });
-  if (existing.tenantId !== tenantId) throw new Error("Not found.");
+  const existing = await prisma.recurringInvoice.findUnique({ where: { id: templateId } });
+  if (!existing || existing.tenantId !== tenantId) throw new Error("Recurring invoice not found.");
 
   await setRecurringInvoiceActive(templateId, nextActive);
   revalidatePath(`/dashboard/${tenantId}/customers/${customerId}`);
