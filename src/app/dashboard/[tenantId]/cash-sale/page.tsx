@@ -1,6 +1,7 @@
 import { listProducts } from "@/lib/core/catalog";
 import { recordCashSaleAction } from "./actions";
 import { ProductPicker } from "../quotes/new/ProductPicker";
+import { SubmitButton } from "@/components/dashboard/SubmitButton";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
@@ -37,9 +38,9 @@ export default async function CashSalePage({
           products={products.map((p) => ({ id: p.id, name: p.name, unitPriceCents: p.unitPriceCents }))}
           label="What's being sold"
         />
-        <button type="submit" className="kb-pill kb-pill-primary w-full justify-center py-3">
+        <SubmitButton className="kb-pill kb-pill-primary w-full justify-center py-3" pendingText="Recording sale…">
           Record sale — mark paid
-        </button>
+        </SubmitButton>
       </form>
     </main>
   );

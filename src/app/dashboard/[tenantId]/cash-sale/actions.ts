@@ -22,7 +22,9 @@ export async function recordCashSaleAction(formData: FormData) {
   const priceRand = Number(formData.get("priceRand") ?? 0);
   const quantity = Number(formData.get("quantity") ?? 1);
 
-  if (!itemName || !priceRand) throw new Error("Item and price are required.");
+  if (!itemName || !(priceRand > 0) || !(quantity > 0)) {
+    throw new Error("Item, a price greater than zero, and a quantity greater than zero are required.");
+  }
 
   const role = tenant.niche === "MEDICAL" ? PartyRole.PATIENT : PartyRole.CUSTOMER;
   const party = customerName

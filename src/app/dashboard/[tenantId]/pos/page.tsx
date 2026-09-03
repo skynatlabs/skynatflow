@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { listProducts } from "@/lib/core/catalog";
 import { openTillAction, closeTillAction, checkoutAction } from "./actions";
+import { SubmitButton } from "@/components/dashboard/SubmitButton";
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
@@ -40,7 +41,7 @@ export default async function PosPage({
             <span className="block font-medium text-[var(--kb-text-dim)]">Opening float (R)</span>
             <input name="openingFloatRand" type="number" step="0.01" required className="mt-1 w-32 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm" />
           </label>
-          <button type="submit" className="kb-pill kb-pill-primary text-xs">Open till</button>
+          <SubmitButton className="kb-pill kb-pill-primary text-xs" pendingText="Opening…">Open till</SubmitButton>
         </form>
       ) : (
         <>
@@ -69,7 +70,7 @@ export default async function PosPage({
               </label>
               <label className="text-xs">
                 <span className="block font-medium text-[var(--kb-text-dim)]">Price (R)</span>
-                <input name="priceRand" type="number" step="0.01" required className="mt-1 w-24 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm" />
+                <input name="priceRand" type="number" step="0.01" min="0.01" required className="mt-1 w-24 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm" />
               </label>
               <label className="text-xs">
                 <span className="block font-medium text-[var(--kb-text-dim)]">Payment</span>
@@ -78,7 +79,7 @@ export default async function PosPage({
                   <option value="card">Card</option>
                 </select>
               </label>
-              <button type="submit" className="kb-pill kb-pill-primary text-xs">Charge</button>
+              <SubmitButton className="kb-pill kb-pill-primary text-xs" pendingText="Charging…">Charge</SubmitButton>
             </form>
           </section>
 
@@ -91,7 +92,7 @@ export default async function PosPage({
                 <span className="block font-medium text-[var(--kb-text-dim)]">Counted cash (R)</span>
                 <input name="closingCountedRand" type="number" step="0.01" required className="mt-1 w-32 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm" />
               </label>
-              <button type="submit" className="kb-pill kb-pill-ghost text-xs">Close &amp; reconcile</button>
+              <SubmitButton className="kb-pill kb-pill-ghost text-xs" pendingText="Closing…">Close &amp; reconcile</SubmitButton>
             </form>
           </section>
         </>

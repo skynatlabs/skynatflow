@@ -36,10 +36,16 @@ export async function checkoutAction(formData: FormData) {
   assertCan(access.role, "payment:record");
 
   const itemId = String(formData.get("itemId") ?? "");
-  const quantity = Number(formData.get("quantity") ?? 1);
-  const unitPriceCents = Math.round(Number(formData.get("priceRand") ?? 0) * 100);
+  const quantityRaw = String(formData.get("quantity") ?? "").trim();
+  const quantity = quantityRaw ? Number(quantityRaw) : 1;
+  const priceRand = Number(formData.get("priceRand") ?? 0);
+  const unitPriceCents = Math.round(priceRand * 100);
   const paymentMethod = String(formData.get("paymentMethod") ?? "cash") as "cash" | "card";
   const tillSessionId = String(formData.get("tillSessionId") ?? "") || undefined;
+
+  if (!itemId || !(quantity > 0) || !(priceRand > 0)) {
+    throw new Error("Pick an item, and enter a quantity and price greater than zero.");
+  }
 
   await checkoutSale({
     tenantId,

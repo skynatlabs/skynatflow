@@ -59,6 +59,7 @@ export function ProductPicker({
             name="priceRand"
             type="number"
             step="0.01"
+            min="0.01"
             required
             value={priceRand}
             onChange={(e) => setPriceRand(e.target.value)}
