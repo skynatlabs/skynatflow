@@ -59,29 +59,43 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   }
 
   const now = new Date();
-  const { object: cmd } = await generateObject({
-    model,
-    schema: CommandSchema,
-    prompt:
-      `A business owner typed this instruction into their CRM's assistant box. Work out what they want. ` +
-      `Today's date/time is ${now.toISOString()}. Three intents are supported: ` +
-      `"send_quote" — reuse a past quote for a new customer; "schedule_visit" — book a future site ` +
-      `visit or consultation for a customer (e.g. "book Peter in for a site visit Tuesday morning"); and ` +
-      `"update_customer_details" — apply a customer-requested change to their own contact/billing details ` +
-      `(e.g. "the customer on invoice for Acme Corp says their VAT number is now 123", or "update Jane's ` +
-      `address to 12 Oak Street"). This is ONLY for changing the customer's own record (name/company/VAT/` +
-      `address) — never for changing prices, quantities, or anything about what was billed. ` +
-      `For send_quote: pull out the target price in cents if a rand/dollar amount is mentioned ` +
-      `(e.g. "R39,995" -> 3999500), and a few keywords describing the product/system so the closest past ` +
-      `quote can be found (e.g. "8kva", "solar", "system"). For schedule_visit: resolve any relative date/time ` +
-      `("Tuesday morning", "next week") against today's date into scheduledAtIso (ISO 8601, in the future), ` +
-      `and set visitType — CONSULTATION for a meeting/checkup-style visit, SITE_VISIT otherwise. ` +
-      `For update_customer_details: customerName/customerPhone/customerEmail identify WHO to find (use ` +
-      `whatever identifying detail is given); the new* fields hold the NEW value for each field actually ` +
-      `mentioned — leave every field not mentioned as null, never guess or invent one. ` +
-      `Always pull out the customer's identifying name/phone/email if given. ` +
-      `If this isn't about any of those three actions, set intent to "unknown".\n\nInstruction:\n${text}`,
-  });
+  let cmd: z.infer<typeof CommandSchema>;
+  try {
+    ({ object: cmd } = await generateObject({
+      model,
+      schema: CommandSchema,
+      prompt:
+        `A business owner typed this instruction into their CRM's assistant box. Work out what they want. ` +
+        `Today's date/time is ${now.toISOString()}. Three intents are supported: ` +
+        `"send_quote" — reuse a past quote for a new customer; "schedule_visit" — book a future site ` +
+        `visit or consultation for a customer (e.g. "book Peter in for a site visit Tuesday morning"); and ` +
+        `"update_customer_details" — apply a customer-requested change to their own contact/billing details ` +
+        `(e.g. "the customer on invoice for Acme Corp says their VAT number is now 123", or "update Jane's ` +
+        `address to 12 Oak Street"). This is ONLY for changing the customer's own record (name/company/VAT/` +
+        `address) — never for changing prices, quantities, or anything about what was billed. ` +
+        `For send_quote: pull out the target price in cents if a rand/dollar amount is mentioned ` +
+        `(e.g. "R39,995" -> 3999500), and a few keywords describing the product/system so the closest past ` +
+        `quote can be found (e.g. "8kva", "solar", "system"). For schedule_visit: resolve any relative date/time ` +
+        `("Tuesday morning", "next week") against today's date into scheduledAtIso (ISO 8601, in the future), ` +
+        `and set visitType — CONSULTATION for a meeting/checkup-style visit, SITE_VISIT otherwise. ` +
+        `For update_customer_details: customerName/customerPhone/customerEmail identify WHO to find (use ` +
+        `whatever identifying detail is given); the new* fields hold the NEW value for each field actually ` +
+        `mentioned — leave every field not mentioned as null, never guess or invent one. ` +
+        `Always pull out the customer's identifying name/phone/email if given. ` +
+        `If this isn't about any of those three actions, set intent to "unknown".\n\nInstruction:\n${text}`,
+    }));
+  } catch (err) {
+    // A stored API key that's invalid/expired/rate-limited throws here at
+    // call time (createAnthropic/createGoogleGenerativeAI don't validate
+    // the key up front) — without this catch, that crashed the whole
+    // request as an unhandled 500, which the client can only report as
+    // "couldn't reach the assistant" with no way to say why.
+    console.error("PA command: AI provider call failed", err);
+    return NextResponse.json(
+      { error: "The AI assistant is temporarily unavailable — check the AI provider key in Settings, or try again shortly." },
+      { status: 200 }
+    );
+  }
 
   if (cmd.intent === "schedule_visit") {
     if (!cmd.customerName) {
