@@ -37,7 +37,8 @@ export default async function PortalInvoicePage({
   });
   if (!invoice || invoice.partyId !== party.id || invoice.type !== "INVOICE") notFound();
 
-  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: invoice.tenantId } });
+  const tenant = await prisma.tenant.findUnique({ where: { id: invoice.tenantId } });
+  if (!tenant) notFound();
 
   const gateways =
     invoice.status === "PAID"

@@ -33,8 +33,17 @@ export async function createGroupThread(params: {
   });
 }
 
-export async function sendMessage(params: { threadId: string; authorId: string; body: string }) {
-  return prisma.message.create({ data: params });
+async function requireOwnedThread(tenantId: string, threadId: string) {
+  const thread = await prisma.messageThread.findUnique({ where: { id: threadId } });
+  if (!thread || thread.tenantId !== tenantId) throw new Error("Conversation not found.");
+  return thread;
+}
+
+export async function sendMessage(params: { tenantId: string; threadId: string; authorId: string; body: string }) {
+  await requireOwnedThread(params.tenantId, params.threadId);
+  return prisma.message.create({
+    data: { threadId: params.threadId, authorId: params.authorId, body: params.body },
+  });
 }
 
 export async function listThreadsForMember(tenantId: string, membershipId: string) {
@@ -60,7 +69,10 @@ export async function listThreadsForMember(tenantId: string, membershipId: strin
   }));
 }
 
-export async function listMessages(threadId: string) {
+export async function listMessages(tenantId: string, threadId: string) {
+  const thread = await prisma.messageThread.findUnique({ where: { id: threadId } });
+  if (!thread || thread.tenantId !== tenantId) return null;
+
   const messages = await prisma.message.findMany({
     where: { threadId },
     orderBy: { createdAt: "asc" },

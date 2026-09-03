@@ -41,6 +41,6 @@ export async function sendMessageAction(formData: FormData) {
   const body = String(formData.get("body") ?? "").trim();
   if (!body) return;
 
-  await sendMessage({ threadId, authorId: access.membershipId, body });
+  await sendMessage({ tenantId, threadId, authorId: access.membershipId, body });
   revalidatePath(`/dashboard/${tenantId}/messages/${threadId}`);
 }

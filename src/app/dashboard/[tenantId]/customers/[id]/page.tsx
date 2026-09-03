@@ -211,8 +211,10 @@ export default async function CustomerHistoryPage({
 
         <ul className="mt-3 divide-y divide-[var(--kb-panel-border)]">
           {recurringForCustomer.map((r) => {
-            const lines = r.lines as unknown as { name: string; quantity: number; unitPriceCents: number }[];
-            const amount = lines.reduce((sum, l) => sum + l.quantity * l.unitPriceCents, 0);
+            const lines = Array.isArray(r.lines)
+              ? (r.lines as unknown as { name: string; quantity: number; unitPriceCents: number }[])
+              : [];
+            const amount = lines.reduce((sum, l) => sum + (l.quantity ?? 0) * (l.unitPriceCents ?? 0), 0);
             return (
               <li key={r.id} className="flex items-center justify-between py-2 text-sm">
                 <div>

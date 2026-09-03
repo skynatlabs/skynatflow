@@ -15,8 +15,10 @@ export default async function PdfTemplateEditorPage({
   const template = await prisma.tenantPdfTemplate.findUnique({ where: { id: templateId } });
   if (!template || template.tenantId !== tenantId) notFound();
 
-  const savedOrder = (template.sectionOrder as string[] | null) ?? DEFAULT_SECTION_ORDER;
-  const hiddenSections = (template.hiddenSections as string[] | null) ?? [];
+  const savedOrder = Array.isArray(template.sectionOrder)
+    ? (template.sectionOrder as string[])
+    : DEFAULT_SECTION_ORDER;
+  const hiddenSections = Array.isArray(template.hiddenSections) ? (template.hiddenSections as string[]) : [];
   // Any section not yet in the saved order (e.g. added after this
   // template was first created) is appended, visible by default — never
   // silently dropped from the layout.

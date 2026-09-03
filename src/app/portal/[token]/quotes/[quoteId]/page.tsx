@@ -26,30 +26,25 @@ export default async function PortalQuotePage({
   const party = await findPartyByPortalToken(token);
   if (!party) notFound();
 
-  const quoteCheck = await prisma.transaction.findUnique({ where: { id: quoteId } });
-  if (!quoteCheck || quoteCheck.partyId !== party.id || quoteCheck.type !== "QUOTE") {
-    notFound();
-  }
+  const quote = await prisma.transaction.findUnique({
+    where: { id: quoteId },
+    include: {
+      itemLines: { include: { item: true } },
+      tenant: true,
+      salesPersonMembership: { include: { user: true } },
+    },
+  });
+  if (!quote || quote.partyId !== party.id || quote.type !== "QUOTE") notFound();
 
   // Track this view, then check whether it just crossed the hot-lead
   // threshold — same "fire once, on open #2" behavior as Soler's alert.
   await trackQuoteOpen(quoteId);
   await maybeAlertHotLead(quoteId);
 
-  const [quote, openDispute] = await Promise.all([
-    prisma.transaction.findUniqueOrThrow({
-      where: { id: quoteId },
-      include: {
-        itemLines: { include: { item: true } },
-        tenant: true,
-        salesPersonMembership: { include: { user: true } },
-      },
-    }),
-    prisma.dispute.findFirst({
-      where: { transactionId: quoteId, status: "OPEN" },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
+  const openDispute = await prisma.dispute.findFirst({
+    where: { transactionId: quoteId, status: "OPEN" },
+    orderBy: { createdAt: "desc" },
+  });
 
   const isDecided = quote.status === "ACCEPTED" || quote.status === "DECLINED";
 

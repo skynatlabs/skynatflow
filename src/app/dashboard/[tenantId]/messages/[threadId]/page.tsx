@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { listMessages } from "@/lib/core/messaging";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
@@ -13,7 +14,8 @@ export default async function ThreadPage({
 }) {
   const { tenantId, threadId } = await params;
   const access = await requireTenantAccess(tenantId);
-  const messages = await listMessages(threadId);
+  const messages = await listMessages(tenantId, threadId);
+  if (!messages) notFound();
 
   return (
     <main className="mx-auto flex h-[calc(100vh-4rem)] max-w-2xl flex-col p-8">
