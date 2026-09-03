@@ -35,7 +35,24 @@ const REGISTRY_KEYS = new Set(API_KEY_REGISTRY.map((k) => k.key));
 
 export async function getPlatformSecret(key: string): Promise<string | null> {
   const row = await prisma.platformApiKey.findUnique({ where: { key } });
-  if (row) return decryptSecret(row.valueEnc);
+  if (row) {
+    try {
+      return decryptSecret(row.valueEnc);
+    } catch (err) {
+      // Decryption fails if AUTH_SECRET has changed since this row was
+      // saved (a redeploy with a different env value, a secret rotation)
+      // — the GCM auth tag no longer verifies. Every caller already
+      // treats "no key" as a normal, handled state (that's the whole
+      // point of the null return below), so a row that can't be read
+      // back should degrade the same way instead of crashing every page
+      // that happens to touch this key (this took down /car/ai and the
+      // AI PA command box in production). Re-saving the key from
+      // /car/api-keys re-encrypts it under the current AUTH_SECRET and
+      // clears this.
+      console.error(`[apiKeys] Failed to decrypt stored key "${key}" — treating as not configured. Re-save it at /car/api-keys.`, err);
+      return process.env[key] || null;
+    }
+  }
   return process.env[key] || null;
 }
 
