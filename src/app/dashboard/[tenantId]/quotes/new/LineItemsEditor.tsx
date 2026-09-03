@@ -192,14 +192,14 @@ export function LineItemsEditor({
                     >
                       ✕
                     </button>
+                    {/* Hidden inputs so the server action can read every row by index. */}
+                    <input type="hidden" name="lineItemId" value={row.itemId} />
+                    <input type="hidden" name="lineItemName" value={row.itemName} />
+                    <input type="hidden" name="lineQuantity" value={row.quantity} />
+                    <input type="hidden" name="linePriceRand" value={row.priceRand} />
+                    <input type="hidden" name="lineDiscountPercent" value={row.discountPercent ?? 0} />
+                    <input type="hidden" name="lineTaxRatePercent" value={row.taxRatePercent ?? ""} />
                   </td>
-                  {/* Hidden inputs so the server action can read every row by index. */}
-                  <input type="hidden" name="lineItemId" value={row.itemId} />
-                  <input type="hidden" name="lineItemName" value={row.itemName} />
-                  <input type="hidden" name="lineQuantity" value={row.quantity} />
-                  <input type="hidden" name="linePriceRand" value={row.priceRand} />
-                  <input type="hidden" name="lineDiscountPercent" value={row.discountPercent ?? 0} />
-                  <input type="hidden" name="lineTaxRatePercent" value={row.taxRatePercent ?? ""} />
                 </tr>
               );
             })}

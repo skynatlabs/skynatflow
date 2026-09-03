@@ -3,6 +3,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { totalPaid, totalRefunded, checkUnusualAmount } from "@/lib/core/money";
 import { getOrCreatePortalToken } from "@/lib/core/parties";
+import { invoiceWhatsAppMessage } from "@/lib/core/whatsappShare";
+import { WhatsAppSendButton } from "@/components/dashboard/WhatsAppSendButton";
 import {
   recordPaymentAction,
   recordRefundAction,
@@ -34,7 +36,8 @@ export default async function InvoiceDetailPage({
   });
   if (!invoice || invoice.tenantId !== tenantId || invoice.type !== "INVOICE") notFound();
 
-  const [paid, refunded, memberships, portalToken, unusual] = await Promise.all([
+  const [tenant, paid, refunded, memberships, portalToken, unusual] = await Promise.all([
+    prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } }),
     totalPaid(id),
     totalRefunded(id),
     prisma.membership.findMany({ where: { tenantId }, include: { user: true } }),
@@ -68,6 +71,16 @@ export default async function InvoiceDetailPage({
           <a href={`/portal/${portalToken}/invoices/${id}`} target="_blank" className="kb-pill kb-pill-ghost text-xs">
             View online
           </a>
+          <WhatsAppSendButton
+            phone={invoice.party.phone}
+            label="Send via WhatsApp"
+            message={invoiceWhatsAppMessage({
+              tenantName: tenant.name,
+              customerName: invoice.party.name,
+              amountLabel: money(invoice.amountCents),
+              viewUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com"}/portal/${portalToken}/invoices/${id}`,
+            })}
+          />
         </div>
       </div>
 

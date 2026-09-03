@@ -3,8 +3,11 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getOrCreatePortalToken } from "@/lib/core/parties";
 import { checkUnusualAmount } from "@/lib/core/money";
+import { quoteWhatsAppMessage } from "@/lib/core/whatsappShare";
+import { WhatsAppSendButton } from "@/components/dashboard/WhatsAppSendButton";
 import {
   sendQuoteAction,
+  sendQuoteViaWhatsAppAction,
   markQuoteOutcomeAction,
   convertQuoteToInvoiceAction,
   setQuoteSalesPersonAction,
@@ -35,7 +38,8 @@ export default async function QuoteDetailPage({
   });
   if (!quote || quote.tenantId !== tenantId || quote.type !== "QUOTE") notFound();
 
-  const [memberships, invoicedChild, portalToken, unusual] = await Promise.all([
+  const [tenant, memberships, invoicedChild, portalToken, unusual] = await Promise.all([
+    prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } }),
     prisma.membership.findMany({ where: { tenantId }, include: { user: true } }),
     prisma.transaction.findFirst({ where: { parentId: id, type: "INVOICE" } }),
     getOrCreatePortalToken(quote.partyId),
@@ -126,13 +130,25 @@ export default async function QuoteDetailPage({
 
       <div className="kb-card mt-4 flex flex-wrap items-center gap-2 p-6">
         {quote.status === "DRAFT" && (
-          <form action={sendQuoteAction}>
-            <input type="hidden" name="tenantId" value={tenantId} />
-            <input type="hidden" name="quoteId" value={id} />
-            <button type="submit" className="kb-pill kb-pill-primary text-xs">
-              Send to customer
-            </button>
-          </form>
+          <>
+            <WhatsAppSendButton
+              phone={quote.party.phone}
+              message={quoteWhatsAppMessage({
+                tenantName: tenant.name,
+                customerName: quote.party.name,
+                amountLabel: money(quote.amountCents),
+                viewUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com"}/portal/${portalToken}/quotes/${id}`,
+              })}
+              markSentAction={sendQuoteViaWhatsAppAction.bind(null, tenantId, id)}
+            />
+            <form action={sendQuoteAction}>
+              <input type="hidden" name="tenantId" value={tenantId} />
+              <input type="hidden" name="quoteId" value={id} />
+              <button type="submit" className="kb-pill kb-pill-ghost text-xs">
+                Mark sent (no WhatsApp)
+              </button>
+            </form>
+          </>
         )}
         {quote.status === "SENT" && (
           <>
