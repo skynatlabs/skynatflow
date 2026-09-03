@@ -1,16 +1,20 @@
 import { prisma } from "@/lib/db";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { updateBankingDetailsAction } from "./actions";
+import { SubmitButton } from "@/components/dashboard/SubmitButton";
 
 const inputClass =
   "mt-1 w-full rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2.5 text-sm text-[var(--kb-text)]";
 
 export default async function BankingSettingsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantId: string }>;
+  searchParams: Promise<{ saved?: string }>;
 }) {
   const { tenantId } = await params;
+  const { saved } = await searchParams;
   const access = await requireTenantAccess(tenantId);
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
   const isOwner = access.role === "OWNER";
@@ -24,6 +28,12 @@ export default async function BankingSettingsPage({
         can never see or change where money gets paid to, which closes off the most common
         invoice-fraud path (someone with staff access swapping the bank details).
       </p>
+
+      {saved === "1" && (
+        <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          Banking details saved.
+        </p>
+      )}
 
       {!isOwner && (
         <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
@@ -85,9 +95,9 @@ export default async function BankingSettingsPage({
               real before paying or accepting.
             </p>
           </div>
-          <button type="submit" className="kb-pill kb-pill-primary w-full justify-center py-3">
+          <SubmitButton className="kb-pill kb-pill-primary w-full justify-center py-3" pendingText="Saving…">
             Save
-          </button>
+          </SubmitButton>
         </form>
       )}
     </main>

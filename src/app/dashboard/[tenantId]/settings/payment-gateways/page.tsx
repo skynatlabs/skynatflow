@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { gatewaysForRegion } from "@/lib/payments/registry";
 import { connectPaymentGatewayAction, disconnectPaymentGatewayAction } from "./actions";
+import { SubmitButton } from "@/components/dashboard/SubmitButton";
 
 const inputClass =
   "flex-1 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm text-[var(--kb-text)]";
@@ -64,17 +65,20 @@ export default async function PaymentGatewaysPage({
                       defaultValue={existing?.secretKey ?? ""}
                       className={inputClass}
                     />
-                    <button type="submit" className="kb-pill kb-pill-ghost text-xs">
+                    <SubmitButton className="kb-pill kb-pill-ghost text-xs" pendingText="Saving…">
                       {existing ? "Update" : "Connect"}
-                    </button>
+                    </SubmitButton>
                   </form>
                   {isActive && (
                     <form action={disconnectPaymentGatewayAction} className="mt-2">
                       <input type="hidden" name="tenantId" value={tenantId} />
                       <input type="hidden" name="provider" value={provider} />
-                      <button type="submit" className="text-xs text-[var(--kb-text-dim)] hover:underline">
+                      <SubmitButton
+                        className="text-xs text-[var(--kb-text-dim)] hover:underline"
+                        pendingText="Disconnecting…"
+                      >
                         Disconnect
-                      </button>
+                      </SubmitButton>
                     </form>
                   )}
                 </div>

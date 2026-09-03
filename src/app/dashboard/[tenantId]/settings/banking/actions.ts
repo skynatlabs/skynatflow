@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { recordAudit } from "@/lib/core/audit";
@@ -40,4 +41,5 @@ export async function updateBankingDetailsAction(formData: FormData) {
   });
 
   revalidatePath(`/dashboard/${tenantId}/settings/banking`);
+  redirect(`/dashboard/${tenantId}/settings/banking?saved=1`);
 }

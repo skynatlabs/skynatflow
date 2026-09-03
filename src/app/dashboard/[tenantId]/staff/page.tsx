@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { can } from "@/lib/core/access";
 import { inviteStaffAction, removeStaffAction } from "./actions";
+import { SubmitButton } from "@/components/dashboard/SubmitButton";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
@@ -71,9 +72,9 @@ export default async function StaffPage({
               ))}
             </select>
           </div>
-          <button type="submit" className="kb-pill kb-pill-primary">
+          <SubmitButton className="kb-pill kb-pill-primary" pendingText="Adding…">
             Add to team
-          </button>
+          </SubmitButton>
         </form>
       )}
 
@@ -98,9 +99,9 @@ export default async function StaffPage({
                 <form action={removeStaffAction}>
                   <input type="hidden" name="tenantId" value={tenantId} />
                   <input type="hidden" name="membershipId" value={m.id} />
-                  <button type="submit" className="text-xs text-red-400 hover:underline">
+                  <SubmitButton className="text-xs text-red-400 hover:underline" pendingText="Removing…">
                     Remove
-                  </button>
+                  </SubmitButton>
                 </form>
               )}
             </div>
