@@ -13,6 +13,7 @@ import { prisma } from "@/lib/db";
 import { addCustomerCommentAction } from "./comments-actions";
 import { PhotoEventForm } from "./PhotoEventForm";
 import { EditCustomerForm } from "./EditCustomerForm";
+import { SubmitButton } from "@/components/dashboard/SubmitButton";
 import {
   convertToInvoiceAction,
   recordPaymentAction,
@@ -144,9 +145,9 @@ export default async function CustomerHistoryPage({
                         </option>
                       ))}
                     </select>
-                    <button type="submit" className="text-xs font-semibold hover:underline">
+                    <SubmitButton className="text-xs font-semibold hover:underline" pendingText="Converting…">
                       Convert to invoice &rarr;
-                    </button>
+                    </SubmitButton>
                   </form>
                 )}
                 {t.type === "INVOICE" && (
@@ -162,13 +163,14 @@ export default async function CustomerHistoryPage({
                         name="amountRand"
                         type="number"
                         step="0.01"
+                        min="0.01"
                         placeholder="Amount"
                         required
                         className="w-24 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1 text-xs text-[var(--kb-text)]"
                       />
-                      <button type="submit" className="text-xs font-semibold hover:underline">
+                      <SubmitButton className="text-xs font-semibold hover:underline" pendingText="Recording…">
                         Record payment
-                      </button>
+                      </SubmitButton>
                     </form>
                     {(netPaidByInvoice.get(t.id) ?? 0) > 0 && (
                       <form action={recordRefundAction} className="flex items-center gap-1.5">
@@ -179,16 +181,17 @@ export default async function CustomerHistoryPage({
                           name="amountRand"
                           type="number"
                           step="0.01"
+                          min="0.01"
                           placeholder="Amount"
                           required
                           className="w-24 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1 text-xs text-[var(--kb-text)]"
                         />
-                        <button
-                          type="submit"
+                        <SubmitButton
                           className="text-xs font-semibold text-[var(--kb-text-dim)] hover:underline"
+                          pendingText="Refunding…"
                         >
                           Refund
-                        </button>
+                        </SubmitButton>
                       </form>
                     )}
                   </div>
@@ -269,6 +272,7 @@ export default async function CustomerHistoryPage({
               name="priceRand"
               type="number"
               step="0.01"
+              min="0.01"
               required
               className="w-24 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1.5 text-xs text-[var(--kb-text)]"
             />
@@ -285,9 +289,7 @@ export default async function CustomerHistoryPage({
               <option value="QUARTERLY">Quarter</option>
             </select>
           </div>
-          <button type="submit" className="kb-pill kb-pill-primary text-xs">
-            Set up
-          </button>
+          <SubmitButton pendingText="Setting up…">Set up</SubmitButton>
         </form>
       </section>
 

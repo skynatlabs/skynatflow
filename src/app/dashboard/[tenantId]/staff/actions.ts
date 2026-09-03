@@ -58,6 +58,8 @@ export async function removeStaffAction(formData: FormData) {
   assertCan(access.role, "staff:manage");
 
   const membershipId = String(formData.get("membershipId") ?? "");
+  const membership = await prisma.membership.findUnique({ where: { id: membershipId } });
+  if (!membership || membership.tenantId !== tenantId) throw new Error("Staff member not found.");
   await prisma.membership.delete({ where: { id: membershipId } });
 
   await recordAudit({

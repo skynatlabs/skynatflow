@@ -34,7 +34,7 @@ export async function toggleJobCardTaskAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   assertCan(access.role, "task:manage");
 
-  await toggleJobCardTask(String(formData.get("taskId") ?? ""));
+  await toggleJobCardTask(tenantId, String(formData.get("taskId") ?? ""));
   revalidatePath(`/dashboard/${tenantId}/job-cards`);
 }
 
@@ -45,7 +45,7 @@ export async function setJobCardStatusAction(formData: FormData) {
 
   const jobCardId = String(formData.get("jobCardId") ?? "");
   const status = String(formData.get("status") ?? "") as "SCHEDULED" | "IN_PROGRESS" | "DONE";
-  await setJobCardStatus(jobCardId, status);
+  await setJobCardStatus(tenantId, jobCardId, status);
   revalidatePath(`/dashboard/${tenantId}/job-cards`);
 }
 
@@ -56,7 +56,7 @@ export async function completeJobCardAction(formData: FormData) {
 
   const jobCardId = String(formData.get("jobCardId") ?? "");
   try {
-    await completeJobCard(jobCardId);
+    await completeJobCard(tenantId, jobCardId);
   } catch (err) {
     throw new Error(err instanceof Error ? err.message : "Couldn't complete this job card.");
   }

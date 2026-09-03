@@ -23,10 +23,10 @@ describe("task board", () => {
 
   it("moves a task through statuses", async () => {
     const task = await createTask({ tenantId, title: "Deliver the panels" });
-    const inProgress = await updateTaskStatus(task.id, "IN_PROGRESS");
+    const inProgress = await updateTaskStatus(tenantId, task.id, "IN_PROGRESS");
     expect(inProgress.status).toBe("IN_PROGRESS");
 
-    const done = await updateTaskStatus(task.id, "DONE");
+    const done = await updateTaskStatus(tenantId, task.id, "DONE");
     expect(done.status).toBe("DONE");
   });
 

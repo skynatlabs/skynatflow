@@ -29,7 +29,7 @@ export async function endInvolvementAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   assertCan(access.role, "staff:manage");
 
-  await endInvolvement(String(formData.get("involvementId") ?? ""));
+  await endInvolvement(tenantId, String(formData.get("involvementId") ?? ""));
   revalidatePath(`/dashboard/${tenantId}/members`);
 }
 
@@ -40,9 +40,12 @@ export async function setRenewalDateAction(formData: FormData) {
 
   const involvementId = String(formData.get("involvementId") ?? "");
   const renewalDueAtRaw = String(formData.get("renewalDueAt") ?? "");
-  if (!involvementId || !renewalDueAtRaw) throw new Error("Renewal date is required.");
+  const renewalDueAt = new Date(renewalDueAtRaw);
+  if (!involvementId || !renewalDueAtRaw || Number.isNaN(renewalDueAt.getTime())) {
+    throw new Error("A valid renewal date is required.");
+  }
 
-  await setRenewalDueDate(involvementId, new Date(renewalDueAtRaw));
+  await setRenewalDueDate(tenantId, involvementId, renewalDueAt);
   revalidatePath(`/dashboard/${tenantId}/members`);
 }
 

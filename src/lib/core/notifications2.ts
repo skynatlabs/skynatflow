@@ -60,7 +60,9 @@ export async function unreadCount(tenantId: string, membershipId?: string) {
   });
 }
 
-export async function markNotificationRead(notificationId: string) {
+export async function markNotificationRead(tenantId: string, notificationId: string) {
+  const notification = await prisma.notification.findUnique({ where: { id: notificationId } });
+  if (!notification || notification.tenantId !== tenantId) throw new Error("Notification not found.");
   return prisma.notification.update({ where: { id: notificationId }, data: { isRead: true } });
 }
 

@@ -62,7 +62,7 @@ describe("buildPurchaseOrderLinesFromReorderSuggestions", () => {
 describe("sendPurchaseOrder", () => {
   it("marks the PO as SENT with a timestamp when the supplier has an email", async () => {
     const po = await createPurchaseOrder({ tenantId, supplierId, lines: [{ itemId, quantity: 5, unitCostCents: 8000 }] });
-    const result = await sendPurchaseOrder(po.id);
+    const result = await sendPurchaseOrder(tenantId, po.id);
     expect(result.ok).toBe(true);
 
     const updated = await prisma.purchaseOrder.findUniqueOrThrow({ where: { id: po.id } });
@@ -74,7 +74,7 @@ describe("sendPurchaseOrder", () => {
     const noEmailSupplier = await prisma.party.create({ data: { tenantId, role: PartyRole.SUPPLIER, name: "No Email Supplier" } });
     const po = await createPurchaseOrder({ tenantId, supplierId: noEmailSupplier.id, lines: [{ itemId, quantity: 5, unitCostCents: 8000 }] });
 
-    const result = await sendPurchaseOrder(po.id);
+    const result = await sendPurchaseOrder(tenantId, po.id);
     expect(result.ok).toBe(false);
 
     const unchanged = await prisma.purchaseOrder.findUniqueOrThrow({ where: { id: po.id } });
@@ -87,7 +87,7 @@ describe("markPurchaseOrderReceived", () => {
     const before = await prisma.item.findUniqueOrThrow({ where: { id: itemId } });
     const po = await createPurchaseOrder({ tenantId, supplierId, lines: [{ itemId, quantity: 15, unitCostCents: 8000 }] });
 
-    await markPurchaseOrderReceived(po.id);
+    await markPurchaseOrderReceived(tenantId, po.id);
 
     const after = await prisma.item.findUniqueOrThrow({ where: { id: itemId } });
     expect(after.stockQty).toBe((before.stockQty ?? 0) + 15);

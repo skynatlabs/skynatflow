@@ -22,9 +22,13 @@ export async function inviteConnection(params: {
 }
 
 export async function respondToConnection(
+  buyerTenantId: string,
   connectionId: string,
   response: "ACCEPTED" | "DECLINED"
 ) {
+  const connection = await prisma.wholesaleConnection.findUnique({ where: { id: connectionId } });
+  if (!connection || connection.buyerTenantId !== buyerTenantId) throw new Error("Invite not found.");
+
   return prisma.wholesaleConnection.update({
     where: { id: connectionId },
     data: { status: response },

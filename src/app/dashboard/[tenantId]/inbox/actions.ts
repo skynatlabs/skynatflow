@@ -15,7 +15,7 @@ export async function markEmailReadAction(formData: FormData) {
 export async function markNotificationReadAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   await requireTenantAccess(tenantId);
-  await markNotificationRead(String(formData.get("notificationId") ?? ""));
+  await markNotificationRead(tenantId, String(formData.get("notificationId") ?? ""));
   revalidatePath(`/dashboard/${tenantId}/inbox`);
 }
 

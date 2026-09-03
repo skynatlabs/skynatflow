@@ -37,6 +37,6 @@ export async function moveTaskAction(formData: FormData) {
   const taskId = String(formData.get("taskId") ?? "");
   const status = String(formData.get("status") ?? "TODO") as TaskStatus;
 
-  await updateTaskStatus(taskId, status);
+  await updateTaskStatus(tenantId, taskId, status);
   revalidatePath(`/dashboard/${tenantId}/tasks`);
 }

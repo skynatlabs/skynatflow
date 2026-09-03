@@ -162,7 +162,7 @@ export async function createRecurringInvoiceAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   assertCan(access.role, "invoice:create");
 
-  if (!itemName || !priceRand) throw new Error("Item and price are required.");
+  if (!itemName || !(priceRand > 0)) throw new Error("Item and a price greater than zero are required.");
 
   const catalogMatch = itemId
     ? await prisma.item.findFirst({ where: { id: itemId, tenantId, name: itemName } })

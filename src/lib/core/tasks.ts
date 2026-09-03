@@ -17,7 +17,9 @@ export async function createTask(params: {
   return prisma.task.create({ data: params });
 }
 
-export async function updateTaskStatus(taskId: string, status: TaskStatus) {
+export async function updateTaskStatus(tenantId: string, taskId: string, status: TaskStatus) {
+  const task = await prisma.task.findUnique({ where: { id: taskId } });
+  if (!task || task.tenantId !== tenantId) throw new Error("Task not found.");
   return prisma.task.update({ where: { id: taskId }, data: { status } });
 }
 

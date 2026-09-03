@@ -25,7 +25,14 @@ export async function startInvolvement(params: {
   });
 }
 
-export async function endInvolvement(involvementId: string, endDate: Date = new Date()) {
+async function requireOwnedInvolvement(tenantId: string, involvementId: string) {
+  const involvement = await prisma.membershipInvolvement.findUnique({ where: { id: involvementId } });
+  if (!involvement || involvement.tenantId !== tenantId) throw new Error("Involvement record not found.");
+  return involvement;
+}
+
+export async function endInvolvement(tenantId: string, involvementId: string, endDate: Date = new Date()) {
+  await requireOwnedInvolvement(tenantId, involvementId);
   return prisma.membershipInvolvement.update({
     where: { id: involvementId },
     data: { endDate },
@@ -73,7 +80,8 @@ export async function checkMembershipRenewals(tenantId: string, withinDays = 14)
   }));
 }
 
-export async function setRenewalDueDate(involvementId: string, renewalDueAt: Date) {
+export async function setRenewalDueDate(tenantId: string, involvementId: string, renewalDueAt: Date) {
+  await requireOwnedInvolvement(tenantId, involvementId);
   return prisma.membershipInvolvement.update({ where: { id: involvementId }, data: { renewalDueAt } });
 }
 

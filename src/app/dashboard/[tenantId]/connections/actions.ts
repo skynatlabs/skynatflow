@@ -44,7 +44,7 @@ export async function acceptConnectionAction(formData: FormData) {
   assertCan(access.role, "connection:accept");
 
   const connectionId = String(formData.get("connectionId") ?? "");
-  await respondToConnection(connectionId, "ACCEPTED");
+  await respondToConnection(tenantId, connectionId, "ACCEPTED");
 
   await recordAudit({
     tenantId,

@@ -31,12 +31,19 @@ export async function createJobCard(params: {
   });
 }
 
-export async function toggleJobCardTask(taskId: string) {
-  const task = await prisma.jobCardTask.findUniqueOrThrow({ where: { id: taskId } });
+export async function toggleJobCardTask(tenantId: string, taskId: string) {
+  const task = await prisma.jobCardTask.findUnique({ where: { id: taskId }, include: { jobCard: true } });
+  if (!task || task.jobCard.tenantId !== tenantId) throw new Error("Task not found.");
   return prisma.jobCardTask.update({ where: { id: taskId }, data: { isDone: !task.isDone } });
 }
 
-export async function setJobCardStatus(jobCardId: string, status: "SCHEDULED" | "IN_PROGRESS" | "DONE") {
+export async function setJobCardStatus(
+  tenantId: string,
+  jobCardId: string,
+  status: "SCHEDULED" | "IN_PROGRESS" | "DONE"
+) {
+  const jobCard = await prisma.jobCard.findUnique({ where: { id: jobCardId } });
+  if (!jobCard || jobCard.tenantId !== tenantId) throw new Error("Job card not found.");
   return prisma.jobCard.update({
     where: { id: jobCardId },
     data: { status, completedAt: status === "DONE" ? new Date() : null },
@@ -46,8 +53,9 @@ export async function setJobCardStatus(jobCardId: string, status: "SCHEDULED" | 
 // A job card can only be marked DONE once every checklist item is
 // ticked — the whole point of a checklist is that skipping a step isn't
 // silently allowed just because someone's in a hurry to close it out.
-export async function completeJobCard(jobCardId: string, completionPhotoUrl?: string) {
-  const jobCard = await prisma.jobCard.findUniqueOrThrow({ where: { id: jobCardId }, include: { tasks: true } });
+export async function completeJobCard(tenantId: string, jobCardId: string, completionPhotoUrl?: string) {
+  const jobCard = await prisma.jobCard.findUnique({ where: { id: jobCardId }, include: { tasks: true } });
+  if (!jobCard || jobCard.tenantId !== tenantId) throw new Error("Job card not found.");
   const incomplete = jobCard.tasks.filter((t) => !t.isDone);
   if (incomplete.length > 0) {
     throw new Error(`${incomplete.length} checklist item${incomplete.length === 1 ? "" : "s"} still need to be ticked off before this can be marked done.`);

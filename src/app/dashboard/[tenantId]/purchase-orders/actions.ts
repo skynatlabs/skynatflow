@@ -45,7 +45,7 @@ export async function sendPurchaseOrderAction(formData: FormData) {
   await requireTenantAccess(tenantId);
 
   const purchaseOrderId = String(formData.get("purchaseOrderId") ?? "");
-  await sendPurchaseOrder(purchaseOrderId);
+  await sendPurchaseOrder(tenantId, purchaseOrderId);
   revalidatePath(`/dashboard/${tenantId}/purchase-orders`);
 }
 
@@ -54,6 +54,6 @@ export async function markReceivedAction(formData: FormData) {
   await requireTenantAccess(tenantId);
 
   const purchaseOrderId = String(formData.get("purchaseOrderId") ?? "");
-  await markPurchaseOrderReceived(purchaseOrderId);
+  await markPurchaseOrderReceived(tenantId, purchaseOrderId);
   revalidatePath(`/dashboard/${tenantId}/purchase-orders`);
 }

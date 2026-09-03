@@ -44,7 +44,14 @@ export async function createPdfTemplate(params: {
   });
 }
 
+async function requireOwnedTemplate(tenantId: string, templateId: string) {
+  const template = await prisma.tenantPdfTemplate.findUnique({ where: { id: templateId } });
+  if (!template || template.tenantId !== tenantId) throw new Error("Template not found.");
+  return template;
+}
+
 export async function setDefaultPdfTemplate(tenantId: string, templateId: string) {
+  await requireOwnedTemplate(tenantId, templateId);
   await prisma.tenantPdfTemplate.updateMany({ where: { tenantId }, data: { isDefault: false } });
   return prisma.tenantPdfTemplate.update({ where: { id: templateId }, data: { isDefault: true } });
 }
@@ -55,8 +62,7 @@ export async function updateSectionLayout(params: {
   sectionOrder: string[];
   hiddenSections: string[];
 }) {
-  const template = await prisma.tenantPdfTemplate.findUniqueOrThrow({ where: { id: params.templateId } });
-  if (template.tenantId !== params.tenantId) throw new Error("Not found.");
+  await requireOwnedTemplate(params.tenantId, params.templateId);
 
   return prisma.tenantPdfTemplate.update({
     where: { id: params.templateId },
@@ -72,8 +78,7 @@ export async function updateStyleOverrides(params: {
   tableHeaderStyle?: string;
   logoShape?: string;
 }) {
-  const template = await prisma.tenantPdfTemplate.findUniqueOrThrow({ where: { id: params.templateId } });
-  if (template.tenantId !== params.tenantId) throw new Error("Not found.");
+  await requireOwnedTemplate(params.tenantId, params.templateId);
 
   return prisma.tenantPdfTemplate.update({
     where: { id: params.templateId },
@@ -87,8 +92,7 @@ export async function updateStyleOverrides(params: {
 }
 
 export async function deletePdfTemplate(tenantId: string, templateId: string) {
-  const template = await prisma.tenantPdfTemplate.findUniqueOrThrow({ where: { id: templateId } });
-  if (template.tenantId !== tenantId) throw new Error("Not found.");
+  const template = await requireOwnedTemplate(tenantId, templateId);
   await prisma.tenantPdfTemplate.delete({ where: { id: templateId } });
 
   if (template.isDefault) {

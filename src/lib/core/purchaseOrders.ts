@@ -58,11 +58,15 @@ function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
 }
 
-export async function sendPurchaseOrder(purchaseOrderId: string): Promise<{ ok: boolean; reason?: string }> {
-  const po = await prisma.purchaseOrder.findUniqueOrThrow({
+export async function sendPurchaseOrder(
+  tenantId: string,
+  purchaseOrderId: string
+): Promise<{ ok: boolean; reason?: string }> {
+  const po = await prisma.purchaseOrder.findUnique({
     where: { id: purchaseOrderId },
     include: { lines: { include: { item: true } }, supplier: true, tenant: true },
   });
+  if (!po || po.tenantId !== tenantId) throw new Error("Purchase order not found.");
 
   if (!po.supplier.email) {
     return { ok: false, reason: "This supplier has no email on file — send it another way, or add their email first." };
@@ -72,27 +76,35 @@ export async function sendPurchaseOrder(purchaseOrderId: string): Promise<{ ok: 
     .map((l) => `<tr><td>${l.item.name}</td><td>${l.quantity}</td><td>${money(l.unitCostCents)}</td><td>${money(l.quantity * l.unitCostCents)}</td></tr>`)
     .join("");
 
-  await sendEmail({
-    to: po.supplier.email,
-    subject: `Purchase order from ${po.tenant.name}`,
-    html: `
-      <p>Hi ${po.supplier.name},</p>
-      <p>Please supply the following:</p>
-      <table border="1" cellpadding="6" style="border-collapse:collapse">
-        <thead><tr><th>Item</th><th>Qty</th><th>Unit cost</th><th>Total</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <p><strong>Order total: ${money(po.totalCostCents)}</strong></p>
-      <p>Thanks,<br/>${po.tenant.name}</p>
-    `,
-  });
+  try {
+    await sendEmail({
+      to: po.supplier.email,
+      subject: `Purchase order from ${po.tenant.name}`,
+      html: `
+        <p>Hi ${po.supplier.name},</p>
+        <p>Please supply the following:</p>
+        <table border="1" cellpadding="6" style="border-collapse:collapse">
+          <thead><tr><th>Item</th><th>Qty</th><th>Unit cost</th><th>Total</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p><strong>Order total: ${money(po.totalCostCents)}</strong></p>
+        <p>Thanks,<br/>${po.tenant.name}</p>
+      `,
+    });
+  } catch {
+    return { ok: false, reason: "Couldn't send the email right now — please try again in a moment." };
+  }
 
   await prisma.purchaseOrder.update({ where: { id: purchaseOrderId }, data: { status: "SENT", sentAt: new Date() } });
   return { ok: true };
 }
 
-export async function markPurchaseOrderReceived(purchaseOrderId: string) {
-  const po = await prisma.purchaseOrder.findUniqueOrThrow({ where: { id: purchaseOrderId }, include: { lines: { include: { item: true } } } });
+export async function markPurchaseOrderReceived(tenantId: string, purchaseOrderId: string) {
+  const po = await prisma.purchaseOrder.findUnique({
+    where: { id: purchaseOrderId },
+    include: { lines: { include: { item: true } } },
+  });
+  if (!po || po.tenantId !== tenantId) throw new Error("Purchase order not found.");
 
   // Receiving a PO is a real stock movement — bump each line's item up by
   // the ordered quantity, same "surface it in the real number" posture

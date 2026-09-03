@@ -55,7 +55,7 @@ describe("completeJobCard", () => {
       tenantId, transactionId, partyId: customerId, title: "Incomplete install",
       taskLabels: ["Step one", "Step two"],
     });
-    await expect(completeJobCard(jobCard.id)).rejects.toThrow(/checklist/i);
+    await expect(completeJobCard(tenantId, jobCard.id)).rejects.toThrow(/checklist/i);
   });
 
   it("completes once every task is ticked off", async () => {
@@ -64,10 +64,10 @@ describe("completeJobCard", () => {
       taskLabels: ["Step one", "Step two"],
     });
     for (const task of jobCard.tasks) {
-      await toggleJobCardTask(task.id);
+      await toggleJobCardTask(tenantId, task.id);
     }
 
-    const completed = await completeJobCard(jobCard.id, "https://example.com/photo.jpg");
+    const completed = await completeJobCard(tenantId, jobCard.id, "https://example.com/photo.jpg");
     expect(completed.status).toBe("DONE");
     expect(completed.completedAt).not.toBeNull();
     expect(completed.completionPhotoUrl).toBe("https://example.com/photo.jpg");
@@ -75,7 +75,7 @@ describe("completeJobCard", () => {
 
   it("allows a job card with no checklist at all to be completed immediately", async () => {
     const jobCard = await createJobCard({ tenantId, transactionId, partyId: customerId, title: "No checklist job" });
-    const completed = await completeJobCard(jobCard.id);
+    const completed = await completeJobCard(tenantId, jobCard.id);
     expect(completed.status).toBe("DONE");
   });
 });
@@ -85,10 +85,10 @@ describe("toggleJobCardTask", () => {
     const jobCard = await createJobCard({ tenantId, transactionId, partyId: customerId, title: "Toggle test", taskLabels: ["Only step"] });
     const task = jobCard.tasks[0];
 
-    const toggledOn = await toggleJobCardTask(task.id);
+    const toggledOn = await toggleJobCardTask(tenantId, task.id);
     expect(toggledOn.isDone).toBe(true);
 
-    const toggledOff = await toggleJobCardTask(task.id);
+    const toggledOff = await toggleJobCardTask(tenantId, task.id);
     expect(toggledOff.isDone).toBe(false);
   });
 });
@@ -96,9 +96,9 @@ describe("toggleJobCardTask", () => {
 describe("setJobCardStatus", () => {
   it("clears completedAt when moved back off DONE", async () => {
     const jobCard = await createJobCard({ tenantId, transactionId, partyId: customerId, title: "Status test" });
-    await completeJobCard(jobCard.id);
+    await completeJobCard(tenantId, jobCard.id);
 
-    const reopened = await setJobCardStatus(jobCard.id, "IN_PROGRESS");
+    const reopened = await setJobCardStatus(tenantId, jobCard.id, "IN_PROGRESS");
     expect(reopened.status).toBe("IN_PROGRESS");
     expect(reopened.completedAt).toBeNull();
   });

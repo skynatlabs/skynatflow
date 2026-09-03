@@ -55,7 +55,7 @@ describe("checkMembershipRenewals — chasing a lapsing membership", () => {
     const involvement = await prisma.membershipInvolvement.create({
       data: { tenantId, partyId: member.id, role: InvolvementRole.MEMBER, startDate: new Date() },
     });
-    await setRenewalDueDate(involvement.id, new Date(Date.now() + 5 * 86400000));
+    await setRenewalDueDate(tenantId, involvement.id, new Date(Date.now() + 5 * 86400000));
 
     const due = await checkMembershipRenewals(tenantId, 14);
     expect(due.some((d) => d.involvementId === involvement.id)).toBe(true);
@@ -66,7 +66,7 @@ describe("checkMembershipRenewals — chasing a lapsing membership", () => {
     const involvement = await prisma.membershipInvolvement.create({
       data: { tenantId, partyId: member.id, role: InvolvementRole.MEMBER, startDate: new Date() },
     });
-    await setRenewalDueDate(involvement.id, new Date(Date.now() + 90 * 86400000));
+    await setRenewalDueDate(tenantId, involvement.id, new Date(Date.now() + 90 * 86400000));
 
     const due = await checkMembershipRenewals(tenantId, 14);
     expect(due.some((d) => d.involvementId === involvement.id)).toBe(false);
@@ -77,7 +77,7 @@ describe("checkMembershipRenewals — chasing a lapsing membership", () => {
     const involvement = await prisma.membershipInvolvement.create({
       data: { tenantId, partyId: member.id, role: InvolvementRole.MEMBER, startDate: new Date(), endDate: new Date() },
     });
-    await setRenewalDueDate(involvement.id, new Date(Date.now() + 5 * 86400000));
+    await setRenewalDueDate(tenantId, involvement.id, new Date(Date.now() + 5 * 86400000));
 
     const due = await checkMembershipRenewals(tenantId, 14);
     expect(due.some((d) => d.involvementId === involvement.id)).toBe(false);

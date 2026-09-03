@@ -58,7 +58,7 @@ describe("wholesaler-retailer connections", () => {
     const connection = await prisma.wholesaleConnection.findFirstOrThrow({
       where: { supplierTenantId, buyerTenantId },
     });
-    await respondToConnection(connection.id, "ACCEPTED");
+    await respondToConnection(buyerTenantId, connection.id, "ACCEPTED");
     await prisma.wholesaleConnection.update({
       where: { id: connection.id },
       data: { discountPercent: 10 },

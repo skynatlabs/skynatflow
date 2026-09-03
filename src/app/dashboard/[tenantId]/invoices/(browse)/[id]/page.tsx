@@ -5,6 +5,7 @@ import { totalPaid, totalRefunded, checkUnusualAmount } from "@/lib/core/money";
 import { getOrCreatePortalToken } from "@/lib/core/parties";
 import { invoiceWhatsAppMessage } from "@/lib/core/whatsappShare";
 import { WhatsAppSendButton } from "@/components/dashboard/WhatsAppSendButton";
+import { SubmitButton } from "@/components/dashboard/SubmitButton";
 import {
   recordPaymentAction,
   recordRefundAction,
@@ -147,13 +148,12 @@ export default async function InvoiceDetailPage({
               name="amountRand"
               type="number"
               step="0.01"
+              min="0.01"
               placeholder="Amount"
               required
               className="w-28 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1.5 text-sm"
             />
-            <button type="submit" className="kb-pill kb-pill-primary text-xs">
-              Record payment
-            </button>
+            <SubmitButton pendingText="Recording…">Record payment</SubmitButton>
           </form>
           {netPaid > 0 && (
             <form action={recordRefundAction} className="flex items-center gap-1.5">
@@ -163,13 +163,14 @@ export default async function InvoiceDetailPage({
                 name="amountRand"
                 type="number"
                 step="0.01"
+                min="0.01"
                 placeholder="Amount"
                 required
                 className="w-28 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1.5 text-sm"
               />
-              <button type="submit" className="kb-pill kb-pill-ghost text-xs">
+              <SubmitButton pendingText="Refunding…" className="kb-pill kb-pill-ghost text-xs">
                 Refund
-              </button>
+              </SubmitButton>
             </form>
           )}
         </div>
