@@ -8,7 +8,12 @@ import { getPlatformColorSkin } from "@/lib/ai/model";
 import { AuthRequiredError, ForbiddenError, requireTenantAccess } from "@/lib/auth/tenant-access";
 import { logoutAction } from "@/app/logout/actions";
 import { FlowMark } from "@/components/FlowMark";
-import { FloatingPaButton } from "./FloatingPaButton";
+import { CommandBar } from "./CommandBar";
+import { TopBar } from "./TopBar";
+import { SidebarShell } from "./SidebarShell";
+import { TwinSidebar } from "./TwinSidebar";
+import { AdminaTopBar } from "./AdminaTopBar";
+import { buildAdminaNav } from "./adminaNav";
 import { unreadCount } from "@/lib/core/notifications2";
 import {
   HomeIcon,
@@ -21,6 +26,7 @@ import {
   ColumnsIcon,
   SparkleIcon,
   SignatureIcon,
+  AgentIcon,
 } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
@@ -36,8 +42,9 @@ export default async function TenantShellLayout({
 
   // The actual access-control enforcement point — every tenant-scoped page
   // sits behind this layout, so this one check protects all of them.
+  let access: Awaited<ReturnType<typeof requireTenantAccess>>;
   try {
-    await requireTenantAccess(tenantId);
+    access = await requireTenantAccess(tenantId);
   } catch (err) {
     if (err instanceof AuthRequiredError) redirect("/login");
     if (err instanceof ForbiddenError) notFound(); // don't leak that the tenant exists
@@ -48,13 +55,26 @@ export default async function TenantShellLayout({
   if (!tenant) notFound();
 
   const niche = nicheConfig(tenant.niche);
+
+  const viewer = await prisma.user.findUnique({
+    where: { id: access.userId },
+    select: { name: true, email: true },
+  });
+  const viewerName = viewer?.name ?? viewer?.email ?? "You";
   const unread = await unreadCount(tenantId);
+  // Held actions, counted once for the whole shell: the assistant button
+  // carries the badge on every page, so a queued approval is visible from
+  // wherever you happen to be rather than only on the home dashboard.
+  const awaitingApproval = await prisma.agentRun.count({
+    where: { tenantId, status: "AWAITING_APPROVAL" },
+  });
   const cookieStore = await cookies();
   const theme = cookieStore.get("kb-theme")?.value === "dark" ? "dark" : "light";
   const skin = await getPlatformColorSkin();
 
   const nav = [
     { href: `/dashboard/${tenantId}`, label: "Home", icon: HomeIcon },
+    { href: `/dashboard/${tenantId}/agent`, label: "Agent", icon: AgentIcon },
     { href: `/dashboard/${tenantId}/today`, label: "Today", icon: SignatureIcon },
     { href: `/dashboard/${tenantId}/inbox`, label: "Inbox", icon: SignatureIcon, badge: unread || undefined },
     { href: `/dashboard/${tenantId}/customers`, label: niche.customerLabel + "s", icon: UsersIcon },
@@ -63,6 +83,7 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}/quotes`, label: "Quotes", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/invoices`, label: "Invoices", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/statements`, label: "Statements", icon: SignatureIcon },
+    { href: `/dashboard/${tenantId}/cash-forecast`, label: "Cash forecast", icon: SignatureIcon },
     { href: `/dashboard/${tenantId}/this-week`, label: "This Week", icon: SignatureIcon },
     ...(niche.skin === "MEDICAL" || niche.skin === "SERVICES" ? [{ href: `/dashboard/${tenantId}/appointments`, label: "Appointments", icon: SignatureIcon }] : []),
     ...(niche.skin === "SERVICES" || niche.skin === "LOGISTICS" ? [{ href: `/dashboard/${tenantId}/job-cards`, label: "Job Cards", icon: CheckSquareIcon }] : []),
@@ -91,12 +112,8 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}/settings`, label: "Settings", icon: UserCogIcon },
   ];
 
-  return (
-    <div className="kb-shell flex" data-theme={theme} data-skin={skin}>
-      <aside
-        className="sticky top-0 flex h-screen w-64 shrink-0 flex-col p-5"
-        style={{ background: "var(--kb-navy)" }}
-      >
+  const sidebarContent = (
+    <>
         <div className="shrink-0">
           <div className="flex items-center gap-2 px-2">
             <FlowMark size={28} />
@@ -160,12 +177,71 @@ export default async function TenantShellLayout({
             </button>
           </form>
         </div>
-      </aside>
+    </>
+  );
 
-      <div className="min-h-screen flex-1" style={{ background: "var(--kb-bg)" }}>
-        {children}
+  // The Admina skin ships its own chrome — a twin rail+panel sidebar and a
+  // fixed-offset main column — so it replaces the shell rather than restyling
+  // it. Every other skin keeps the original single-column sidebar.
+  if (skin === "admina") {
+    return (
+      <div className="kb-shell" data-theme={theme} data-skin={skin}>
+        <TwinSidebar
+          groups={buildAdminaNav({
+            tenantId,
+            skin: niche.skin,
+            customerLabel: niche.customerLabel,
+            unread,
+          })}
+          brand={<FlowMark size={28} />}
+          workspaceName={tenant.name}
+          footer={
+            <>
+              <span className="admina-foot-art" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="30" height="30">
+                  <path d="M5 15c-1 2.5-1 4 0 4s2.5-1 4-2" />
+                  <path d="M13.5 3.5c3.5-1 6.5 0 7 .5s1.5 3.5.5 7c-1.2 4.2-5 7-8 8l-4.5-4.5c1-3 3.8-6.8 8-9.9z" />
+                  <circle cx="14.5" cy="9.5" r="1.6" />
+                </svg>
+              </span>
+              <div className="admina-foot-links">
+                <Link href="/account/security">2FA / security</Link>
+                <Link href="/dashboard">Switch workspace</Link>
+                <form action={logoutAction}>
+                  <button type="submit">Sign out</button>
+                </form>
+              </div>
+              <p className="twin-version">flow</p>
+            </>
+          }
+        />
+        <main className="dashboard-main">
+          <div className="navbar-header">
+            <AdminaTopBar
+              tenantId={tenantId}
+              unread={unread}
+              customerLabel={niche.customerLabel}
+              userName={viewerName}
+              userRole={access.role.charAt(0) + access.role.slice(1).toLowerCase()}
+              theme={theme}
+            />
+          </div>
+          <div className="dashboard-main-body kb-dock-host">{children}</div>
+        </main>
+        <CommandBar tenantId={tenantId} awaitingApproval={awaitingApproval} />
       </div>
-      <FloatingPaButton tenantId={tenantId} />
+    );
+  }
+
+  return (
+    <div className="kb-shell flex" data-theme={theme} data-skin={skin}>
+      <SidebarShell
+        sidebar={sidebarContent}
+        topbar={<TopBar tenantId={tenantId} unread={unread} customerLabel={niche.customerLabel} />}
+      >
+        {children}
+      </SidebarShell>
+      <CommandBar tenantId={tenantId} awaitingApproval={awaitingApproval} />
     </div>
   );
 }

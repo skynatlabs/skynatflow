@@ -33,7 +33,7 @@ export default async function AiDraftsPage({
   }));
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">AI drafts, waiting on you</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Nothing here reaches a customer until you approve it. Edit the text first if you want —
@@ -62,7 +62,7 @@ export default async function AiDraftsPage({
                 name="body"
                 defaultValue={d.body}
                 rows={3}
-                className="w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+                className="w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)]"
               />
               <div className="mt-3 flex gap-2">
                 <button type="submit" className="kb-pill kb-pill-primary text-xs">

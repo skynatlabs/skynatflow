@@ -12,6 +12,7 @@ export default async function PaymentGatewaysPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const connected = await prisma.paymentGateway.findMany({ where: { tenantId } });
   const connectedByProvider = new Map(connected.map((c) => [c.provider, c]));
 
@@ -21,7 +22,7 @@ export default async function PaymentGatewaysPage({
   ];
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Payment gateways</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Let a customer pay a quote or invoice online by card from their portal link — separate from
@@ -65,10 +66,32 @@ export default async function PaymentGatewaysPage({
                       defaultValue={existing?.secretKey ?? ""}
                       className={inputClass}
                     />
+                    <input
+                      name="webhookSecret"
+                      type="password"
+                      placeholder="Webhook signing secret"
+                      defaultValue={existing?.webhookSecret ?? ""}
+                      className={inputClass}
+                    />
                     <SubmitButton className="kb-pill kb-pill-ghost text-xs" pendingText="Saving…">
                       {existing ? "Update" : "Connect"}
                     </SubmitButton>
                   </form>
+                  {/* Without the signing secret the callback can't be trusted,
+                      so payments never settle automatically — worth saying
+                      here rather than letting it fail silently in production. */}
+                  <p className="mt-2 text-xs text-[var(--kb-text-dim)]">
+                    Paste this as the webhook / ITN / callback URL in your {gatewayLabel} dashboard:{" "}
+                    <code className="rounded bg-black/[0.05] px-1 py-0.5">
+                      {appUrl}/api/webhooks/payments/{provider.toLowerCase()}
+                    </code>
+                    {!existing?.webhookSecret && (
+                      <span className="ml-1 font-medium text-[var(--kb-tint-yellow-ink)]">
+                        Until the signing secret is set, card payments won&apos;t mark invoices paid
+                        automatically.
+                      </span>
+                    )}
+                  </p>
                   {isActive && (
                     <form action={disconnectPaymentGatewayAction} className="mt-2">
                       <input type="hidden" name="tenantId" value={tenantId} />

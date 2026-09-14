@@ -32,10 +32,10 @@ export default async function DisputesPage({
   ];
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Customer reports</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-        "Something's not right" flags raised from the customer portal on a quote or invoice.
+        &quot;Something&apos;s not right&quot; flags raised from the customer portal on a quote or invoice.
       </p>
 
       {(open.length > 0 || resolvedCount > 0) && (
@@ -58,7 +58,7 @@ export default async function DisputesPage({
               <input
                 name="resolutionNote"
                 placeholder="What did you do about it? (optional)"
-                className="w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2 text-sm text-[var(--kb-text)]"
+                className="w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2 text-sm text-[var(--kb-text)]"
               />
               <button type="submit" className="kb-pill kb-pill-primary mt-2 text-xs">
                 Mark resolved

@@ -13,6 +13,6 @@ export async function applyLateFeeAction(formData: FormData) {
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const feePercent = Number(formData.get("feePercent") ?? 5);
 
-  await applyLateFee({ invoiceId, feePercent });
+  await applyLateFee({ invoiceId, feePercent, tenantId });
   revalidatePath(`/dashboard/${tenantId}/overdue`);
 }

@@ -8,7 +8,7 @@ import { listTasks } from "@/lib/core/tasks";
 import { createTaskAction, moveTaskAction } from "./actions";
 
 const inputClass =
-  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
+  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
 
 const COLUMNS: {
   status: "TODO" | "IN_PROGRESS" | "DONE";
@@ -33,7 +33,7 @@ export default async function TasksPage({
   ]);
 
   return (
-    <main className="mx-auto max-w-5xl p-8">
+    <main className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-bold text-[var(--kb-text)]">Team tasks</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Simple on purpose — a title, who&apos;s doing it, and when it&apos;s done.
@@ -77,7 +77,7 @@ export default async function TasksPage({
                 .map((t) => {
                   const assignee = memberships.find((m) => m.id === t.assigneeId);
                   return (
-                    <li key={t.id} className="rounded-xl bg-white/70 p-3 text-sm">
+                    <li key={t.id} className="rounded-xl bg-[var(--kb-panel)] p-3 text-sm">
                       <p className="text-[var(--kb-text)]">{t.title}</p>
                       <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
                         {assignee ? assignee.user.name ?? assignee.user.email : "Unassigned"}

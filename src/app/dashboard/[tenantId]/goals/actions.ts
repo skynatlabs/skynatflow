@@ -2,11 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
+import { assertCan } from "@/lib/core/access";
 import { createGoal, updateGoalProgress } from "@/lib/core/goals";
 
 export async function createGoalAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
-  await requireTenantAccess(tenantId);
+  const access = await requireTenantAccess(tenantId);
+  assertCan(access.role, "task:manage");
 
   const title = String(formData.get("title") ?? "").trim();
   const metricLabel = String(formData.get("metricLabel") ?? "").trim();
@@ -29,11 +31,12 @@ export async function createGoalAction(formData: FormData) {
 
 export async function updateGoalProgressAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
-  await requireTenantAccess(tenantId);
+  const access = await requireTenantAccess(tenantId);
+  assertCan(access.role, "task:manage");
 
   const goalId = String(formData.get("goalId") ?? "");
   const currentValue = Number(formData.get("currentValue") ?? 0);
 
-  await updateGoalProgress(goalId, currentValue);
+  await updateGoalProgress(goalId, currentValue, tenantId);
   revalidatePath(`/dashboard/${tenantId}/goals`);
 }

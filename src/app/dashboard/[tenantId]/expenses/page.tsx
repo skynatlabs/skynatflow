@@ -26,7 +26,7 @@ export default async function ExpensesPage({
   const { items: expenses, pageCount } = await listExpenses(tenantId, undefined, page);
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Expenses</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Staff expenses with an optional attached slip — submit, approve, done.

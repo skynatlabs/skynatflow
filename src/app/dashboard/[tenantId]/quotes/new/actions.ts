@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { createParty } from "@/lib/core/parties";
+import { findOrCreateCustomer } from "@/lib/core/quoteComposer";
 import { createQuote, sendQuote } from "@/lib/core/money";
 import { PartyRole, QuoteKind } from "@prisma/client";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
@@ -22,6 +22,8 @@ export async function createQuoteAction(formData: FormData) {
 
   const customerName = String(formData.get("customerName") ?? "").trim();
   const customerPhone = String(formData.get("customerPhone") ?? "").trim();
+  const customerEmail = String(formData.get("customerEmail") ?? "").trim();
+  const customerCompany = String(formData.get("customerCompany") ?? "").trim();
 
   const lineItemIds = formData.getAll("lineItemId").map(String);
   const lineItemNames = formData.getAll("lineItemName").map((v) => String(v).trim());
@@ -58,11 +60,17 @@ export async function createQuoteAction(formData: FormData) {
     throw new Error("Customer name and at least one item are required.");
   }
 
-  const customer = await createParty({
+  // Reuse the customer if this workspace already has them. Creating one
+  // unconditionally meant quoting the same person twice left two records,
+  // each holding half their history — so "what has Isaac bought before"
+  // quietly returned the wrong answer.
+  const { party: customer } = await findOrCreateCustomer({
     tenantId: tenant.id,
     role: tenant.niche === "MEDICAL" ? PartyRole.PATIENT : PartyRole.CUSTOMER,
     name: customerName,
     phone: customerPhone || undefined,
+    email: customerEmail || undefined,
+    companyName: customerCompany || undefined,
   });
 
   // Reuse the catalog product when one was picked for a row, instead of
@@ -113,7 +121,7 @@ export async function createQuoteAction(formData: FormData) {
     salesPersonMembershipId: salesPersonMembershipId || undefined,
   });
 
-  await sendQuote(quote.id);
+  await sendQuote(quote.id, tenantId);
 
   await recordAudit({
     tenantId: tenant.id,

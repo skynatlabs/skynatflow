@@ -18,10 +18,10 @@ export default async function FuelPage({
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Fuel logs</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-        Log fuel per driver — entries priced well outside that driver's own average get flagged.
+        Log fuel per driver — entries priced well outside that driver&apos;s own average get flagged.
       </p>
 
       <h2 className="mt-8 text-lg font-semibold text-[var(--kb-text)]">Flagged entries</h2>

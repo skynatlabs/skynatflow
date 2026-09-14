@@ -21,7 +21,7 @@ export default function PortalErrorBoundary({
     <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center p-8 text-center">
       <div className="kb-card w-full p-6">
         <p className="text-2xl">⚠️</p>
-        <h1 className="mt-2 text-lg font-semibold text-[var(--kb-text)]">This page couldn't load</h1>
+        <h1 className="mt-2 text-lg font-semibold text-[var(--kb-text)]">This page couldn&apos;t load</h1>
         <p className="mt-2 text-sm text-[var(--kb-text-dim)]">
           Something went wrong on our end. Please try again — if it keeps happening, contact the
           business that sent you this link.

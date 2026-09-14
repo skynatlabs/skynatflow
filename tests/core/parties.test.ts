@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PartyRole } from "@prisma/client";
 import { prisma } from "../../src/lib/db";
-import { applyPartyDetailChange } from "../../src/lib/core/parties";
+import { applyPartyDetailChange, listCustomersPaginated } from "../../src/lib/core/parties";
 
 let tenantId: string;
 
@@ -57,5 +57,73 @@ describe("applyPartyDetailChange", () => {
 
     await prisma.party.deleteMany({ where: { tenantId: otherTenant.id } });
     await prisma.tenant.delete({ where: { id: otherTenant.id } });
+  });
+});
+
+// The dashboard's global search box submits ?q= to the customers page,
+// which passes it through to this filter. It used to be dropped on the
+// floor — the box searched nothing — so these pin the behaviour down.
+describe("listCustomersPaginated — search filter", () => {
+  let searchTenant: string;
+
+  beforeAll(async () => {
+    const t = await prisma.tenant.create({ data: { name: "Search Co", niche: "SERVICES" } });
+    searchTenant = t.id;
+    await prisma.party.createMany({
+      data: [
+        { tenantId: searchTenant, role: PartyRole.CUSTOMER, name: "Jane Homeowner", phone: "+27821234567" },
+        { tenantId: searchTenant, role: PartyRole.CUSTOMER, name: "Bob Builder", email: "bob@example.com" },
+        { tenantId: searchTenant, role: PartyRole.CUSTOMER, name: "Carol Client" },
+      ],
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.party.deleteMany({ where: { tenantId: searchTenant } });
+    await prisma.tenant.delete({ where: { id: searchTenant } });
+  });
+
+  it("returns everyone when no query is given", async () => {
+    const { items, total } = await listCustomersPaginated(searchTenant, 1);
+    expect(total).toBe(3);
+    expect(items).toHaveLength(3);
+  });
+
+  it("matches on name, case-insensitively", async () => {
+    const { items, total } = await listCustomersPaginated(searchTenant, 1, undefined, "jane");
+    expect(total).toBe(1);
+    expect(items[0].name).toBe("Jane Homeowner");
+  });
+
+  it("matches on email and on phone", async () => {
+    const byEmail = await listCustomersPaginated(searchTenant, 1, undefined, "bob@example");
+    expect(byEmail.total).toBe(1);
+    const byPhone = await listCustomersPaginated(searchTenant, 1, undefined, "27821234567");
+    expect(byPhone.total).toBe(1);
+    expect(byPhone.items[0].name).toBe("Jane Homeowner");
+  });
+
+  it("returns nothing for a query that matches nobody", async () => {
+    const { items, total } = await listCustomersPaginated(searchTenant, 1, undefined, "zzzznope");
+    expect(total).toBe(0);
+    expect(items).toHaveLength(0);
+  });
+
+  it("treats a whitespace-only query as no filter at all", async () => {
+    const { total } = await listCustomersPaginated(searchTenant, 1, undefined, "   ");
+    expect(total).toBe(3);
+  });
+
+  it("never reaches across tenants, even on a matching name", async () => {
+    const other = await prisma.tenant.create({ data: { name: "Other Search Co", niche: "RETAIL" } });
+    await prisma.party.create({
+      data: { tenantId: other.id, role: PartyRole.CUSTOMER, name: "Jane Homeowner" },
+    });
+
+    const { total } = await listCustomersPaginated(searchTenant, 1, undefined, "jane");
+    expect(total).toBe(1); // only this tenant's Jane, not both
+
+    await prisma.party.deleteMany({ where: { tenantId: other.id } });
+    await prisma.tenant.delete({ where: { id: other.id } });
   });
 });

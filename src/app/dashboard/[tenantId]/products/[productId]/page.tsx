@@ -13,7 +13,7 @@ export default async function EditProductPage({
   if (!product || product.tenantId !== tenantId) notFound();
 
   return (
-    <main className="mx-auto max-w-md p-8">
+    <main className="mx-auto max-w-md p-4 sm:p-6 lg:p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Edit product</h1>
         <form action={toggleProductActiveAction}>

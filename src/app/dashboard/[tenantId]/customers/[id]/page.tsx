@@ -63,7 +63,7 @@ export default async function CustomerHistoryPage({
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
+    <main className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--kb-text)]">{party.name}</h1>
@@ -136,7 +136,7 @@ export default async function CustomerHistoryPage({
                     <select
                       name="assigneeId"
                       defaultValue=""
-                      className="rounded-md border border-[var(--kb-panel-border)] bg-white px-2 py-1 text-xs text-[var(--kb-text)]"
+                      className="rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1 text-xs text-[var(--kb-text)]"
                     >
                       <option value="">No job card</option>
                       {memberships.map((m) => (
@@ -166,7 +166,7 @@ export default async function CustomerHistoryPage({
                         min="0.01"
                         placeholder="Amount"
                         required
-                        className="w-24 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1 text-xs text-[var(--kb-text)]"
+                        className="w-24 rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1 text-xs text-[var(--kb-text)]"
                       />
                       <SubmitButton className="text-xs font-semibold hover:underline" pendingText="Recording…">
                         Record payment
@@ -184,7 +184,7 @@ export default async function CustomerHistoryPage({
                           min="0.01"
                           placeholder="Amount"
                           required
-                          className="w-24 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1 text-xs text-[var(--kb-text)]"
+                          className="w-24 rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1 text-xs text-[var(--kb-text)]"
                         />
                         <SubmitButton
                           className="text-xs font-semibold text-[var(--kb-text-dim)] hover:underline"
@@ -253,7 +253,7 @@ export default async function CustomerHistoryPage({
             <input
               name="itemName"
               required
-              className="w-40 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1.5 text-xs text-[var(--kb-text)]"
+              className="w-40 rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1.5 text-xs text-[var(--kb-text)]"
             />
           </div>
           <div>
@@ -263,7 +263,7 @@ export default async function CustomerHistoryPage({
               type="number"
               defaultValue={1}
               min={1}
-              className="w-16 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1.5 text-xs text-[var(--kb-text)]"
+              className="w-16 rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1.5 text-xs text-[var(--kb-text)]"
             />
           </div>
           <div>
@@ -274,7 +274,7 @@ export default async function CustomerHistoryPage({
               step="0.01"
               min="0.01"
               required
-              className="w-24 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1.5 text-xs text-[var(--kb-text)]"
+              className="w-24 rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1.5 text-xs text-[var(--kb-text)]"
             />
           </div>
           <div>
@@ -282,7 +282,7 @@ export default async function CustomerHistoryPage({
             <select
               name="frequency"
               defaultValue="MONTHLY"
-              className="rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1.5 text-xs text-[var(--kb-text)]"
+              className="rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1.5 text-xs text-[var(--kb-text)]"
             >
               <option value="WEEKLY">Week</option>
               <option value="MONTHLY">Month</option>
@@ -353,7 +353,7 @@ export default async function CustomerHistoryPage({
             name="body"
             required
             placeholder="Add a note — @mention a teammate to flag them"
-            className="flex-1 rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2 text-sm text-[var(--kb-text)]"
+            className="flex-1 rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2 text-sm text-[var(--kb-text)]"
           />
           <button type="submit" className="kb-pill kb-pill-primary text-xs">
             Post

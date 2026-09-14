@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { StatusPill } from "./StatusPill";
 
 interface Row {
   id: string;
@@ -21,17 +22,6 @@ interface Row {
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  DRAFT: "text-[var(--kb-text-dim)]",
-  SENT: "text-blue-600",
-  ACCEPTED: "text-green-600",
-  PAID: "text-green-600",
-  PARTIALLY_PAID: "text-amber-600",
-  DECLINED: "text-red-500",
-  OVERDUE: "text-red-500",
-  CANCELLED: "text-[var(--kb-text-dim)]",
-};
 
 export function TransactionListPanel({
   tenantId,
@@ -60,17 +50,35 @@ export function TransactionListPanel({
   }, [q]);
 
   useEffect(() => {
+    // `cancelled` guards against an out-of-order response: paging or typing
+    // quickly fires several overlapping requests, and without this an
+    // earlier one resolving last would overwrite the newest results with
+    // stale rows. Only the most recent effect run is allowed to commit.
+    let cancelled = false;
+    // deliberate: this drives the loading state for the fetch below, which is
+    // exactly the external-system sync an effect is for.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     const params = new URLSearchParams({ type, page: String(page) });
     if (debouncedQ.trim()) params.set("q", debouncedQ.trim());
     fetch(`/api/dashboard/${tenantId}/transactions?${params}`)
       .then((r) => r.json())
       .then((data) => {
+        if (cancelled) return;
         setRows(data.items);
         setPageCount(data.pageCount);
         setTotal(data.total);
       })
-      .finally(() => setLoading(false));
+      .catch(() => {
+        // A failed list fetch shouldn't leave the panel spinning forever.
+        if (!cancelled) setRows([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [tenantId, type, page, debouncedQ]);
 
   return (
@@ -83,7 +91,7 @@ export function TransactionListPanel({
             setPage(1);
           }}
           placeholder="Search by customer…"
-          className="w-full rounded-lg border border-[var(--kb-panel-border)] bg-white px-3 py-1.5 text-sm text-[var(--kb-text)]"
+          className="w-full rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-1.5 text-sm text-[var(--kb-text)]"
         />
         <p className="mt-1.5 text-xs text-[var(--kb-text-dim)]">{total} total</p>
       </div>
@@ -108,8 +116,8 @@ export function TransactionListPanel({
                 <span className="truncate font-medium text-[var(--kb-text)]">{row.partyName}</span>
                 <span className="shrink-0 text-[var(--kb-text)]">{money(row.amountCents)}</span>
               </div>
-              <div className="mt-0.5 flex items-center justify-between text-xs">
-                <span className={STATUS_COLORS[row.status] ?? "text-[var(--kb-text-dim)]"}>{row.status}</span>
+              <div className="mt-1 flex items-center justify-between text-xs">
+                <StatusPill status={row.status} />
                 <span className="text-[var(--kb-text-dim)]">
                   {new Date(row.createdAt).toLocaleDateString()}
                 </span>

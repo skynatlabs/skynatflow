@@ -16,7 +16,7 @@ declare global {
 }
 
 const inputClass =
-  "w-full rounded-lg border border-[var(--kb-panel-border)] bg-white px-2.5 py-2 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
+  "w-full rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2.5 py-2 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
 
 export interface LineItemValue {
   itemId: string;
@@ -247,7 +247,7 @@ export function LineItemsEditor({
               max={100}
               value={documentDiscountPercent}
               onChange={(e) => setDocumentDiscountPercent(Number(e.target.value) || 0)}
-              className="w-16 rounded-md border border-[var(--kb-panel-border)] bg-white px-2 py-1 text-sm"
+              className="w-16 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1 text-sm"
             />
           </label>
           <span>&minus;{centsToRand(breakdown.documentDiscountCents)}</span>

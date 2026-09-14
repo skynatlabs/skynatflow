@@ -5,6 +5,7 @@ import { getOrCreatePortalToken } from "@/lib/core/parties";
 import { checkUnusualAmount } from "@/lib/core/money";
 import { quoteWhatsAppMessage } from "@/lib/core/whatsappShare";
 import { WhatsAppSendButton } from "@/components/dashboard/WhatsAppSendButton";
+import { StatusPill } from "@/components/dashboard/StatusPill";
 import {
   sendQuoteAction,
   sendQuoteViaWhatsAppAction,
@@ -49,14 +50,17 @@ export default async function QuoteDetailPage({
   const isLocked = LOCKED_STATUSES.has(quote.status);
 
   return (
-    <div className="mx-auto max-w-3xl p-8">
+    <div className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-[var(--kb-text)]">
-            {quote.quoteKind === "PROPOSAL" ? "Proposal" : "Quote"} for {quote.party.name}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold text-[var(--kb-text)]">
+              {quote.quoteKind === "PROPOSAL" ? "Proposal" : "Quote"} for {quote.party.name}
+            </h1>
+            <StatusPill status={quote.status} />
+          </div>
           <p className="mt-0.5 text-sm text-[var(--kb-text-dim)]">
-            Status: <span className="font-medium">{quote.status}</span>
+            {quote.party.name} · {quote.status === "DRAFT" ? "not yet sent" : `${quote.status.toLowerCase().replace(/_/g, " ")}`}
             {isLocked && " — locked, can't be edited"}
           </p>
         </div>
@@ -191,7 +195,7 @@ export default async function QuoteDetailPage({
           Salesperson
         </h2>
         <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
-          Shown on this quote's PDF/online view alongside the business — lets the customer see and
+          Shown on this quote&apos;s PDF/online view alongside the business — lets the customer see and
           contact who sent it.
         </p>
         <form action={setQuoteSalesPersonAction} className="mt-3 flex items-center gap-2">
@@ -226,8 +230,8 @@ export default async function QuoteDetailPage({
           Reminder
         </h2>
         <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
-          "Call me back in 2 months" — set the date and the follow-up engine holds off until then
-          instead of nudging on the usual schedule. Shows up on your This Week board when it's due.
+          &quot;Call me back in 2 months&quot; — set the date and the follow-up engine holds off until then
+          instead of nudging on the usual schedule. Shows up on your This Week board when it&apos;s due.
         </p>
         {quote.nextFollowUpAt && (
           <div className="mt-3 rounded-lg bg-[var(--kb-panel)] p-3 text-sm">

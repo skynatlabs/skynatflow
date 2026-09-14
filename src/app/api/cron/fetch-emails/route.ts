@@ -3,14 +3,13 @@
 // they arrive via the inbound webhook instead.
 
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeCron } from "@/lib/cron/auth";
 import { prisma } from "@/lib/db";
 import { fetchNewImapEmails } from "@/lib/core/email";
 
 export async function GET(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret");
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = authorizeCron(req, "fetch-emails");
+  if (!auth.ok) return auth.response;
 
   const accounts = await prisma.emailAccount.findMany({
     where: { provider: "IMAP", isActive: true },

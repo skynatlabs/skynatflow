@@ -32,7 +32,7 @@ export default async function EditInvoicePage({
   }));
 
   return (
-    <div className="mx-auto max-w-4xl p-8">
+    <div className="mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
       <Link href={`/dashboard/${tenantId}/invoices/${id}`} className="text-xs text-[var(--kb-text-dim)] hover:underline">
         &larr; Back
       </Link>
@@ -49,7 +49,7 @@ export default async function EditInvoicePage({
             <input
               name="subject"
               defaultValue={invoice.subject ?? ""}
-              className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+              className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)]"
             />
           </div>
           <div>
@@ -57,7 +57,7 @@ export default async function EditInvoicePage({
             <input
               name="poNumber"
               defaultValue={invoice.poNumber ?? ""}
-              className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+              className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)]"
             />
           </div>
         </div>

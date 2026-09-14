@@ -26,6 +26,8 @@ export function DailyVoiceBriefing({ tenantId, text }: { tenantId: string; text:
       // still fine to speak once for this page load.
     }
 
+    // deliberate: depends on localStorage, which is only readable after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowReplay(true);
     if (alreadyPlayed) return;
 
@@ -51,7 +53,7 @@ export function DailyVoiceBriefing({ tenantId, text }: { tenantId: string; text:
       title="Replay today's voice briefing"
       className="mb-3 inline-flex items-center gap-1.5 text-xs text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]"
     >
-      🔊 Replay today's briefing
+      🔊 Replay today&apos;s briefing
     </button>
   );
 }

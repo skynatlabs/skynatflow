@@ -22,7 +22,7 @@ export default async function RentalsPage({
   const rentableProducts = products.filter((p) => p.isRentable);
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
+    <main className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Rentals</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Any item in your catalog can be rented out instead of only sold — you&apos;re not tied to

@@ -89,7 +89,7 @@ export default async function FinishOnboardingPage({
         <section className="kb-card mt-4 p-6">
           <h2 className="font-semibold text-[var(--kb-text)]">2. Bring in your existing customers &amp; quotes</h2>
           <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-            Already quoting from Zoho, QuickBooks, or a spreadsheet? Import it now so nothing's lost
+            Already quoting from Zoho, QuickBooks, or a spreadsheet? Import it now so nothing&apos;s lost
             in the switch.
           </p>
           <div className="mt-4">

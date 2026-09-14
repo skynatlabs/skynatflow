@@ -36,11 +36,11 @@ export default async function ClaimsPage({
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Insurance claims</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Nothing gets quietly written off — every denied claim stays visible with an aging timer
-        until it's actually reworked or resolved.
+        until it&apos;s actually reworked or resolved.
       </p>
 
       {agingDenials.length > 0 && (
@@ -87,7 +87,7 @@ export default async function ClaimsPage({
                   <form action={markDeniedAction} className="flex items-center gap-1">
                     <input type="hidden" name="tenantId" value={tenantId} />
                     <input type="hidden" name="claimId" value={c.id} />
-                    <input name="denialReason" placeholder="Reason" className="w-24 rounded-md border border-[var(--kb-panel-border)] bg-white px-2 py-1 text-xs" />
+                    <input name="denialReason" placeholder="Reason" className="w-24 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1 text-xs" />
                     <button type="submit" className="kb-pill kb-pill-ghost !py-1 text-xs">Denied</button>
                   </form>
                 </>

@@ -101,7 +101,7 @@ export default function SectionEditor({ slug, section }: { slug: string; section
           <ImageUploadField label="Image" value={imageUrl} onChange={setImageUrl} />
         )}
         {HAS_CTA.has(section.type) && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <TextField label="Button label" value={ctaLabel} onChange={setCtaLabel} />
             <TextField label="Button link" value={ctaHref} onChange={setCtaHref} />
           </div>

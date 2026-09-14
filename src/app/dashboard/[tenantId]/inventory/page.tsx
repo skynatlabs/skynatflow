@@ -43,11 +43,11 @@ export default async function InventoryPage({
   }));
 
   return (
-    <main className="mx-auto max-w-4xl p-8">
+    <main className="mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Inventory optimization</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-        Demand ranked from your actual sales data — no manual stocktake needed to see what's
-        hot, what's dead, and what's about to expire.
+        Demand ranked from your actual sales data — no manual stocktake needed to see what&apos;s
+        hot, what&apos;s dead, and what&apos;s about to expire.
       </p>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -97,7 +97,7 @@ export default async function InventoryPage({
       <section className="mt-8">
         <h2 className="text-lg font-semibold text-[var(--kb-text)]">Expiring soon</h2>
         <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
-          Batches expiring within 14 days — markdown or clear these before they're a write-off.
+          Batches expiring within 14 days — markdown or clear these before they&apos;re a write-off.
         </p>
         {expiring.length === 0 ? (
           <div className="kb-card mt-3 p-5 text-sm text-[var(--kb-text-dim)]">

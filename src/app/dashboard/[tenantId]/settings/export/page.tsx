@@ -29,7 +29,7 @@ export default async function ExportPage({
   ];
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Export your data</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Everything, in plain CSV, no support ticket required. You can leave any time and take your
@@ -43,7 +43,7 @@ export default async function ExportPage({
               <p className="font-medium text-[var(--kb-text)]">{e.label}</p>
               <p className="mt-0.5 text-xs text-[var(--kb-text-dim)]">{e.desc}</p>
             </div>
-            <div className="flex shrink-0 gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <a
                 href={`/dashboard/${tenantId}/settings/export/${e.entity}`}
                 className="kb-pill kb-pill-primary text-xs"

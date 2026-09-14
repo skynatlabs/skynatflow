@@ -4,12 +4,61 @@
 
 import { prisma } from "@/lib/db";
 
-export async function setManager(membershipId: string, managerId: string | null) {
+// Both the person being edited AND their new manager have to be real
+// memberships on THIS tenant. Without this, a form post carrying any
+// membership id rewrote the reporting line of a staff member in someone
+// else's company — the caller only ever proved access to its own tenant.
+// tenantId is appended rather than prepended on purpose: both params are
+// strings, so a missed call site fails to compile instead of silently
+// swapping two arguments.
+async function requireOwnedMembership(membershipId: string, tenantId: string) {
+  const membership = await prisma.membership.findUnique({ where: { id: membershipId } });
+  if (!membership || membership.tenantId !== tenantId) throw new Error("Staff member not found.");
+  return membership;
+}
+
+export async function setManager(
+  membershipId: string,
+  managerId: string | null,
+  tenantId: string
+) {
   if (managerId === membershipId) throw new Error("A person can't manage themselves.");
+  await requireOwnedMembership(membershipId, tenantId);
+  if (managerId) {
+    await requireOwnedMembership(managerId, tenantId);
+    await assertNoReportingCycle(membershipId, managerId, tenantId);
+  }
   return prisma.membership.update({ where: { id: membershipId }, data: { managerId } });
 }
 
-export async function setDepartment(membershipId: string, department: string | null) {
+// Walks up the proposed manager's chain. Without this, A->B plus B->A was
+// accepted, and getOrgChart then dropped both of them: neither is a root
+// (each has a manager that exists), so the cycle rendered as nobody at
+// all rather than as an error at the point the loop was created.
+async function assertNoReportingCycle(membershipId: string, managerId: string, tenantId: string) {
+  const members = await prisma.membership.findMany({
+    where: { tenantId },
+    select: { id: true, managerId: true },
+  });
+  const managerOf = new Map(members.map((m) => [m.id, m.managerId]));
+  let cursor: string | null = managerId;
+  const seen = new Set<string>();
+  while (cursor) {
+    if (cursor === membershipId) {
+      throw new Error("That would create a reporting loop.");
+    }
+    if (seen.has(cursor)) break; // pre-existing loop elsewhere; don't hang
+    seen.add(cursor);
+    cursor = managerOf.get(cursor) ?? null;
+  }
+}
+
+export async function setDepartment(
+  membershipId: string,
+  department: string | null,
+  tenantId: string
+) {
+  await requireOwnedMembership(membershipId, tenantId);
   return prisma.membership.update({ where: { id: membershipId }, data: { department } });
 }
 

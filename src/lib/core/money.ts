@@ -10,6 +10,7 @@
 
 import { QuoteKind, TransactionStatus, TransactionType } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { emitEvent } from "@/lib/agent/events";
 import { computeDocumentTotal } from "./pricing";
 import { maybeSendReviewRequest } from "./reviews";
 
@@ -19,6 +20,27 @@ export interface QuoteLineInput {
   unitPriceCents: number;
   discountPercent?: number;
   taxRatePercent?: number;
+}
+
+// Line-item and party ids on a quote/sale arrive from form selects, which
+// the client controls. Without this, a document could be created in your
+// own tenant while pointing at another company's customer or catalog
+// items — which then leaked that customer's name/email into the rendered
+// PDF and portal view, and aimed follow-up messages at them. Validated in
+// one place here because createQuote and recordCashSale are the only two
+// writers of itemLines.
+async function assertPartyAndItemsInTenant(
+  tenantId: string,
+  partyId: string,
+  lines: { itemId: string }[]
+) {
+  const party = await prisma.party.findUnique({ where: { id: partyId }, select: { tenantId: true } });
+  if (!party || party.tenantId !== tenantId) throw new Error("Customer not found.");
+
+  const itemIds = [...new Set(lines.map((l) => l.itemId).filter(Boolean))];
+  if (itemIds.length === 0) return;
+  const owned = await prisma.item.count({ where: { id: { in: itemIds }, tenantId } });
+  if (owned !== itemIds.length) throw new Error("One or more products aren't in this workspace.");
 }
 
 export async function createQuote(params: {
@@ -37,6 +59,7 @@ export async function createQuote(params: {
   poNumber?: string;
   salesPersonMembershipId?: string;
 }) {
+  await assertPartyAndItemsInTenant(params.tenantId, params.partyId, params.lines);
   const { totalCents } = computeDocumentTotal(params.lines, params.discountPercent ?? 0);
 
   return prisma.transaction.create({
@@ -71,7 +94,16 @@ export async function createQuote(params: {
   });
 }
 
-export async function sendQuote(quoteId: string) {
+// tenantId is required and appended: sending marks a quote SENT and is the
+// trigger the follow-up engine watches, so a form post carrying another
+// company's quote id must not be able to reach it. Appended rather than
+// prepended because both params are strings — a missed call site then
+// fails to compile instead of silently swapping arguments.
+export async function sendQuote(quoteId: string, tenantId: string) {
+  const quote = await prisma.transaction.findUnique({ where: { id: quoteId } });
+  if (!quote || quote.tenantId !== tenantId || quote.type !== TransactionType.QUOTE) {
+    throw new Error("Quote not found.");
+  }
   return prisma.transaction.update({
     where: { id: quoteId },
     data: { status: TransactionStatus.SENT },
@@ -84,7 +116,7 @@ export async function recordResponse(
   transactionId: string,
   outcome: "ACCEPTED" | "DECLINED"
 ) {
-  return prisma.transaction.update({
+  const updated = await prisma.transaction.update({
     where: { id: transactionId },
     data: {
       status:
@@ -94,6 +126,16 @@ export async function recordResponse(
       respondedAt: new Date(),
     },
   });
+
+  await emitEvent({
+    tenantId: updated.tenantId,
+    type: outcome === "ACCEPTED" ? "quote.accepted" : "quote.declined",
+    subjectType: "Transaction",
+    subjectId: transactionId,
+    payload: { amountCents: updated.amountCents },
+  });
+
+  return updated;
 }
 
 // Quote-open tracking (Soler's hot-lead pattern) — called when a customer
@@ -107,7 +149,7 @@ export async function trackQuoteOpen(quoteId: string) {
   const before = await prisma.transaction.findUniqueOrThrow({ where: { id: quoteId } });
   const now = new Date();
 
-  return prisma.transaction.update({
+  const updated = await prisma.transaction.update({
     where: { id: quoteId },
     data: {
       openCount: { increment: 1 },
@@ -115,6 +157,20 @@ export async function trackQuoteOpen(quoteId: string) {
       lastOpenedAt: now,
     },
   });
+
+  // Wake the agent on the crossing only, not on every subsequent open —
+  // otherwise one interested customer generates an event per page refresh.
+  if (before.openCount < 3 && updated.openCount >= 3 && !updated.respondedAt) {
+    await emitEvent({
+      tenantId: updated.tenantId,
+      type: "quote.opened_repeatedly",
+      subjectType: "Transaction",
+      subjectId: quoteId,
+      payload: { openCount: updated.openCount, amountCents: updated.amountCents },
+    });
+  }
+
+  return updated;
 }
 
 // Customer accepts a quote from the portal, with an e-signature (base64
@@ -146,7 +202,7 @@ export async function acceptQuoteWithSignature(params: {
     )
     .digest("hex");
 
-  return prisma.transaction.update({
+  const updated = await prisma.transaction.update({
     where: { id: params.quoteId },
     data: {
       status: TransactionStatus.ACCEPTED,
@@ -156,6 +212,21 @@ export async function acceptQuoteWithSignature(params: {
       acceptanceHash,
     },
   });
+
+  // recordResponse emits this for the accept/decline buttons, but signing is
+  // the path most customers actually take — and until now it was silent, so
+  // the agent never heard about the single most important thing that happens
+  // in the business. A signed quote is work to schedule, stock to order and
+  // an invoice to raise.
+  await emitEvent({
+    tenantId: updated.tenantId,
+    type: "quote.accepted",
+    subjectType: "Transaction",
+    subjectId: updated.id,
+    payload: { amountCents: updated.amountCents, signed: true },
+  });
+
+  return updated;
 }
 
 // Converts an accepted quote into an invoice. The invoice is a new,
@@ -255,6 +326,15 @@ export async function recordPayment(params: {
   // but never actually wired to the one place a payment gets recorded.
   if (newStatus === TransactionStatus.PAID) {
     await maybeSendReviewRequest(invoice.id);
+    // Not actionable — nobody needs waking for good news — but it belongs in
+    // the activity feed, and it is how the agent knows a chase can stop.
+    await emitEvent({
+      tenantId: invoice.tenantId,
+      type: "invoice.paid",
+      subjectType: "Transaction",
+      subjectId: invoice.id,
+      payload: { amountCents: invoice.amountCents },
+    });
   }
 
   return updated;
@@ -442,6 +522,7 @@ export async function recordCashSale(params: {
   partyId: string;
   lines: QuoteLineInput[];
 }) {
+  await assertPartyAndItemsInTenant(params.tenantId, params.partyId, params.lines);
   const amountCents = params.lines.reduce((sum, l) => sum + l.quantity * l.unitPriceCents, 0);
 
   const invoice = await prisma.transaction.create({

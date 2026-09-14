@@ -2,7 +2,7 @@ import { listProposalTemplates } from "@/lib/core/templates";
 import { createTemplateAction, deleteTemplateAction } from "./actions";
 
 const inputClass =
-  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
+  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
 
 export default async function TemplatesPage({
   params,
@@ -13,7 +13,7 @@ export default async function TemplatesPage({
   const templates = await listProposalTemplates(tenantId);
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Proposal templates</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Save a reusable intro and scope of work — pick it from the dropdown next time you build a

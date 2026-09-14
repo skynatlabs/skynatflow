@@ -85,9 +85,9 @@ export function PricingTeaser() {
         })}
       </div>
       <div className="cta-inline">
-        <a className="cta-secondary" href="/pricing">
+        <Link className="cta-secondary" href="/pricing">
           See full plan details &rarr;
-        </a>
+        </Link>
       </div>
     </section>
   );
@@ -98,6 +98,10 @@ export function MarketingFonts() {
     <>
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      {/* Rendered from the shared (marketing)/layout.tsx, so these load once
+          for every marketing page. The rule's "single page only" warning is
+          about pages/_document.js, which the App Router doesn't use. */}
+      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link
         href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap"
         rel="stylesheet"
@@ -111,30 +115,30 @@ export function MarketingNav() {
   return (
     <div className="wrap" style={{ paddingBottom: 0 }}>
       <nav>
-        <a className="brand" href="/">
+        <Link className="brand" href="/">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/flow-logo.png" alt="flow" />
-        </a>
+        </Link>
         <div className="navlinks">
-          <a href="/benefits">Product</a>
+          <Link href="/benefits">Product</Link>
           <div className="nav-dropdown">
-            <a href="/industries/services">
+            <Link href="/industries/services">
               Industries <span aria-hidden style={{ fontSize: "0.7em" }}>&#9662;</span>
-            </a>
+            </Link>
             <div className="nav-dropdown-menu">
               {niches.map((n) => (
-                <a key={n.skin} href={`/industries/${n.skin.toLowerCase()}`}>
+                <Link key={n.skin} href={`/industries/${n.skin.toLowerCase()}`}>
                   {n.label}
-                </a>
+                </Link>
               ))}
             </div>
           </div>
-          <a href="/pricing">Pricing</a>
-          <a href="/case-studies">Customers</a>
+          <Link href="/pricing">Pricing</Link>
+          <Link href="/case-studies">Customers</Link>
         </div>
-        <a className="navcta" href="/signup">
+        <Link className="navcta" href="/signup">
           Start free trial
-        </a>
+        </Link>
       </nav>
     </div>
   );
@@ -206,11 +210,11 @@ export function MarketingFooterStatic() {
           <img src="/flow-logo.png" alt="flow" />
         </div>
         <div className="footer-links">
-          <a href="/benefits">Product</a>
-          <a href="/pricing">Pricing</a>
-          <a href="/industries/services">Industries</a>
-          <a href="/case-studies">Customers</a>
-          <a href="/about">About</a>
+          <Link href="/benefits">Product</Link>
+          <Link href="/pricing">Pricing</Link>
+          <Link href="/industries/services">Industries</Link>
+          <Link href="/case-studies">Customers</Link>
+          <Link href="/about">About</Link>
         </div>
       </div>
       <div className="footer-bottom">

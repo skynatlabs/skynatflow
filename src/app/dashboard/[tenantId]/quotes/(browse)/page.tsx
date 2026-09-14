@@ -18,6 +18,9 @@ export default async function QuotesIndexPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  // Async Server Component: this runs once per request on the server, so a
+  // per-request timestamp is intended, not impure client rendering.
+  // eslint-disable-next-line react-hooks/purity
   const twelveWeeksAgo = new Date(Date.now() - 84 * 86_400_000);
 
   const quotes = await prisma.transaction.findMany({
@@ -37,6 +40,9 @@ export default async function QuotesIndexPage({
 
   const weeks: { start: Date; end: Date }[] = [];
   for (let i = 11; i >= 0; i--) {
+    // Async Server Component: this runs once per request on the server, so a
+    // per-request timestamp is intended, not impure client rendering.
+    // eslint-disable-next-line react-hooks/purity
     const end = new Date(Date.now() - i * 7 * 86_400_000);
     const start = new Date(end.getTime() - 7 * 86_400_000);
     weeks.push({ start, end });

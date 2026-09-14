@@ -5,7 +5,7 @@ import { generateTotpSecret, totpUri } from "@/lib/auth/totp";
 import { confirmTotpSetupAction, disableTotpAction } from "./actions";
 
 const inputClass =
-  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
+  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
 
 export default async function SecuritySettingsPage() {
   const session = await auth();
@@ -17,7 +17,7 @@ export default async function SecuritySettingsPage() {
   const uri = newSecret ? totpUri(newSecret, user.email) : null;
 
   return (
-    <main className="mx-auto max-w-md p-8">
+    <main className="mx-auto max-w-md p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Two-factor authentication</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         An extra code from your phone at login, on top of your password.
@@ -27,7 +27,7 @@ export default async function SecuritySettingsPage() {
         <div className="kb-card mt-6 p-6">
           <p className="text-sm font-semibold text-[var(--kb-tint-mint-ink)]">✓ 2FA is enabled</p>
           <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-            You'll be asked for a code from your authenticator app every time you sign in.
+            You&apos;ll be asked for a code from your authenticator app every time you sign in.
           </p>
           <form action={disableTotpAction} className="mt-4">
             <button type="submit" className="kb-pill text-xs">

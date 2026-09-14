@@ -6,6 +6,7 @@ import { getOrCreatePortalToken } from "@/lib/core/parties";
 import { invoiceWhatsAppMessage } from "@/lib/core/whatsappShare";
 import { WhatsAppSendButton } from "@/components/dashboard/WhatsAppSendButton";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
+import { StatusPill } from "@/components/dashboard/StatusPill";
 import {
   recordPaymentAction,
   recordRefundAction,
@@ -49,14 +50,17 @@ export default async function InvoiceDetailPage({
   const isLocked = LOCKED_STATUSES.has(invoice.status);
 
   return (
-    <div className="mx-auto max-w-3xl p-8">
+    <div className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-[var(--kb-text)]">
-            Invoice for {invoice.party.name}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold text-[var(--kb-text)]">
+              Invoice for {invoice.party.name}
+            </h1>
+            <StatusPill status={invoice.status} />
+          </div>
           <p className="mt-0.5 text-sm text-[var(--kb-text-dim)]">
-            Status: <span className="font-medium">{invoice.status}</span>
+            {invoice.party.name}
             {isLocked && " — locked, can't be edited"}
           </p>
         </div>
@@ -151,7 +155,7 @@ export default async function InvoiceDetailPage({
               min="0.01"
               placeholder="Amount"
               required
-              className="w-28 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1.5 text-sm"
+              className="w-28 rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1.5 text-sm"
             />
             <SubmitButton pendingText="Recording…">Record payment</SubmitButton>
           </form>
@@ -166,7 +170,7 @@ export default async function InvoiceDetailPage({
                 min="0.01"
                 placeholder="Amount"
                 required
-                className="w-28 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2 py-1.5 text-sm"
+                className="w-28 rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1.5 text-sm"
               />
               <SubmitButton pendingText="Refunding…" className="kb-pill kb-pill-ghost text-xs">
                 Refund
@@ -212,7 +216,7 @@ export default async function InvoiceDetailPage({
           Reminder
         </h2>
         <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
-          "Call me back in 2 months" — set the date and the follow-up engine holds off until then
+          &quot;Call me back in 2 months&quot; — set the date and the follow-up engine holds off until then
           instead of chasing payment on the usual schedule.
         </p>
         {invoice.nextFollowUpAt && (

@@ -30,17 +30,31 @@ export function TenantListClient() {
   }, [q]);
 
   useEffect(() => {
+    // See TransactionListPanel: without this guard an earlier request
+    // resolving after a later one overwrites the newest page with stale rows.
+    let cancelled = false;
+    // deliberate: drives the loading state for the fetch below.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     const params = new URLSearchParams({ page: String(page) });
     if (debouncedQ.trim()) params.set("q", debouncedQ.trim());
     fetch(`/api/car/tenants?${params}`)
       .then((r) => r.json())
       .then((data) => {
+        if (cancelled) return;
         setRows(data.items);
         setPageCount(data.pageCount);
         setTotal(data.total);
       })
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!cancelled) setRows([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [page, debouncedQ]);
 
   return (

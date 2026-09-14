@@ -4,6 +4,7 @@
 // heavier read than the daily WhatsApp nudge (src/app/api/cron/daily-briefing).
 
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeCron } from "@/lib/cron/auth";
 import { prisma } from "@/lib/db";
 import { findStaleTransactions } from "@/lib/core/money";
 import { sendEmail } from "@/lib/email/client";
@@ -13,10 +14,8 @@ function money(cents: number) {
 }
 
 export async function GET(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret");
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = authorizeCron(req, "weekly-digest");
+  if (!auth.ok) return auth.response;
 
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const tenants = await prisma.tenant.findMany({

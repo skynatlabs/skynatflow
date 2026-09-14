@@ -19,7 +19,7 @@ export default async function TeamPerformancePage({
   const performance = await getTeamPerformance(tenantId);
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Team performance</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Who&apos;s converting and what they&apos;ve won — attributed straight from the salesperson

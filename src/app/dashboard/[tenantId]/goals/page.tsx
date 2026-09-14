@@ -21,7 +21,7 @@ export default async function GoalsPage({
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Goals</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Company and individual targets, tracked in one place.
@@ -46,7 +46,7 @@ export default async function GoalsPage({
                 type="number"
                 step="any"
                 defaultValue={g.currentValue}
-                className="w-24 rounded-md border border-[var(--kb-panel-border)] bg-white px-2 py-1 text-xs text-[var(--kb-text)]"
+                className="w-24 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1 text-xs text-[var(--kb-text)]"
               />
               <button type="submit" className="kb-pill kb-pill-ghost !py-1 text-xs">Update progress</button>
             </form>

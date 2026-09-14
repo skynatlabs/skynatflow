@@ -15,7 +15,7 @@ export default async function UnsentQuotesPage({
   const totalAmountCents = breaches.reduce((s, b) => s + b.amountCents, 0);
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Quotes waiting to be sent</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         The faster a quote goes out, the more likely you win the job — most customers have moved

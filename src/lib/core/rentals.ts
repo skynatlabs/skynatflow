@@ -18,7 +18,15 @@ export async function markItemRentable(params: {
   itemId: string;
   rentalRateCents: number;
   rentalRateUnit: RentalRateUnit;
+  // Required: without it, a form post could flip another company's catalog
+  // item to rentable and set the rate it goes out at.
+  tenantId: string;
 }) {
+  const owned = await prisma.item.findUnique({
+    where: { id: params.itemId },
+    select: { tenantId: true },
+  });
+  if (!owned || owned.tenantId !== params.tenantId) throw new Error("Product not found.");
   return prisma.item.update({
     where: { id: params.itemId },
     data: {
@@ -36,7 +44,13 @@ export async function createRental(params: {
   endAt?: Date;
   depositCents?: number;
 }) {
-  const item = await prisma.item.findUniqueOrThrow({ where: { id: params.itemId } });
+  const item = await prisma.item.findUnique({ where: { id: params.itemId } });
+  if (!item || item.tenantId !== params.tenantId) throw new Error("Product not found.");
+  const party = await prisma.party.findUnique({
+    where: { id: params.partyId },
+    select: { tenantId: true },
+  });
+  if (!party || party.tenantId !== params.tenantId) throw new Error("Customer not found.");
   if (!item.isRentable || !item.rentalRateCents || !item.rentalRateUnit) {
     throw new Error("This item isn't marked as rentable yet.");
   }
@@ -57,11 +71,12 @@ export async function createRental(params: {
 // Marks the rental returned and generates the invoice for the actual
 // duration used — sized to real elapsed time, not the originally
 // estimated end date, since returns rarely land exactly on schedule.
-export async function returnRental(rentalId: string) {
-  const rental = await prisma.rental.findUniqueOrThrow({
+export async function returnRental(rentalId: string, tenantId: string) {
+  const rental = await prisma.rental.findUnique({
     where: { id: rentalId },
     include: { item: true },
   });
+  if (!rental || rental.tenantId !== tenantId) throw new Error("Rental not found.");
   if (rental.status !== "ACTIVE") throw new Error("Rental is not active.");
 
   const returnedAt = new Date();
@@ -70,14 +85,13 @@ export async function returnRental(rentalId: string) {
     Math.ceil((returnedAt.getTime() - rental.startAt.getTime()) / 3600000)
   );
   const unitsUsed = Math.ceil(hoursUsed / UNIT_TO_HOURS[rental.rateUnit]);
-  const amountCents = unitsUsed * rental.rateCents;
 
   const quote = await createQuote({
     tenantId: rental.tenantId,
     partyId: rental.partyId,
     lines: [{ itemId: rental.itemId, quantity: unitsUsed, unitPriceCents: rental.rateCents }],
   });
-  await sendQuote(quote.id);
+  await sendQuote(quote.id, rental.tenantId);
   const invoice = await convertToInvoice({ quoteId: quote.id, dueInDays: 0 });
 
   await prisma.rental.update({

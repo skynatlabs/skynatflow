@@ -33,7 +33,7 @@ export function PhotoEventForm({
           <label className="block text-xs text-[var(--kb-text-dim)]">Type</label>
           <select
             name="eventType"
-            className="mt-1 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2.5 py-2 text-sm text-[var(--kb-text)]"
+            className="mt-1 rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2.5 py-2 text-sm text-[var(--kb-text)]"
           >
             <option value="SITE_VISIT">Site visit</option>
             <option value="DELIVERY">Delivery</option>
@@ -44,7 +44,7 @@ export function PhotoEventForm({
           <label className="block text-xs text-[var(--kb-text-dim)]">Notes</label>
           <input
             name="notes"
-            className="mt-1 w-full rounded-lg border border-[var(--kb-panel-border)] bg-white px-2.5 py-2 text-sm text-[var(--kb-text)]"
+            className="mt-1 w-full rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2.5 py-2 text-sm text-[var(--kb-text)]"
           />
         </div>
         <div>

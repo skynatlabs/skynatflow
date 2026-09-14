@@ -47,7 +47,7 @@ export default async function PublicBookingPage({
               <select
                 name="slot"
                 required
-                className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+                className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)]"
               >
                 <option value="">— choose a slot —</option>
                 {slots.map((s) => (
@@ -70,7 +70,7 @@ export default async function PublicBookingPage({
               <input
                 name="name"
                 required
-                className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+                className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)]"
               />
             </div>
 
@@ -82,7 +82,7 @@ export default async function PublicBookingPage({
                 name="phone"
                 required
                 placeholder="+27821234567"
-                className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+                className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)]"
               />
             </div>
 
@@ -93,7 +93,7 @@ export default async function PublicBookingPage({
               <textarea
                 name="notes"
                 rows={2}
-                className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+                className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)]"
               />
             </div>
 

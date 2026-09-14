@@ -26,7 +26,7 @@ export async function sendQuoteAction(formData: FormData) {
   assertCan(access.role, "quote:send");
   await loadOwnedQuote(tenantId, quoteId);
 
-  await sendQuote(quoteId);
+  await sendQuote(quoteId, tenantId);
   revalidatePath(`/dashboard/${tenantId}/quotes/${quoteId}`);
 }
 
@@ -39,7 +39,7 @@ export async function sendQuoteViaWhatsAppAction(tenantId: string, quoteId: stri
   assertCan(access.role, "quote:send");
   await loadOwnedQuote(tenantId, quoteId);
 
-  await sendQuote(quoteId);
+  await sendQuote(quoteId, tenantId);
   revalidatePath(`/dashboard/${tenantId}/quotes/${quoteId}`);
 }
 

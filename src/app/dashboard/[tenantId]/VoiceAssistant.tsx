@@ -43,6 +43,9 @@ export function VoiceAssistant({ tenantId }: { tenantId: string }) {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => {
+    // deliberate: browser-capability detection has to run after mount, since
+    // `window` doesn't exist during the server render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSupported(typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition));
   }, []);
 

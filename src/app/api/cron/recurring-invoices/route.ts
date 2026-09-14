@@ -6,13 +6,12 @@
 // and is visible on the customer's portal + dashboard immediately.
 
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeCron } from "@/lib/cron/auth";
 import { runDueRecurringInvoices } from "@/lib/core/recurring";
 
 export async function GET(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret");
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = authorizeCron(req, "recurring-invoices");
+  if (!auth.ok) return auth.response;
 
   const result = await runDueRecurringInvoices();
   return NextResponse.json({ ok: true, ...result });

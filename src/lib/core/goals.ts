@@ -16,8 +16,12 @@ export async function createGoal(params: {
   return prisma.goal.create({ data: params });
 }
 
-export async function updateGoalProgress(goalId: string, currentValue: number) {
-  const goal = await prisma.goal.findUniqueOrThrow({ where: { id: goalId } });
+// tenantId is required: the goal id arrives straight off a form post, so
+// without this check any signed-in owner could rewrite the progress of a
+// goal belonging to another company.
+export async function updateGoalProgress(goalId: string, currentValue: number, tenantId: string) {
+  const goal = await prisma.goal.findUnique({ where: { id: goalId } });
+  if (!goal || goal.tenantId !== tenantId) throw new Error("Goal not found.");
   const status: GoalStatus =
     currentValue >= goal.targetValue
       ? "ACHIEVED"

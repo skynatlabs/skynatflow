@@ -33,7 +33,7 @@ export default async function OrgPage({
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Company hierarchy</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Who reports to whom — from owner to every role on the team.
@@ -58,14 +58,14 @@ export default async function OrgPage({
                   name="department"
                   defaultValue={m.department ?? ""}
                   placeholder="Department"
-                  className="w-28 rounded-md border border-[var(--kb-panel-border)] bg-white px-2 py-1 text-xs"
+                  className="w-28 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1 text-xs"
                 />
                 <button type="submit" className="kb-pill kb-pill-ghost text-xs">Save</button>
               </form>
               <form action={setManagerAction} className="flex items-center gap-1">
                 <input type="hidden" name="tenantId" value={tenantId} />
                 <input type="hidden" name="membershipId" value={m.id} />
-                <select name="managerId" defaultValue={m.managerId ?? ""} className="rounded-md border border-[var(--kb-panel-border)] bg-white px-2 py-1 text-xs">
+                <select name="managerId" defaultValue={m.managerId ?? ""} className="rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1 text-xs">
                   <option value="">No manager</option>
                   {memberships.filter((x) => x.id !== m.id).map((x) => (
                     <option key={x.id} value={x.id}>{x.user.name ?? x.user.email}</option>

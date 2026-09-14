@@ -15,7 +15,7 @@ export async function markRentableAction(formData: FormData) {
   const rentalRateCents = Math.round(Number(formData.get("rateRand") ?? 0) * 100);
   const rentalRateUnit = String(formData.get("rateUnit") ?? "DAY") as RentalRateUnit;
 
-  await markItemRentable({ itemId, rentalRateCents, rentalRateUnit });
+  await markItemRentable({ itemId, rentalRateCents, rentalRateUnit, tenantId });
   revalidatePath(`/dashboard/${tenantId}/rentals`);
 }
 
@@ -36,6 +36,6 @@ export async function returnRentalAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   await requireTenantAccess(tenantId);
 
-  await returnRental(String(formData.get("rentalId") ?? ""));
+  await returnRental(String(formData.get("rentalId") ?? ""), tenantId);
   revalidatePath(`/dashboard/${tenantId}/rentals`);
 }

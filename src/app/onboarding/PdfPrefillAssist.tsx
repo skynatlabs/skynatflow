@@ -70,7 +70,7 @@ export default function PdfPrefillAssist() {
     <div className="kb-card mb-4 p-4">
       <p className="text-sm font-medium text-[var(--kb-text)]">Have a past quote as a PDF?</p>
       <p className="mt-0.5 text-xs text-[var(--kb-text-dim)]">
-        Upload it and we'll pull your business name, a customer, and the line items straight off it.
+        Upload it and we&apos;ll pull your business name, a customer, and the line items straight off it.
       </p>
       <div className="mt-3">
         <input

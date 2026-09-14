@@ -50,7 +50,7 @@ export default async function PortalHomePage({
               {t.type === "QUOTE" ? (
                 <Link
                   href={`/portal/${token}/quotes/${t.id}`}
-                  className="flex items-center justify-between"
+                  className="flex flex-wrap items-center justify-between gap-3"
                 >
                   <div>
                     <span

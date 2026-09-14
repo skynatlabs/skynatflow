@@ -34,6 +34,7 @@ const GROUPS: {
       { href: "import", label: "Import", description: "Bring in customers, products, quotes, or invoices from a CSV." },
       { href: "export", label: "Export", description: "Download your data." },
       { href: "backup", label: "Document backup", description: "Back up generated documents to Google Drive." },
+      { href: "developer", label: "API & webhooks", description: "Keys for reading and writing your data, and event notifications for other systems." },
     ],
   },
   {
@@ -53,7 +54,7 @@ export default async function SettingsIndexPage({
   const { tenantId } = await params;
 
   return (
-    <main className="mx-auto max-w-4xl p-8">
+    <main className="mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Settings</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Everything that configures how this workspace runs, in one place.

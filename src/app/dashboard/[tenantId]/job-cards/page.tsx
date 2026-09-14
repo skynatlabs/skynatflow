@@ -43,11 +43,11 @@ export default async function JobCardsPage({
   }));
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
+    <main className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Job cards</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         A work order per job — assign it, checklist the steps, mark it done once every step is
-        actually ticked off. Linked to the quote/invoice it's the work behind.
+        actually ticked off. Linked to the quote/invoice it&apos;s the work behind.
       </p>
 
       {donutData.length > 0 && (

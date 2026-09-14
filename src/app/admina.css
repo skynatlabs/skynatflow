@@ -1,0 +1,4420 @@
+/* ==========================================================================
+   ADMINA — vendored component CSS
+   --------------------------------------------------------------------------
+   The Admina template's own stylesheet (admina-tailwind-admin/dist/assets/
+   css/style.css, from its "navbar css start" marker to the end of the file)
+   rather than a hand-transcription, so nothing is lost in translation.
+
+   Two mechanical changes are applied on extraction:
+
+     1. Every selector is prefixed with .kb-shell[data-skin="admina"], so the
+        template's generic class names (.navbar-header, .dashboard-main,
+        .twin-sidebar, .card) cannot leak into the other seven skins.
+     2. Its dark-mode selectors — `.dark X` and `X:is(.dark *)`, which assume
+        Tailwind's darkMode:'class' on <html> — are remapped onto this app's
+        [data-theme="dark"] on the shell. They are remapped rather than
+        stripped: stripping would promote every dark rule into light mode,
+        which is what turns the sidebar dark at midday.
+
+   The compiled Tailwind 3 utility layer above that marker is deliberately NOT
+   included — this app is on Tailwind 4, and a second utility layer would
+   collide with it. Only the template's bespoke component CSS is here.
+
+   Licensed under the Envato Market licence supplied with the template; see
+   admina-tailwind-admin/LICENSE.
+   ========================================================================== */
+
+/* === navbar css start === */
+.kb-shell[data-skin="admina"] .navbar-header {
+  position: sticky;
+  top: 0px;
+  z-index: 20;
+  height: 4.5rem;
+  border-width: 0px;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .navbar-header {
+  --tw-bg-opacity: 1;
+  background-color: rgb(39 49 66 / var(--tw-bg-opacity));
+}
+
+.kb-shell[data-skin="admina"] .navbar-header {
+  position: sticky;
+  top: 0;
+  background: linear-gradient(163deg, rgb(245, 243, 230) 5%, rgb(242, 245, 250) 100%);
+  z-index: 4;
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .navbar-header {
+  background: #273142;
+}
+
+.kb-shell[data-skin="admina"] .sidebar-toggle, .kb-shell[data-skin="admina"] .sidebar-mobile-toggle {
+  line-height: 1;
+  --tw-text-opacity: 1;
+  color: rgb(17 24 39 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-toggle .icon {
+  font-size: 28px;
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar-toggle .icon {
+  --tw-text-opacity: 1;
+  color: rgb(235 236 239 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-mobile-toggle .icon {
+  font-size: 1.375rem;
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar-mobile-toggle .icon {
+  --tw-text-opacity: 1;
+  color: rgb(235 236 239 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-toggle {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+
+  .kb-shell[data-skin="admina"] .sidebar-toggle {
+    display: inline-block;
+  }
+
+}
+
+.kb-shell[data-skin="admina"] .sidebar-toggle.active .icon.non-active {
+  display: none;
+}
+
+.kb-shell[data-skin="admina"] .sidebar-toggle.active .icon.active {
+  display: inline-block;
+}
+
+.kb-shell[data-skin="admina"] .sidebar-toggle .icon.active {
+  display: none;
+}
+
+.kb-shell[data-skin="admina"] .sidebar-mobile-toggle {
+  display: inline-block;
+}
+
+@media (min-width: 1200px) {
+
+  .kb-shell[data-skin="admina"] .sidebar-mobile-toggle {
+    display: none;
+  }
+
+}
+
+.kb-shell[data-skin="admina"] .navbar-search {
+  position: relative;
+  display: none;
+}
+
+@media (min-width: 992px) {
+
+  .kb-shell[data-skin="admina"] .navbar-search {
+    display: inline-block;
+  }
+
+}
+
+.kb-shell[data-skin="admina"] .navbar-search input {
+  height: 2.5rem;
+  width: 24.25rem;
+  border-radius: 0.5rem;
+  border-width: 1px;
+  --tw-border-opacity: 1;
+  border-color: rgb(209 213 219 / var(--tw-border-opacity));
+  --tw-bg-opacity: 1;
+  background-color: rgb(245 246 250 / var(--tw-bg-opacity));
+  padding-top: 0.3125rem;
+  padding-bottom: 0.3125rem;
+  padding-inline-start: 2.625rem;
+  padding-inline-end: 1.25rem;
+  --tw-text-opacity: 1;
+  color: rgb(17 24 39 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .navbar-search input {
+  --tw-border-opacity: 1;
+  border-color: rgb(75 85 99 / var(--tw-border-opacity));
+  --tw-bg-opacity: 1;
+  background-color: rgb(31 41 55 / var(--tw-bg-opacity));
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"] .navbar-search input:focus {
+  --tw-border-opacity: 1;
+  border-color: rgb(72 127 255 / var(--tw-border-opacity));
+}
+
+.kb-shell[data-skin="admina"] .navbar-search .icon {
+  position: absolute;
+  top: 50%;
+  inset-inline-start: 0.9375rem;
+  --tw-translate-y: -50%;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+  font-size: 1.125rem;
+  --tw-text-opacity: 1;
+  color: rgb(39 49 66 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .navbar-search .icon {
+  --tw-text-opacity: 1;
+  color: rgb(235 236 239 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"] [data-theme-toggle] {
+  position: relative;
+  font-size: 0px;
+}
+
+.kb-shell[data-skin="admina"] [data-theme-toggle]::after {
+  position: absolute;
+  font-family: remixicon;
+  font-size: 1.25rem;
+  --tw-text-opacity: 1;
+  color: rgb(17 24 39 / var(--tw-text-opacity));
+  --tw-content: "";
+  content: var(--tw-content);
+}
+
+.kb-shell[data-skin="admina"] [data-theme-toggle][aria-label=dark]::after {
+  content: "\ef6f";
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+
+/* === navbar css end === */
+/* === sidebar css start === */
+.kb-shell[data-skin="admina"] .sidebar {
+  position: fixed;
+  inset-inline-start: -105%;
+  top: 0px;
+  z-index: 30;
+  height: 100vh;
+  width: 250px;
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar {
+  --tw-bg-opacity: 1;
+  background-color: rgb(39 49 66 / var(--tw-bg-opacity));
+}
+@media (min-width: 1200px) {
+
+  .kb-shell[data-skin="admina"] .sidebar {
+    inset-inline-start: 0px;
+    width: 220px;
+  }
+
+}
+@media (min-width: 1400px) {
+
+  .kb-shell[data-skin="admina"] .sidebar {
+    width: 275px;
+  }
+
+}
+@media (min-width: 1650px) {
+
+  .kb-shell[data-skin="admina"] .sidebar {
+    width: 312px;
+  }
+
+}
+
+.kb-shell[data-skin="admina"] .sidebar-close-btn {
+  position: absolute;
+  top: 0px;
+  inset-inline-end: 0.625rem;
+  display: inline-flex;
+  height: 1.75rem;
+  width: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border-width: 1px;
+  --tw-border-opacity: 1;
+  border-color: rgb(209 213 219 / var(--tw-border-opacity));
+}
+
+@media (min-width: 1200px) {
+
+  .kb-shell[data-skin="admina"] .sidebar-close-btn {
+    display: none;
+  }
+
+}
+
+.kb-shell[data-skin="admina"] .sidebar.sidebar-open {
+  inset-inline-start: 0px;
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active {
+  width: auto;
+}
+
+@media (min-width: 1200px) {
+
+  .kb-shell[data-skin="admina"] .sidebar.active:hover {
+    inset-inline-start: 0px;
+  }
+
+}
+
+@media (min-width: 1400px) {
+
+  .kb-shell[data-skin="admina"] .sidebar.active:hover {
+    width: 17.1875rem;
+  }
+
+}
+
+@media (min-width: 1650px) {
+
+  .kb-shell[data-skin="admina"] .sidebar.active:hover {
+    width: 19.5rem;
+  }
+
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active:hover .sidebar-logo img.light-logo {
+  display: inline-block;
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar.active:hover .sidebar-logo img.light-logo {
+  display: none;
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar.active:hover .sidebar-logo img.dark-logo {
+  display: inline-block;
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active:hover .sidebar-logo img.logo-icon {
+  display: none;
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active:hover .sidebar-menu li a span {
+  display: inline-block;
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active:hover .sidebar-menu li a .menu-icon {
+  margin-inline-end: 0.25rem;
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active:hover .sidebar-menu li.dropdown.dropdown-open .sidebar-submenu, .kb-shell[data-skin="admina"] .sidebar.active:hover .sidebar-menu li.dropdown.open .sidebar-submenu {
+  display: block;
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active:hover .sidebar-menu li.sidebar-menu-group-title {
+  display: inline-block;
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active:hover .sidebar-menu li.dropdown a::after {
+  display: inline-block;
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active .sidebar-logo img.light-logo, .kb-shell[data-skin="admina"] .sidebar.active .sidebar-logo img.dark-logo {
+  display: none;
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active .sidebar-logo img.logo-icon {
+  display: inline-block;
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active .sidebar-menu li a span {
+  display: none;
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active .sidebar-menu li a .menu-icon {
+  margin-inline-end: 0px;
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active .sidebar-menu li.sidebar-menu-group-title {
+  display: none;
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active .sidebar-menu li.dropdown.dropdown-open .sidebar-submenu, .kb-shell[data-skin="admina"] .sidebar.active .sidebar-menu li.dropdown.open .sidebar-submenu {
+  display: none;
+}
+
+.kb-shell[data-skin="admina"] .sidebar.active .sidebar-menu li.dropdown a::after {
+  display: none;
+}
+
+.kb-shell[data-skin="admina"] .sidebar-logo {
+  display: flex;
+  height: 72px;
+  align-items: center;
+  justify-content: flex-start;
+  border-inline-end-width: 1px;
+  border-bottom-width: 1px;
+  --tw-border-opacity: 1;
+  border-color: rgb(235 236 239 / var(--tw-border-opacity));
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar-logo {
+  --tw-border-opacity: 1;
+  border-color: rgb(55 65 81 / var(--tw-border-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-logo img {
+  max-height: 3.4375rem;
+}
+
+.kb-shell[data-skin="admina"] .sidebar-logo img.dark-logo {
+  display: none;
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar-logo img.light-logo {
+  display: none;
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar-logo img.dark-logo {
+  display: block;
+}
+
+.kb-shell[data-skin="admina"] .sidebar-logo img.logo-icon {
+  display: none;
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu-area {
+  height: calc(100vh - 72px);
+  overflow-y: scroll;
+  border-inline-end-width: 1px;
+  --tw-border-opacity: 1;
+  border-color: rgb(235 236 239 / var(--tw-border-opacity));
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar-menu-area {
+  --tw-border-opacity: 1;
+  border-color: rgb(55 65 81 / var(--tw-border-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu-area:hover::-webkit-scrollbar-thumb {
+  --tw-bg-opacity: 1;
+  background-color: rgb(235 236 239 / var(--tw-bg-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu-area::-webkit-scrollbar {
+  width: 0.375rem;
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu-area::-webkit-scrollbar-thumb {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity));
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar-menu-area::-webkit-scrollbar {
+  --tw-bg-opacity: 1;
+  background-color: rgb(39 49 66 / var(--tw-bg-opacity));
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar-menu-area::-webkit-scrollbar-thumb {
+  --tw-bg-opacity: 1;
+  background-color: rgb(39 49 66 / var(--tw-bg-opacity));
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar-menu-area:hover::-webkit-scrollbar-thumb {
+  --tw-bg-opacity: 1;
+  background-color: rgb(55 65 81 / var(--tw-bg-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li.dropdown > a {
+  position: relative;
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li.dropdown > a::after {
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 0.75rem;
+  --tw-translate-y: -50%;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+  font-family: remixicon;
+  font-size: 1.125rem;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-backdrop-filter;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+  --tw-content: "";
+  content: var(--tw-content);
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar-menu li.dropdown > a::after {
+  content: var(--tw-content);
+  --tw-text-opacity: 1;
+  color: rgb(209 213 219 / var(--tw-text-opacity));
+}
+
+@media (min-width: 1650px) {
+
+  .kb-shell[data-skin="admina"] .sidebar-menu li.dropdown > a::after {
+    content: var(--tw-content);
+    font-size: 1.375rem;
+  }
+
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li.dropdown.open > a, .kb-shell[data-skin="admina"] .sidebar-menu li.dropdown.dropdown-open > a {
+  --tw-bg-opacity: 1;
+  background-color: rgb(72 127 255 / var(--tw-bg-opacity));
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li.dropdown.open > a, .kb-shell[data-skin="admina"] .sidebar-menu li.dropdown.dropdown-open a span {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li.dropdown.open > a span {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li.dropdown.open > a:hover, .kb-shell[data-skin="admina"] .sidebar-menu li.dropdown.dropdown-open > a:hover {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li.dropdown.open > a::after, .kb-shell[data-skin="admina"] .sidebar-menu li.dropdown.dropdown-open > a::after {
+  --tw-translate-y: -50%;
+  --tw-rotate: 90deg;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li.dropdown.open .sidebar-submenu {
+  display: block;
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li > a.active-page {
+  --tw-bg-opacity: 1;
+  background-color: rgb(72 127 255 / var(--tw-bg-opacity));
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li > a span {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li > a.active-page span {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li > a.active-page:hover {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li a {
+  display: flex;
+  align-items: center;
+  border-radius: 0.5rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  --tw-text-opacity: 1;
+  color: rgb(75 85 99 / var(--tw-text-opacity));
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-backdrop-filter;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+@media (min-width: 1650px) {
+
+  .kb-shell[data-skin="admina"] .sidebar-menu li a {
+    font-size: 1rem;
+  }
+
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li a:hover {
+  --tw-text-opacity: 1;
+  color: rgb(72 127 255 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li a .menu-icon {
+  margin-inline-end: 0.5rem;
+  font-size: 1.125rem;
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar-menu li a .menu-icon {
+  --tw-text-opacity: 1;
+  color: rgb(209 213 219 / var(--tw-text-opacity));
+}
+
+@media (min-width: 1650px) {
+
+  .kb-shell[data-skin="admina"] .sidebar-menu li a .menu-icon {
+    margin-inline-end: 0.75rem;
+    font-size: 1.375rem;
+  }
+
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li a i {
+  width: 24px;
+  font-size: 1.375rem;
+  line-height: 1.2;
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu li a .circle-icon {
+  font-size: 0.625rem;
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu .sidebar-submenu {
+  display: none;
+  padding-top: 0.75rem;
+  padding-inline-start: 1.5rem;
+  transition-property: none;
+}
+
+@media (min-width: 1650px) {
+
+  .kb-shell[data-skin="admina"] .sidebar-menu .sidebar-submenu {
+    padding-inline-start: 2.75rem;
+  }
+
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu .sidebar-submenu li.active-page a {
+  --tw-bg-opacity: 1;
+  background-color: rgb(228 241 255 / var(--tw-bg-opacity));
+  --tw-text-opacity: 1;
+  color: rgb(17 24 39 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar-menu .sidebar-submenu li.active-page a {
+  --tw-bg-opacity: 1;
+  background-color: rgb(75 85 99 / var(--tw-bg-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu .sidebar-submenu li a {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar-menu .sidebar-submenu li a {
+  --tw-text-opacity: 1;
+  color: rgb(235 236 239 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"] .sidebar-menu .sidebar-menu-group-title {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  --tw-text-opacity: 1;
+  color: rgb(107 114 128 / var(--tw-text-opacity));
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .sidebar-menu .sidebar-menu-group-title {
+  --tw-text-opacity: 1;
+  color: rgb(156 163 175 / var(--tw-text-opacity));
+}
+
+@media (min-width: 1650px) {
+
+  .kb-shell[data-skin="admina"] .sidebar-menu .sidebar-menu-group-title {
+    font-size: 1rem;
+  }
+
+}
+
+/* === sidebar css end === */
+/* === dashboard body css start === */
+.kb-shell[data-skin="admina"] .dashboard-main {
+  margin-inline-start: 0px;
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  flex-wrap: wrap;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-backdrop-filter;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+@media (min-width: 1200px) {
+
+  .kb-shell[data-skin="admina"] .dashboard-main {
+    margin-inline-start: 13.75rem;
+  }
+
+}
+@media (min-width: 1400px) {
+
+  .kb-shell[data-skin="admina"] .dashboard-main {
+    margin-inline-start: 17.1875rem;
+  }
+
+}
+@media (min-width: 1650px) {
+
+  .kb-shell[data-skin="admina"] .dashboard-main {
+    margin-inline-start: 19.5rem;
+  }
+
+}
+
+.kb-shell[data-skin="admina"] .dashboard-main-body {
+  padding: 0.9375rem;
+}
+
+@media (min-width: 1400px) {
+
+  .kb-shell[data-skin="admina"] .dashboard-main-body {
+    padding: 1.5rem;
+  }
+
+}
+
+.kb-shell[data-skin="admina"] .dashboard-main.active {
+  margin-inline-start: 5.375rem;
+}
+
+/* === dashboard body css end === */
+/* === footer css start === */
+.kb-shell[data-skin="admina"] .d-footer {
+  margin-top: auto;
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity));
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 1.375rem;
+  padding-bottom: 1.375rem;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .d-footer {
+  --tw-bg-opacity: 1;
+  background-color: rgb(39 49 66 / var(--tw-bg-opacity));
+}
+
+/* === footer css end === */
+/* Home Eleven SCSS Start */
+.kb-shell[data-skin="admina"] .officer-slider__content {
+  visibility: hidden;
+  opacity: 0;
+}
+.kb-shell[data-skin="admina"] .officer-slider__thumb {
+  transition: 0.4s linear;
+}
+.kb-shell[data-skin="admina"] .officer-slider .slick-track {
+  display: flex;
+  align-items: center;
+}
+.kb-shell[data-skin="admina"] .officer-slider .slick-slide {
+  transition: 0.4s linear;
+}
+.kb-shell[data-skin="admina"] .officer-slider .slick-slide.slick-current.slick-active {
+  padding: 14px 0;
+}
+.kb-shell[data-skin="admina"] .officer-slider .slick-slide.slick-current.slick-active .officer-slider__thumb {
+  transform: scale(1.4);
+}
+.kb-shell[data-skin="admina"] .officer-slider .slick-slide.slick-current.slick-active .officer-slider__content {
+  visibility: visible;
+  opacity: 1;
+}
+.kb-shell[data-skin="admina"] .officer-slider__item {
+  height: 160px !important;
+}
+
+/* Home Eleven SCSS End */
+/* Home 16 Css start */
+.kb-shell[data-skin="admina"] .grid-cols-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.kb-shell[data-skin="admina"] .stats-card-wrapper {
+  display: flex;
+  gap: clamp(1.75rem, -0.9615rem + 5.649vw, 4.6875rem);
+}
+
+.kb-shell[data-skin="admina"] .hover-gradient {
+  position: relative;
+  z-index: 1;
+}
+.kb-shell[data-skin="admina"] .hover-gradient::before {
+  position: absolute;
+  content: "";
+  width: 100%;
+  height: 0;
+  inset-inline-start: 0;
+  inset-block-start: 0;
+  background: linear-gradient(180deg, rgba(20, 75, 214, 0.15) 0%, rgba(255, 255, 255, 0) 100%);
+  z-index: -1;
+  transition: 0.3s ease-in-out;
+}
+.kb-shell[data-skin="admina"] .hover-gradient:hover::before {
+  height: 100%;
+}
+
+.kb-shell[data-skin="admina"] .gap-50-px {
+  gap: clamp(1.5rem, 0rem + 3.125vw, 3.125rem);
+}
+
+/* Home 16 Css end */
+/* ============================================================
+ Twin Sidebar (icon rail + expandable menu panel)
+ Self-contained demo — namespaced under .twin-sidebar
+ ============================================================ */
+.kb-shell[data-skin="admina"] {
+  --ts-rail-w: 72px;
+  --ts-panel-w: 248px;
+  /* --primary-600 is NOT defined as a CSS custom property in this project,
+     so it needs a concrete fallback or every active-state style silently fails. */
+  --ts-purple: var(--primary-600, #487FFF);
+  --ts-purple-soft: color-mix(in srgb, var(--primary-600, #487FFF) 12%, transparent);
+  --ts-text: #5c667e;
+  --ts-heading: #1f2937;
+  --ts-border: #ececf2;
+  --ts-hover: #f4f5fa;
+}
+
+.kb-shell[data-skin="admina"] .twin-sidebar {
+  position: fixed;
+  inset-inline-start: 0;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  background: #ffffff;
+  z-index: 1045;
+  transition: transform 0.3s ease;
+}
+
+/* ---------- Icon rail ---------- */
+.kb-shell[data-skin="admina"] .twin-rail {
+  width: var(--ts-rail-w);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0 18px;
+  border-right: 1px solid var(--ts-border);
+}
+
+.kb-shell[data-skin="admina"] .twin-rail__brand {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 22px;
+}
+
+.kb-shell[data-skin="admina"] .twin-rail__brand img {
+  width: 100%;
+  height: 100%;
+  -o-object-fit: contain;
+     object-fit: contain;
+}
+
+.kb-shell[data-skin="admina"] .twin-rail__nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  flex-grow: 1;
+  width: 100%;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.kb-shell[data-skin="admina"] .twin-rail__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.kb-shell[data-skin="admina"] .twin-rail__bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.kb-shell[data-skin="admina"] .rail-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ts-text);
+  font-size: 22px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.kb-shell[data-skin="admina"] .rail-icon:hover {
+  background: var(--ts-hover);
+  color: var(--ts-heading);
+}
+
+.kb-shell[data-skin="admina"] .rail-icon.active {
+  background: var(--ts-purple);
+  color: #fff;
+}
+
+/* tooltip label on hover (useful when panel is collapsed) */
+.kb-shell[data-skin="admina"] .rail-icon .rail-tip {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) scale(0.9);
+  transform-origin: left center;
+  white-space: nowrap;
+  background: #1f2937;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 5;
+}
+
+.kb-shell[data-skin="admina"] .twin-sidebar.is-collapsed .rail-icon:hover .rail-tip {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+/* ---------- Menu panel ---------- */
+.kb-shell[data-skin="admina"] .twin-panel {
+  width: var(--ts-panel-w);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.25s ease, opacity 0.2s ease;
+}
+
+.kb-shell[data-skin="admina"] .twin-sidebar.is-collapsed .twin-panel {
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.kb-shell[data-skin="admina"] .twin-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 78px;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.kb-shell[data-skin="admina"] .twin-panel__logo {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ts-heading);
+  text-decoration: none;
+  letter-spacing: -0.2px;
+}
+
+.kb-shell[data-skin="admina"] .twin-panel__logo img {
+  height: 30px;
+  width: auto;
+}
+
+.kb-shell[data-skin="admina"] .twin-collapse {
+  font-size: 24px;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.kb-shell[data-skin="admina"] .twin-collapse:hover {
+  color: var(--ts-purple);
+}
+
+.kb-shell[data-skin="admina"] .twin-panel__body {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 4px 16px 16px;
+  scrollbar-width: thin;
+}
+
+.kb-shell[data-skin="admina"] .twin-menu {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.kb-shell[data-skin="admina"] .twin-menu.active {
+  display: block;
+  animation: tsFade 0.25s ease;
+}
+
+@keyframes tsFade {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.kb-shell[data-skin="admina"] .twin-menu li + li {
+  margin-top: 4px;
+}
+
+.kb-shell[data-skin="admina"] .twin-menu a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  color: var(--ts-text);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.kb-shell[data-skin="admina"] .twin-menu a i {
+  font-size: 18px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.kb-shell[data-skin="admina"] .twin-menu a:hover {
+  background: var(--ts-hover);
+  color: var(--ts-heading);
+}
+
+.kb-shell[data-skin="admina"] .twin-menu li.active a, .kb-shell[data-skin="admina"] .twin-menu li.active a:hover {
+  position: relative;
+  background: var(--ts-purple-soft);
+  color: var(--ts-purple);
+  font-weight: 600;
+}
+
+.kb-shell[data-skin="admina"] .twin-menu li.active a i {
+  color: var(--ts-purple);
+}
+
+/* blue left accent bar on the active item (reaches the panel's left edge) */
+.kb-shell[data-skin="admina"] .twin-menu li.active a::before {
+  content: "";
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
+  background: var(--ts-purple);
+  border-radius: 0 999px 999px 0;
+}
+
+/* ---------- Footer (Upgrade card) ---------- */
+.kb-shell[data-skin="admina"] .twin-panel__foot {
+  padding: 12px 16px 20px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.kb-shell[data-skin="admina"] .upgrade-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.kb-shell[data-skin="admina"] .upgrade-card__art {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--ts-purple-soft);
+  color: var(--ts-purple);
+  font-size: 34px;
+}
+
+.kb-shell[data-skin="admina"] .upgrade-card__text {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ts-text);
+  line-height: 1.5;
+}
+
+.kb-shell[data-skin="admina"] .upgrade-btn {
+  display: block;
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--ts-purple) 0%, color-mix(in srgb, var(--ts-purple), #000 18%) 100%);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.kb-shell[data-skin="admina"] .upgrade-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px color-mix(in srgb, var(--ts-purple) 36%, transparent);
+  color: #fff;
+}
+
+.kb-shell[data-skin="admina"] .twin-version {
+  display: block;
+  margin-top: 14px;
+  font-size: 12px;
+  color: #9aa2b1;
+}
+
+/* ---------- Mobile ---------- */
+.kb-shell[data-skin="admina"] .twin-mobile-toggle {
+  display: none;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1050;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ts-heading);
+  font-size: 22px;
+  box-shadow: 0 4px 16px rgba(24, 27, 44, 0.14);
+  cursor: pointer;
+  justify-content: center;
+  align-items: center;
+}
+
+.kb-shell[data-skin="admina"] .twin-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.6196078431);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease;
+  z-index: 1040;
+}
+
+.kb-shell[data-skin="admina"] .twin-backdrop.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ---------- Main content (expands / reduces with the sidebar) ---------- */
+.kb-shell[data-skin="admina"] .demo-main, .kb-shell[data-skin="admina"] .dashboard-main {
+  margin-inline-start: calc(var(--ts-rail-w) + var(--ts-panel-w));
+  transition: margin-left 0.25s ease;
+}
+
+.kb-shell[data-skin="admina"] .demo-main {
+  padding: 40px;
+}
+
+.kb-shell[data-skin="admina"].twin-collapsed .demo-main, .kb-shell[data-skin="admina"].twin-collapsed .dashboard-main {
+  margin-left: var(--ts-rail-w);
+}
+
+@media (max-width: 1199px) {
+
+  .kb-shell[data-skin="admina"] .twin-sidebar {
+    transform: translateX(-100%);
+  }
+  .kb-shell[data-skin="admina"] .twin-sidebar.is-open {
+    transform: none;
+  }
+  .kb-shell[data-skin="admina"] .twin-mobile-toggle {
+    display: inline-flex;
+  }
+  .kb-shell[data-skin="admina"] .demo-main, .kb-shell[data-skin="admina"] .dashboard-main, .kb-shell[data-skin="admina"].twin-collapsed .demo-main, .kb-shell[data-skin="admina"].twin-collapsed .dashboard-main {
+    margin-left: 0;
+  }
+
+}
+/* ---------- Dark mode ----------
+   The app toggles dark mode via the `.dark` class on <html>
+   (Tailwind darkMode:'class' + app.js), NOT [data-theme=dark]. */
+.kb-shell[data-skin="admina"][data-theme="dark"] {
+  --ts-purple: var(--primary-600, #487FFF);
+  --ts-purple-soft: color-mix(in srgb, var(--primary-600, #487FFF) 22%, transparent);
+  --ts-text: #d1d5db;
+  --ts-heading: #ffffff;
+  --ts-border: #323d4e;
+  --ts-hover: #323d4e;
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .twin-sidebar {
+  background: #273142;
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.35);
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .rail-icon.active {
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--ts-purple) 42%, transparent);
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .twin-mobile-toggle {
+  background: #273142;
+  color: var(--ts-heading);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+.kb-shell[data-skin="admina"][data-theme="dark"] .twin-version {
+  color: #6b7280;
+}
+
+/* Home One css start */
+@media (min-width: 1400px) {
+
+  .kb-shell[data-skin="admina"] .map-border-left {
+    border-inline-start: 1px solid var(--neutral-100);
+    padding-inline-start: 28px;
+  }
+
+}
+
+/* ===== Store Activity Timeline ===== */
+.kb-shell[data-skin="admina"] .timeline-wrap__left {
+  position: relative;
+}
+
+.kb-shell[data-skin="admina"] .timeline-wrap__line {
+  width: 1px;
+  flex-grow: 1;
+  min-height: 20px;
+  background-color: #e5e7eb;
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
+.kb-shell[data-skin="admina"] .timeline-wrap__item:last-child .timeline-wrap__line {
+  display: none;
+}
+
+.kb-shell[data-skin="admina"] .quick-action-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  transition: background 0.2s ease;
+}
+
+.kb-shell[data-skin="admina"] .quick-action-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.kb-shell[data-skin="admina"] .quick-action-btn i {
+  color: #ffffff;
+}
+
+.kb-shell[data-skin="admina"] .text-decoration-underline {
+  text-decoration: underline !important;
+}
+
+.kb-shell[data-skin="admina"] .ps-60-px {
+  padding-left: 60px;
+}
+@media (max-width: 1699px) {
+
+  .kb-shell[data-skin="admina"] .ps-60-px {
+    padding-left: 40px;
+  }
+
+}
+@media (max-width: 1399px) {
+
+  .kb-shell[data-skin="admina"] .ps-60-px {
+    padding-left: 20px;
+  }
+
+}
+
+.kb-shell[data-skin="admina"] #impressionsChart, .kb-shell[data-skin="admina"] #clicksChart {
+  background: #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.kb-shell[data-skin="admina"] #subscribersChart {
+  width: 100%;
+}
+
+.kb-shell[data-skin="admina"] #subscribersChart .apexcharts-canvas, .kb-shell[data-skin="admina"] #subscribersChart svg {
+  width: 100% !important;
+}
+
+.kb-shell[data-skin="admina"] #supportTrackerChart {
+  width: 100%;
+}
+
+.kb-shell[data-skin="admina"] #supportTrackerChart .apexcharts-canvas, .kb-shell[data-skin="admina"] #supportTrackerChart svg {
+  width: 100% !important;
+}
+
+.kb-shell[data-skin="admina"] #supportTrackerChart .apexcharts-datalabel-value {
+  font-weight: 700 !important;
+}
+
+.kb-shell[data-skin="admina"] .supportTrackerChartContent {
+  width: 180px;
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.kb-shell[data-skin="admina"] #averageIncomeChart {
+  width: 100%;
+}
+
+.kb-shell[data-skin="admina"] #averageIncomeChart .apexcharts-canvas, .kb-shell[data-skin="admina"] #averageIncomeChart svg {
+  width: 100% !important;
+}
+
+/* Traffic source progress-fill row */
+.kb-shell[data-skin="admina"] .traffic-source-row {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  height: 48px;
+}
+
+.kb-shell[data-skin="admina"] .traffic-source-row__bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: var(--fill);
+  background: var(--fill-color);
+  z-index: 1;
+}
+
+.kb-shell[data-skin="admina"] .traffic-source-row__content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 0 14px;
+}
+
+.kb-shell[data-skin="admina"] #performanceOverviewChart {
+  width: 100%;
+}
+
+.kb-shell[data-skin="admina"] #performanceOverviewChart .apexcharts-canvas, .kb-shell[data-skin="admina"] #performanceOverviewChart svg {
+  width: 100% !important;
+}
+
+.kb-shell[data-skin="admina"] .radius-start-8 {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.kb-shell[data-skin="admina"] .radius-end-8 {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.kb-shell[data-skin="admina"] #topBrowsingPagesChart {
+  width: 100%;
+}
+
+.kb-shell[data-skin="admina"] #topBrowsingPagesChart .apexcharts-canvas, .kb-shell[data-skin="admina"] #topBrowsingPagesChart svg {
+  width: 100% !important;
+}
+
+.kb-shell[data-skin="admina"] #totalOrdersChart {
+  width: 100%;
+  position: relative;
+}
+
+.kb-shell[data-skin="admina"] #totalOrdersChart .apexcharts-canvas, .kb-shell[data-skin="admina"] #totalOrdersChart svg {
+  width: 100% !important;
+}
+
+/* Zigzag scale-break overlay */
+.kb-shell[data-skin="admina"] .totalOrders-zigzag {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 14px;
+  background-image: repeating-linear-gradient(-55deg, var(--color-background-primary, #fff) 0, var(--color-background-primary, #fff) 4px, transparent 4px, transparent 8px);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.kb-shell[data-skin="admina"] #userByDeviceChart {
+  width: 100%;
+}
+
+.kb-shell[data-skin="admina"] #userByDeviceChart .apexcharts-canvas, .kb-shell[data-skin="admina"] #userByDeviceChart svg {
+  width: 100% !important;
+}
+
+.kb-shell[data-skin="admina"] #dailyVisitInsightsChart {
+  width: 100%;
+}
+
+.kb-shell[data-skin="admina"] #dailyVisitInsightsChart .apexcharts-canvas, .kb-shell[data-skin="admina"] #dailyVisitInsightsChart svg {
+  width: 100% !important;
+}
+
+/* Browser Used - Avg Used progress bar */
+.kb-shell[data-skin="admina"] #browserUsedTable td, .kb-shell[data-skin="admina"] #browserUsedTable th {
+  white-space: nowrap;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.kb-shell[data-skin="admina"] .browser-progress {
+  width: 64px;
+  height: 6px;
+  border-radius: 999px;
+  background-color: #e5e7eb;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.kb-shell[data-skin="admina"] .browser-progress__bar {
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* ===== Active Trading Bots (index-3) ===== */
+.kb-shell[data-skin="admina"] .bot-card {
+  box-shadow: 0 6px 18px rgba(17, 24, 39, 0.04);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.kb-shell[data-skin="admina"] .bot-card:hover {
+  box-shadow: 0 10px 26px rgba(17, 24, 39, 0.08);
+  transform: translateY(-2px);
+}
+
+.kb-shell[data-skin="admina"] .bot-spark {
+  width: 130px;
+}
+.kb-shell[data-skin="admina"] .bot-spark .apexcharts-canvas, .kb-shell[data-skin="admina"] .bot-spark svg {
+  width: 100% !important;
+}
+
+/* Live status dot — pulsing "live" indicator */
+.kb-shell[data-skin="admina"] .live-dot {
+  position: relative;
+}
+.kb-shell[data-skin="admina"] .live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-color: inherit;
+  animation: live-dot-pulse 1.6s ease-out infinite;
+  z-index: 0;
+}
+
+@keyframes live-dot-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  70%, 100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+
+  .kb-shell[data-skin="admina"] .live-dot::after {
+    animation: none;
+  }
+
+}
+/* ===== Top Performing Assets + Recent Activity rows (index-3) ===== */
+.kb-shell[data-skin="admina"] .min-w-0 {
+  min-width: 0;
+}
+
+.kb-shell[data-skin="admina"] .asset-row, .kb-shell[data-skin="admina"] .activity-row {
+  padding: 10px 16px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.kb-shell[data-skin="admina"] .asset-row:hover, .kb-shell[data-skin="admina"] .activity-row:hover {
+  background-color: var(--neutral-100);
+}
+
+.kb-shell[data-skin="admina"] .activity-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1.35fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.kb-shell[data-skin="admina"] .activity-row__mid {
+  min-width: 0;
+}
+
+@media (max-width: 575.98px) {
+
+  .kb-shell[data-skin="admina"] .activity-row {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+  }
+  .kb-shell[data-skin="admina"] .activity-row__mid {
+    display: none;
+  }
+
+}
+/* Dense mode (compact rows) — Portfolio Holdings & Trade History tables */
+.kb-shell[data-skin="admina"] #portfolioHoldingsTable.table-dense tbody td, .kb-shell[data-skin="admina"] #tradeHistoryTable.table-dense tbody td, .kb-shell[data-skin="admina"] #agentsPerformanceTable.table-dense tbody td, .kb-shell[data-skin="admina"] #latestTransactionTable.table-dense tbody td, .kb-shell[data-skin="admina"] #auditReportTable.table-dense tbody td, .kb-shell[data-skin="admina"] #latestInvestmentTable.table-dense tbody td, .kb-shell[data-skin="admina"] #allProjectsTable.table-dense tbody td, .kb-shell[data-skin="admina"] #toDoListTable.table-dense tbody td, .kb-shell[data-skin="admina"] #marketOverviewTable.table-dense tbody td, .kb-shell[data-skin="admina"] #recentOrdersTable.table-dense tbody td, .kb-shell[data-skin="admina"] #recentNftTable.table-dense tbody td {
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+/* ===== DeFi Analytics (index-3) ===== */
+.kb-shell[data-skin="admina"] .defi-progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background-color: var(--neutral-200);
+  overflow: hidden;
+}
+
+.kb-shell[data-skin="admina"] .defi-progress__bar {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.kb-shell[data-skin="admina"] #defiYieldChart {
+  width: 100%;
+}
+.kb-shell[data-skin="admina"] #defiYieldChart .apexcharts-canvas, .kb-shell[data-skin="admina"] #defiYieldChart svg {
+  width: 100% !important;
+}
+
+/* ===== Sales Overview + Lead Source (index-4) ===== */
+.kb-shell[data-skin="admina"] #salesOverviewChart, .kb-shell[data-skin="admina"] #leadSourceChart {
+  width: 100%;
+}
+.kb-shell[data-skin="admina"] #salesOverviewChart .apexcharts-canvas, .kb-shell[data-skin="admina"] #salesOverviewChart svg, .kb-shell[data-skin="admina"] #leadSourceChart .apexcharts-canvas, .kb-shell[data-skin="admina"] #leadSourceChart svg {
+  width: 100% !important;
+}
+
+/* Lead Source semi-donut center label */
+.kb-shell[data-skin="admina"] .lead-source-center {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  width: 100%;
+}
+
+/* ===== Client Payment Status + Campaigns (index-4) ===== */
+.kb-shell[data-skin="admina"] .radius-4 {
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.kb-shell[data-skin="admina"] .payment-status-bar {
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.kb-shell[data-skin="admina"] .payment-status-bar span {
+  display: block;
+  height: 100%;
+}
+
+.kb-shell[data-skin="admina"] #campaignsChart {
+  width: 100%;
+}
+.kb-shell[data-skin="admina"] #campaignsChart .apexcharts-canvas {
+  margin: 0 auto;
+}
+
+.kb-shell[data-skin="admina"] .campaigns-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* jVectorMap container */
+.kb-shell[data-skin="admina"] #sessionWorldMap {
+  width: 100%;
+}
+.kb-shell[data-skin="admina"] #sessionWorldMap svg {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ===== Ticket Stat Cards (index-5) ===== */
+.kb-shell[data-skin="admina"] .ticket-spark {
+  min-width: 0;
+  max-width: 170px;
+  /* dashed vertical line at the right end of the chart */
+}
+.kb-shell[data-skin="admina"] .ticket-spark .apexcharts-canvas, .kb-shell[data-skin="admina"] .ticket-spark svg {
+  width: 100% !important;
+}
+.kb-shell[data-skin="admina"] .ticket-spark::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  right: 2px;
+  border-right: 1px dashed #cbd5e1;
+  pointer-events: none;
+}
+
+/* ===== Total Balance / Wallet section (index-5) ===== */
+.kb-shell[data-skin="admina"] .premium-card {
+  min-height: 168px;
+  background-color: #0b1220;
+  background-image: radial-gradient(70% 130% at 85% 25%, rgba(99, 102, 241, 0.22), transparent 60%), radial-gradient(60% 120% at 65% 90%, rgba(56, 189, 248, 0.12), transparent 70%);
+}
+
+.kb-shell[data-skin="admina"] .premium-card__brand {
+  letter-spacing: 0.5px;
+  font-size: 15px;
+}
+
+.kb-shell[data-skin="admina"] .quick-transfer-field {
+  padding: 5px;
+}
+.kb-shell[data-skin="admina"] .quick-transfer-field .form-select {
+  width: auto;
+  min-width: 64px;
+  padding-block: 8px;
+}
+.kb-shell[data-skin="admina"] .quick-transfer-field .form-control {
+  padding-block: 10px;
+}
+.kb-shell[data-skin="admina"] .quick-transfer-field .form-select:focus, .kb-shell[data-skin="admina"] .quick-transfer-field .form-control:focus {
+  box-shadow: none;
+}
+
+.kb-shell[data-skin="admina"] .stat-wave {
+  width: 100%;
+}
+.kb-shell[data-skin="admina"] .stat-wave .apexcharts-canvas, .kb-shell[data-skin="admina"] .stat-wave svg {
+  width: 100% !important;
+}
+
+/* ===== Marketing Expenses nested donut (index-6) ===== */
+.kb-shell[data-skin="admina"] .marketing-donut {
+  width: 200px;
+}
+.kb-shell[data-skin="admina"] .marketing-donut #marketingInnerChart {
+  width: 110px;
+}
+.kb-shell[data-skin="admina"] .marketing-donut .apexcharts-canvas {
+  margin: 0 auto;
+}
+
+/* ===== Earning Categories pills (index-6) ===== */
+.kb-shell[data-skin="admina"] .earning-categories .traffic-source-row {
+  height: 48px;
+}
+.kb-shell[data-skin="admina"] .earning-categories .traffic-source-row__content {
+  padding: 0 10px;
+}
+
+/* ===== Investment donut with leader-line labels (index-6) ===== */
+.kb-shell[data-skin="admina"] .investment-donut {
+  width: 440px;
+  max-width: 100%;
+  height: 360px;
+}
+.kb-shell[data-skin="admina"] .investment-donut #investmentChart {
+  height: 100%;
+  align-items: center;
+}
+
+.kb-shell[data-skin="admina"] .investment-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.kb-shell[data-skin="admina"] .investment-pct {
+  position: absolute;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary-light);
+  z-index: 3;
+}
+
+.kb-shell[data-skin="admina"] .investment-pct--right {
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.kb-shell[data-skin="admina"] .investment-pct--tl {
+  left: 4px;
+  top: 56px;
+}
+
+.kb-shell[data-skin="admina"] .investment-pct--bl {
+  left: 4px;
+  bottom: 56px;
+}
+
+/* ===== Working Schedule + Team Members + Chat (index-8) ===== */
+.kb-shell[data-skin="admina"] .schedule-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.kb-shell[data-skin="admina"] .schedule-calendar .cal-head {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary-light);
+  padding: 6px 0;
+}
+.kb-shell[data-skin="admina"] .schedule-calendar .cal-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1/1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary-light);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.kb-shell[data-skin="admina"] .schedule-calendar .cal-day:hover {
+  background-color: var(--neutral-100);
+}
+.kb-shell[data-skin="admina"] .schedule-calendar .cal-day.is-muted {
+  color: #cbd5e1;
+}
+.kb-shell[data-skin="admina"] .schedule-calendar .cal-day.is-active {
+  background-color: var(--primary-600);
+  color: #fff;
+}
+
+.kb-shell[data-skin="admina"] .schedule-event {
+  border-left: 3px solid var(--evt, #8b5cf6);
+  padding-left: 14px;
+}
+
+/* Team Members list */
+.kb-shell[data-skin="admina"] .team-list {
+  max-height: 705px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.kb-shell[data-skin="admina"] .team-row {
+  padding: 8px 8px;
+  border-radius: 10px;
+}
+.kb-shell[data-skin="admina"] .team-row + .team-row {
+  border-top: 1px solid var(--neutral-100);
+  border-radius: 0;
+}
+.kb-shell[data-skin="admina"] .team-row.team-row--active {
+  background-color: #f4f3fd;
+  border-radius: 10px;
+  border-top-color: transparent;
+}
+
+.kb-shell[data-skin="admina"] .team-ring {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* Chat */
+.kb-shell[data-skin="admina"] .chat-body {
+  max-height: 720px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.kb-shell[data-skin="admina"] .chat-msg {
+  display: flex;
+  gap: 10px;
+}
+.kb-shell[data-skin="admina"] .chat-msg--out {
+  justify-content: flex-end;
+}
+.kb-shell[data-skin="admina"] .chat-msg > div {
+  max-width: 80%;
+}
+
+.kb-shell[data-skin="admina"] .chat-bubble {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary-light);
+}
+.kb-shell[data-skin="admina"] .chat-bubble--yellow {
+  background-color: #fef9e7;
+  border-top-left-radius: 0;
+}
+.kb-shell[data-skin="admina"] .chat-bubble--grey {
+  background-color: var(--neutral-100);
+  border-top-right-radius: 0;
+}
+
+/* ===== Active Project timeline (index-8) ===== */
+.kb-shell[data-skin="admina"] .project-timeline {
+  position: relative;
+  padding: 8px 0;
+}
+
+.kb-shell[data-skin="admina"] .tl-line {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 50%;
+  height: 3px;
+  background: var(--neutral-300);
+  border-radius: 999px;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.kb-shell[data-skin="admina"] .tl-line__fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: var(--primary-600);
+  border-radius: 999px;
+}
+
+.kb-shell[data-skin="admina"] .timeline-grid {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.kb-shell[data-skin="admina"] .tl-col {
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  justify-items: center;
+  align-items: center;
+  row-gap: 16px;
+}
+
+.kb-shell[data-skin="admina"] .tl-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary-600);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.kb-shell[data-skin="admina"] .tl-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.kb-shell[data-skin="admina"] .tl-step__badge {
+  display: inline-block;
+  box-shadow: 0 4px 14px rgba(17, 24, 39, 0.08);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--primary-600);
+  margin-bottom: 8px;
+}
+
+.kb-shell[data-skin="admina"] .tl-step__name {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary-light);
+}
+
+@media (max-width: 767.98px) {
+
+  .kb-shell[data-skin="admina"] .timeline-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .kb-shell[data-skin="admina"] .tl-line {
+    display: none;
+  }
+  .kb-shell[data-skin="admina"] .tl-col {
+    grid-template-rows: none;
+    grid-auto-flow: column;
+    justify-content: start;
+    gap: 16px;
+  }
+
+}
+/* ===== Crypto Overview sparklines (index-9) ===== */
+.kb-shell[data-skin="admina"] .crypto-spark {
+  width: 100px;
+}
+.kb-shell[data-skin="admina"] .crypto-spark .apexcharts-canvas, .kb-shell[data-skin="admina"] .crypto-spark svg {
+  width: 100% !important;
+}
+
+/* ===== Daily Average Overview + Market Cap (index-9) ===== */
+.kb-shell[data-skin="admina"] .avg-ring {
+  width: 84px;
+  flex-shrink: 0;
+}
+
+.kb-shell[data-skin="admina"] .market-graph {
+  width: 100px;
+}
+
+.kb-shell[data-skin="admina"] .market-row {
+  padding: 12px 8px;
+  border-radius: 12px;
+  transition: background-color 0.2s ease;
+}
+.kb-shell[data-skin="admina"] .market-row + .market-row {
+  border-top: 1px solid var(--neutral-100);
+  border-radius: 0;
+}
+.kb-shell[data-skin="admina"] .market-row:hover, .kb-shell[data-skin="admina"] .market-row.market-row--active {
+  background-color: rgba(79, 70, 229, 0.0509803922);
+  border-radius: 12px;
+  border-top-color: transparent;
+}
+.kb-shell[data-skin="admina"] .market-row:hover + .market-row, .kb-shell[data-skin="admina"] .market-row.market-row--active + .market-row {
+  border-top-color: transparent;
+}
+
+/* ===== Visitors By Device + Sales Revenue (index-10) ===== */
+.kb-shell[data-skin="admina"] #visitorsDeviceGauge, .kb-shell[data-skin="admina"] #salesRevenueChart {
+  width: 100%;
+}
+.kb-shell[data-skin="admina"] #visitorsDeviceGauge .apexcharts-canvas, .kb-shell[data-skin="admina"] #visitorsDeviceGauge svg, .kb-shell[data-skin="admina"] #salesRevenueChart .apexcharts-canvas, .kb-shell[data-skin="admina"] #salesRevenueChart svg {
+  width: 100% !important;
+}
+
+/* ===== Browser Activity table (index-9 / index-10) =====
+   Uses the shared `.table-style` markup so its hover is identical to
+   index.html; this only supplies the cell padding. */
+.kb-shell[data-skin="admina"] .browser-activity-table thead th {
+  padding: 12px 16px;
+  white-space: nowrap;
+}
+.kb-shell[data-skin="admina"] .browser-activity-table tbody td {
+  padding: 14px 16px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* ===== Top Revenue Channels (index-10) ===== */
+.kb-shell[data-skin="admina"] .channel-row {
+  padding: 15px 0;
+}
+.kb-shell[data-skin="admina"] .channel-row + .channel-row {
+  border-top: 1px solid var(--neutral-100);
+}
+
+.kb-shell[data-skin="admina"] .channel-progress {
+  height: 5px;
+  border-radius: 999px;
+  background-color: var(--neutral-200);
+  overflow: hidden;
+}
+.kb-shell[data-skin="admina"] .channel-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* ===== Upcoming Sales - vertical timeline (index-10) ===== */
+.kb-shell[data-skin="admina"] .sales-timeline__item {
+  display: grid;
+  grid-template-columns: 60px 22px 1fr;
+  gap: 12px;
+  padding-bottom: 40px;
+}
+.kb-shell[data-skin="admina"] .sales-timeline__item:last-child {
+  padding-bottom: 0;
+}
+.kb-shell[data-skin="admina"] .sales-timeline__marker {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+.kb-shell[data-skin="admina"] .sales-timeline__ring {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 4px solid currentColor;
+  background-color: var(--white, #fff);
+  margin-top: 4px;
+  z-index: 1;
+}
+.kb-shell[data-skin="admina"] .sales-timeline__item:not(:last-child) .sales-timeline__marker::after {
+  content: "";
+  position: absolute;
+  top: 22px;
+  bottom: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  background-color: var(--neutral-200);
+  height: calc(100% + 38px);
+}
+
+/* ===== Top Categories - radialBar gauge (index-10) ===== */
+.kb-shell[data-skin="admina"] .category-gauge {
+  width: 96px;
+  height: 96px;
+}
+.kb-shell[data-skin="admina"] .category-gauge .apexcharts-canvas {
+  margin: 0 auto;
+}
+
+/* ===== Top Audience Locations (index-10) ===== */
+.kb-shell[data-skin="admina"] .audience-flag {
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.kb-shell[data-skin="admina"] .audience-change {
+  width: 96px;
+}
+
+.kb-shell[data-skin="admina"] .audience-value {
+  width: 96px;
+}
+
+.kb-shell[data-skin="admina"] .audience-row {
+  padding: 10px 20px;
+  border-radius: 12px;
+  transition: background-color 0.2s ease;
+}
+.kb-shell[data-skin="admina"] .audience-row + .audience-row {
+  border-top: 1px solid var(--neutral-100);
+}
+.kb-shell[data-skin="admina"] .audience-row:hover {
+  background-color: rgba(79, 70, 229, 0.0509803922);
+  border-top-color: transparent;
+}
+.kb-shell[data-skin="admina"] .audience-row:hover + .audience-row {
+  border-top-color: transparent;
+}
+
+/* Recent Orders (index-10) uses the shared `.table-style` hover — same as index.html. */
+/* ===== NFT Marketplace (index-11) ===== */
+.kb-shell[data-skin="admina"] .object-fit-cover {
+  -o-object-fit: cover;
+     object-fit: cover;
+}
+
+.kb-shell[data-skin="admina"] .nft-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 32px;
+  border-radius: 16px;
+  background: radial-gradient(130% 120% at 78% 16%, rgba(217, 70, 239, 0.55) 0%, rgba(217, 70, 239, 0) 42%), linear-gradient(135deg, #3b1e6e 0%, #241b53 45%, #141334 100%);
+}
+.kb-shell[data-skin="admina"] .nft-hero__content {
+  position: relative;
+  z-index: 1;
+  max-width: 62%;
+}
+.kb-shell[data-skin="admina"] .nft-hero__content h2 {
+  font-size: 1.75rem;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.kb-shell[data-skin="admina"] .nft-hero__tag {
+  display: inline-block;
+  background-color: rgba(34, 197, 94, 0.16);
+  color: #4ade80;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.kb-shell[data-skin="admina"] .nft-hero__accent {
+  color: #facc15;
+  text-decoration: underline;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 6px;
+}
+.kb-shell[data-skin="admina"] .nft-hero__btn-dark {
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(135deg, #4b4fa6 0%, #2c2b63 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.kb-shell[data-skin="admina"] .nft-hero__img {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  max-height: 80%;
+  max-width: 36%;
+  -o-object-fit: contain;
+     object-fit: contain;
+  pointer-events: none;
+}
+
+@media (max-width: 575px) {
+
+  .kb-shell[data-skin="admina"] .nft-hero__content {
+    max-width: 100%;
+  }
+  .kb-shell[data-skin="admina"] .nft-hero__img {
+    display: none;
+  }
+
+}
+.kb-shell[data-skin="admina"] .nft-stat-spark {
+  width: 90px;
+  height: 48px;
+}
+
+.kb-shell[data-skin="admina"] .nft-count-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  border-radius: 12px;
+  background-color: var(--neutral-100);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary-light);
+}
+
+.kb-shell[data-skin="admina"] .nft-count-sep {
+  align-self: flex-end;
+  padding-bottom: 12px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--neutral-400);
+}
+
+.kb-shell[data-skin="admina"] #marketplaceChart {
+  width: 100%;
+}
+.kb-shell[data-skin="admina"] #marketplaceChart .apexcharts-canvas, .kb-shell[data-skin="admina"] #marketplaceChart svg {
+  width: 100% !important;
+}
+
+/* ===== Trending Bids + History of Bids (index-11) ===== */
+.kb-shell[data-skin="admina"] .bid-tabs .nav-link {
+  color: var(--text-secondary-light);
+  background-color: transparent;
+}
+.kb-shell[data-skin="admina"] .bid-tabs .nav-link.active {
+  background-color: var(--primary-600);
+  color: #fff;
+}
+
+.kb-shell[data-skin="admina"] .trending-bid-card__img {
+  width: 100%;
+  height: 244px;
+  -o-object-fit: cover;
+     object-fit: cover;
+}
+.kb-shell[data-skin="admina"] .trending-bid-card__timer {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(17, 24, 39, 0.72);
+  color: #fff;
+  border-radius: 999px;
+  padding: 5px 16px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.kb-shell[data-skin="admina"] .trending-bids-slider .slick-track {
+  display: flex;
+}
+.kb-shell[data-skin="admina"] .trending-bids-slider .slick-slide {
+  height: inherit;
+}
+.kb-shell[data-skin="admina"] .trending-bids-slider .slick-slide > div {
+  height: 100%;
+}
+.kb-shell[data-skin="admina"] .trending-bids-slider .slick-list {
+  margin: 0 -8px;
+}
+.kb-shell[data-skin="admina"] .trending-bids-slider .slick-dots {
+  position: relative;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.kb-shell[data-skin="admina"] .trending-bids-slider .slick-dots li {
+  width: auto;
+  height: auto;
+  margin: 0;
+}
+.kb-shell[data-skin="admina"] .trending-bids-slider .slick-dots li button {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border-radius: 999px;
+  background-color: var(--neutral-300);
+  text-indent: -9999px;
+  border: 0;
+}
+.kb-shell[data-skin="admina"] .trending-bids-slider .slick-dots li button::before {
+  content: none;
+}
+.kb-shell[data-skin="admina"] .trending-bids-slider .slick-dots li.slick-active button {
+  width: 10px;
+  height: 10px;
+  background-color: var(--primary-600);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
+}
+
+.kb-shell[data-skin="admina"] .bid-history-row {
+  padding: 12px;
+  border-radius: 12px;
+  transition: background-color 0.2s ease;
+}
+.kb-shell[data-skin="admina"] .bid-history-row + .bid-history-row {
+  border-top: 1px solid var(--neutral-100);
+}
+.kb-shell[data-skin="admina"] .bid-history-row:hover {
+  background-color: rgba(79, 70, 229, 0.0509803922);
+  border-top-color: transparent;
+}
+.kb-shell[data-skin="admina"] .bid-history-row:hover + .bid-history-row {
+  border-top-color: transparent;
+}
+
+.kb-shell[data-skin="admina"] .g-20-px, .kb-shell[data-skin="admina"] .gy-20-px {
+  --bs-gutter-y: 20px;
+  --bs-gutter-x: 20px;
+}
+
+/* Home One css end */
+.kb-shell[data-skin="admina"] [data-theme=dark] .table > :not(caption) > * > * {
+  color: #fff;
+  background-color: #273142;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .table-style thead tr th, .kb-shell[data-skin="admina"] [data-theme=dark] table tbody tr td, .kb-shell[data-skin="admina"] [data-theme=dark] .table-style thead tr th:first-child, .kb-shell[data-skin="admina"] [data-theme=dark] .table-style thead tr th:last-child, .kb-shell[data-skin="admina"] [data-theme=dark] .table-style tbody tr:hover td:last-child, .kb-shell[data-skin="admina"] [data-theme=dark] .table-style tbody tr:hover td:first-child {
+  border-color: var(--neutral-200) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .bg-warning-100 {
+  background-color: rgba(254, 249, 195, 0.1215686275) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .border-primary-200 {
+  border-color: rgba(149, 199, 255, 0.1803921569) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .border-primary-100 {
+  border-color: rgba(191, 220, 255, 0.1882352941) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .border-warning-200 {
+  border-color: rgba(254, 240, 138, 0.1882352941) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .border-success-200 {
+  border-color: rgba(187, 247, 208, 0.231372549) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .border-danger-200 {
+  border-color: rgba(254, 202, 202, 0.2117647059) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .border-info-100 {
+  border-color: rgba(219, 234, 254, 0.1490196078) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .border-cyan-100 {
+  border-color: rgba(218, 246, 255, 0.2) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .border-info-200 {
+  border-color: rgba(191, 219, 254, 0.2117647059) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .timeline-wrap__line {
+  background-color: rgba(229, 231, 235, 0.1215686275);
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .border-cyan-200 {
+  border-color: rgba(133, 218, 244, 0.2588235294) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .border-warning-100 {
+  border-color: rgba(254, 249, 195, 0.1490196078) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .bg-primary-100 {
+  background-color: rgba(191, 220, 255, 0.1098039216) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .bg-lilac-50 {
+  background-color: rgba(240, 225, 255, 0.0705882353) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .bg-purple-100 {
+  background-color: rgba(234, 227, 249, 0.1098039216);
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .border-lilac-200 {
+  border-color: rgba(220, 192, 248, 0.1215686275) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .chat-bubble--grey {
+  background-color: var(--neutral-200);
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .chat-bubble--yellow {
+  background-color: rgba(255, 214, 66, 0.0705882353);
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] input.form-check-input {
+  background-color: #1b2431;
+  border-color: rgba(255, 255, 255, 0.4196078431);
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .apexcharts-text {
+  fill: #fff;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .bg-cyan-100 {
+  background-color: rgba(218, 246, 255, 0.0392156863) !important;
+}
+.kb-shell[data-skin="admina"] [data-theme=dark] .bg-info-100 {
+  background-color: rgba(219, 234, 254, 0.0588235294) !important;
+}
+
+/* ===== Dark-mode ApexCharts text (charts + radial bars) =====
+   The live theme toggle (app.js) sets the `.dark` class and Tailwind uses
+   darkMode:'class', so chart-text overrides MUST key off `.dark` — the older
+   [data-theme=dark] block above never activates in the current app. This makes
+   axis labels, data labels, radialBar center labels, titles and legends white. */
+.kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-text, .kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-text tspan, .kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-xaxis-label, .kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-yaxis-label, .kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-xaxis text, .kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-yaxis text, .kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-datalabel, .kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-datalabels text, .kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-datalabel-label, .kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-datalabel-value, .kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-title-text, .kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-yaxis-title text, .kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-xaxis-title text, .kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-radialbar-label {
+  fill: #fff !important;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-legend-text {
+  color: #fff !important;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-gridline, .kb-shell[data-skin="admina"][data-theme="dark"] .apexcharts-grid-borders line {
+  stroke: rgba(255, 255, 255, 0.08);
+}
+.kb-shell[data-skin="admina"] .placeholder\:text-neutral-400::-moz-placeholder {
+  --tw-text-opacity: 1;
+  color: rgb(156 163 175 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .placeholder\:text-neutral-400::placeholder {
+  --tw-text-opacity: 1;
+  color: rgb(156 163 175 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .before\:absolute::before {
+  content: var(--tw-content);
+  position: absolute;
+}
+.kb-shell[data-skin="admina"] .before\:inset-0::before {
+  content: var(--tw-content);
+  inset: 0px;
+}
+.kb-shell[data-skin="admina"] .before\:start-0::before {
+  content: var(--tw-content);
+  inset-inline-start: 0px;
+}
+.kb-shell[data-skin="admina"] .before\:start-1\/2::before {
+  content: var(--tw-content);
+  inset-inline-start: 50%;
+}
+.kb-shell[data-skin="admina"] .before\:top-1\/2::before {
+  content: var(--tw-content);
+  top: 50%;
+}
+.kb-shell[data-skin="admina"] .before\:z-\[1\]::before {
+  content: var(--tw-content);
+  z-index: 1;
+}
+.kb-shell[data-skin="admina"] .before\:block::before {
+  content: var(--tw-content);
+  display: block;
+}
+.kb-shell[data-skin="admina"] .before\:h-\[1px\]::before {
+  content: var(--tw-content);
+  height: 1px;
+}
+.kb-shell[data-skin="admina"] .before\:h-full::before {
+  content: var(--tw-content);
+  height: 100%;
+}
+.kb-shell[data-skin="admina"] .before\:w-full::before {
+  content: var(--tw-content);
+  width: 100%;
+}
+.kb-shell[data-skin="admina"] .before\:w-px::before {
+  content: var(--tw-content);
+  width: 1px;
+}
+.kb-shell[data-skin="admina"] .before\:-translate-y-1\/2::before {
+  content: var(--tw-content);
+  --tw-translate-y: -50%;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+.kb-shell[data-skin="admina"] .before\:bg-neutral-200::before {
+  content: var(--tw-content);
+  --tw-bg-opacity: 1;
+  background-color: rgb(235 236 239 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .before\:bg-neutral-300::before {
+  content: var(--tw-content);
+  --tw-bg-opacity: 1;
+  background-color: rgb(209 213 219 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .before\:bg-\[linear-gradient\(180deg\2c _rgba\(0\2c _0\2c _0\2c _0\)_0\%\2c _rgba\(0\2c _0\2c _0\2c _0\.25\)_22\%\2c _rgba\(0\2c _0\2c _0\2c _0\.69\)_57\.92\%\2c _rgba\(0\2c _0\2c _0\2c _0\.7\)_100\%\)\]::before {
+  content: var(--tw-content);
+  background-image: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.25) 22%, rgba(0, 0, 0, 0.69) 57.92%, rgba(0, 0, 0, 0.7) 100%);
+}
+.kb-shell[data-skin="admina"] .before\:bg-gradient-to-t::before {
+  content: var(--tw-content);
+  background-image: linear-gradient(to top, var(--tw-gradient-stops));
+}
+.kb-shell[data-skin="admina"] .after\:absolute::after {
+  content: var(--tw-content);
+  position: absolute;
+}
+.kb-shell[data-skin="admina"] .after\:bottom-1\.5::after {
+  content: var(--tw-content);
+  bottom: 0.375rem;
+}
+.kb-shell[data-skin="admina"] .after\:left-1\/2::after {
+  content: var(--tw-content);
+  left: 50%;
+}
+.kb-shell[data-skin="admina"] .after\:right-0\.5::after {
+  content: var(--tw-content);
+  right: 0.125rem;
+}
+.kb-shell[data-skin="admina"] .after\:start-0\.5::after {
+  content: var(--tw-content);
+  inset-inline-start: 0.125rem;
+}
+.kb-shell[data-skin="admina"] .after\:start-\[2px\]::after {
+  content: var(--tw-content);
+  inset-inline-start: 2px;
+}
+.kb-shell[data-skin="admina"] .after\:top-0\.5::after {
+  content: var(--tw-content);
+  top: 0.125rem;
+}
+.kb-shell[data-skin="admina"] .after\:top-1\.5::after {
+  content: var(--tw-content);
+  top: 0.375rem;
+}
+.kb-shell[data-skin="admina"] .after\:top-\[22px\]::after {
+  content: var(--tw-content);
+  top: 22px;
+}
+.kb-shell[data-skin="admina"] .after\:top-\[2px\]::after {
+  content: var(--tw-content);
+  top: 2px;
+}
+.kb-shell[data-skin="admina"] .after\:h-4::after {
+  content: var(--tw-content);
+  height: 1rem;
+}
+.kb-shell[data-skin="admina"] .after\:h-5::after {
+  content: var(--tw-content);
+  height: 1.25rem;
+}
+.kb-shell[data-skin="admina"] .after\:h-\[calc\(100\%\+38px\)\]::after {
+  content: var(--tw-content);
+  height: calc(100% + 38px);
+}
+.kb-shell[data-skin="admina"] .after\:w-0\.5::after {
+  content: var(--tw-content);
+  width: 0.125rem;
+}
+.kb-shell[data-skin="admina"] .after\:w-4::after {
+  content: var(--tw-content);
+  width: 1rem;
+}
+.kb-shell[data-skin="admina"] .after\:w-5::after {
+  content: var(--tw-content);
+  width: 1.25rem;
+}
+.kb-shell[data-skin="admina"] .after\:-translate-x-1\/2::after {
+  content: var(--tw-content);
+  --tw-translate-x: -50%;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+.kb-shell[data-skin="admina"] .after\:rounded-full::after {
+  content: var(--tw-content);
+  border-radius: 9999px;
+}
+.kb-shell[data-skin="admina"] .after\:border::after {
+  content: var(--tw-content);
+  border-width: 1px;
+}
+.kb-shell[data-skin="admina"] .after\:border-r::after {
+  content: var(--tw-content);
+  border-right-width: 1px;
+}
+.kb-shell[data-skin="admina"] .after\:border-dashed::after {
+  content: var(--tw-content);
+  border-style: dashed;
+}
+.kb-shell[data-skin="admina"] .after\:border-gray-300::after {
+  content: var(--tw-content);
+  --tw-border-opacity: 1;
+  border-color: rgb(209 213 219 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"] .after\:border-neutral-300::after {
+  content: var(--tw-content);
+  --tw-border-opacity: 1;
+  border-color: rgb(209 213 219 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"] .after\:bg-neutral-200::after {
+  content: var(--tw-content);
+  --tw-bg-opacity: 1;
+  background-color: rgb(235 236 239 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .after\:bg-white::after {
+  content: var(--tw-content);
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .after\:transition-all::after {
+  content: var(--tw-content);
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+.kb-shell[data-skin="admina"] .after\:content-\[\'\'\]::after {
+  --tw-content: '';
+  content: var(--tw-content);
+}
+.kb-shell[data-skin="admina"] .last\:mb-0:last-child {
+  margin-bottom: 0px;
+}
+.kb-shell[data-skin="admina"] .last\:border-0:last-child {
+  border-width: 0px;
+}
+.kb-shell[data-skin="admina"] .last\:border-b-0:last-child {
+  border-bottom-width: 0px;
+}
+.kb-shell[data-skin="admina"] .last\:border-r-0:last-child {
+  border-right-width: 0px;
+}
+.kb-shell[data-skin="admina"] .odd\:bg-neutral-100:nth-child(odd) {
+  --tw-bg-opacity: 1;
+  background-color: rgb(243 244 246 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:-translate-y-0\.5:hover {
+  --tw-translate-y: -0.125rem;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+.kb-shell[data-skin="admina"] .hover\:border-gray-300:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(209 213 219 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:border-neutral-200:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(235 236 239 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:border-neutral-500:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(107 114 128 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:border-primary-600:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(72 127 255 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:\!bg-primary-800:hover {
+  --tw-bg-opacity: 1 !important;
+  background-color: rgb(71 89 214 / var(--tw-bg-opacity)) !important;
+}
+.kb-shell[data-skin="admina"] .hover\:bg-blue-800:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(30 66 159 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-cyan-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(0 184 242 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-danger-100:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(254 226 226 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-danger-200:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(254 202 202 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-danger-50:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(254 242 242 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-danger-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(220 38 38 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-danger-600\/10:hover {
+  background-color: rgb(220 38 38 / 0.1);
+}
+.kb-shell[data-skin="admina"] .hover\:bg-danger-600\/25:hover {
+  background-color: rgb(220 38 38 / 0.25);
+}
+.kb-shell[data-skin="admina"] .hover\:bg-danger-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(185 28 28 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-gray-100:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(243 244 246 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-gray-200:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(229 231 235 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-info-200:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(191 219 254 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-info-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(37 99 235 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-info-600\/10:hover {
+  background-color: rgb(37 99 235 / 0.1);
+}
+.kb-shell[data-skin="admina"] .hover\:bg-info-600\/25:hover {
+  background-color: rgb(37 99 235 / 0.25);
+}
+.kb-shell[data-skin="admina"] .hover\:bg-info-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(29 78 216 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-lilac-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(130 82 233 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-neutral-100:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(243 244 246 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-neutral-200:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(235 236 239 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-neutral-50:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(245 246 250 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-neutral-500:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(107 114 128 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-neutral-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(75 85 99 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-neutral-600\/10:hover {
+  background-color: rgb(75 85 99 / 0.1);
+}
+.kb-shell[data-skin="admina"] .hover\:bg-neutral-600\/25:hover {
+  background-color: rgb(75 85 99 / 0.25);
+}
+.kb-shell[data-skin="admina"] .hover\:bg-neutral-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(55 65 81 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-neutral-900:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(17 24 39 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-primary-100:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(191 220 255 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-primary-50:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(228 241 255 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-primary-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(72 127 255 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-primary-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(72 108 234 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-purple-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(126 58 242 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-purple-600\/10:hover {
+  background-color: rgb(126 58 242 / 0.1);
+}
+.kb-shell[data-skin="admina"] .hover\:bg-purple-600\/25:hover {
+  background-color: rgb(126 58 242 / 0.25);
+}
+.kb-shell[data-skin="admina"] .hover\:bg-purple-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(108 43 217 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-success-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(22 163 74 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-success-600\/10:hover {
+  background-color: rgb(22 163 74 / 0.1);
+}
+.kb-shell[data-skin="admina"] .hover\:bg-success-600\/25:hover {
+  background-color: rgb(22 163 74 / 0.25);
+}
+.kb-shell[data-skin="admina"] .hover\:bg-success-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(21 128 61 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-warning-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 159 41 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-warning-600\/10:hover {
+  background-color: rgb(255 159 41 / 0.1);
+}
+.kb-shell[data-skin="admina"] .hover\:bg-warning-600\/25:hover {
+  background-color: rgb(255 159 41 / 0.25);
+}
+.kb-shell[data-skin="admina"] .hover\:bg-warning-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(243 144 22 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-white:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:bg-white\/20:hover {
+  background-color: rgb(255 255 255 / 0.2);
+}
+.kb-shell[data-skin="admina"] .hover\:text-blue-600:hover {
+  --tw-text-opacity: 1;
+  color: rgb(28 100 242 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:text-danger-500:hover {
+  --tw-text-opacity: 1;
+  color: rgb(239 68 68 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:text-danger-600:hover {
+  --tw-text-opacity: 1;
+  color: rgb(220 38 38 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:text-gray-600:hover {
+  --tw-text-opacity: 1;
+  color: rgb(75 85 99 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:text-gray-900:hover {
+  --tw-text-opacity: 1;
+  color: rgb(17 24 39 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:text-neutral-600:hover {
+  --tw-text-opacity: 1;
+  color: rgb(75 85 99 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:text-neutral-900:hover {
+  --tw-text-opacity: 1;
+  color: rgb(17 24 39 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:text-primary-600:hover {
+  --tw-text-opacity: 1;
+  color: rgb(72 127 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:text-primary-800:hover {
+  --tw-text-opacity: 1;
+  color: rgb(71 89 214 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:text-white:hover {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .hover\:underline:hover {
+  text-decoration-line: underline;
+}
+.kb-shell[data-skin="admina"] .hover\:shadow-\[0_10px_26px_rgba\(17\2c 24\2c 39\2c 0\.08\)\]:hover {
+  --tw-shadow: 0 10px 26px rgba(17,24,39,0.08);
+  --tw-shadow-colored: 0 10px 26px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+.kb-shell[data-skin="admina"] .focus\:border-0:focus {
+  border-width: 0px;
+}
+.kb-shell[data-skin="admina"] .focus\:border-primary-600:focus {
+  --tw-border-opacity: 1;
+  border-color: rgb(72 127 255 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:bg-primary-600:focus {
+  --tw-bg-opacity: 1;
+  background-color: rgb(72 127 255 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:bg-success-600:focus {
+  --tw-bg-opacity: 1;
+  background-color: rgb(22 163 74 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:bg-warning-600:focus {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 159 41 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:text-white:focus {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:outline-none:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+.kb-shell[data-skin="admina"] .focus\:ring-0:focus {
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(0px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+.kb-shell[data-skin="admina"] .focus\:ring-2:focus {
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+.kb-shell[data-skin="admina"] .focus\:ring-4:focus {
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(4px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+.kb-shell[data-skin="admina"] .focus\:\!ring-primary-300:focus {
+  --tw-ring-opacity: 1 !important;
+  --tw-ring-color: rgb(107 177 255 / var(--tw-ring-opacity)) !important;
+}
+.kb-shell[data-skin="admina"] .focus\:ring-blue-300:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(164 202 254 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:ring-blue-500:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(63 131 248 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:ring-danger-500:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(239 68 68 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:ring-gray-200:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(229 231 235 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:ring-gray-50:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(249 250 251 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:ring-primary-300:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(107 177 255 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:ring-primary-500:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(69 142 255 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:ring-purple-500:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(144 97 249 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:ring-success-300:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(134 239 172 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:ring-success-500:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(34 197 94 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:ring-warning-300:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(253 224 71 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"] .focus\:ring-warning-500:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(234 179 8 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"] .disabled\:opacity-75:disabled {
+  opacity: 0.75;
+}
+.kb-shell[data-skin="admina"] .group:hover .group-hover\:bg-primary-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(72 127 255 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .group:hover .group-hover\:text-primary-600 {
+  --tw-text-opacity: 1;
+  color: rgb(72 127 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .group:hover .group-hover\:text-white {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:border-primary-600 {
+  --tw-border-opacity: 1;
+  border-color: rgb(72 127 255 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:border-warning-600 {
+  --tw-border-opacity: 1;
+  border-color: rgb(255 159 41 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:bg-blue-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(28 100 242 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:bg-primary-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(72 127 255 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:bg-purple-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(126 58 242 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:bg-success-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(22 163 74 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:bg-warning-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 159 41 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:text-danger-600 {
+  --tw-text-opacity: 1;
+  color: rgb(220 38 38 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:text-primary-600 {
+  --tw-text-opacity: 1;
+  color: rgb(72 127 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:text-purple-600 {
+  --tw-text-opacity: 1;
+  color: rgb(126 58 242 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:text-success-600 {
+  --tw-text-opacity: 1;
+  color: rgb(22 163 74 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:text-warning-600 {
+  --tw-text-opacity: 1;
+  color: rgb(255 159 41 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:text-white {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:after\:translate-x-full::after {
+  content: var(--tw-content);
+  --tw-translate-x: 100%;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .peer-checked\:after\:border-white::after {
+  content: var(--tw-content);
+  --tw-border-opacity: 1;
+  border-color: rgb(255 255 255 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:focus ~ .peer-focus\:outline-none {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+.kb-shell[data-skin="admina"] .peer:focus ~ .peer-focus\:ring-4 {
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(4px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+.kb-shell[data-skin="admina"] .peer:focus ~ .peer-focus\:ring-blue-300 {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(164 202 254 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"] .peer:disabled ~ .peer-disabled\:opacity-75 {
+  opacity: 0.75;
+}
+.kb-shell[data-skin="admina"] .aria-selected\:bg-primary-600[aria-selected="true"] {
+  --tw-bg-opacity: 1;
+  background-color: rgb(72 127 255 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"] .aria-selected\:\!text-white[aria-selected="true"] {
+  --tw-text-opacity: 1 !important;
+  color: rgb(255 255 255 / var(--tw-text-opacity)) !important;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hidden {
+  display: none;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:divide-neutral-700 > :not([hidden]) ~ :not([hidden]) {
+  --tw-divide-opacity: 1;
+  border-color: rgb(55 65 81 / var(--tw-divide-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-blue-500 {
+  --tw-border-opacity: 1;
+  border-color: rgb(63 131 248 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-cyan-600\/20 {
+  border-color: rgb(0 184 242 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-danger-600\/20 {
+  border-color: rgb(220 38 38 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-dark-2 {
+  --tw-border-opacity: 1;
+  border-color: rgb(39 49 66 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-gray-600 {
+  --tw-border-opacity: 1;
+  border-color: rgb(75 85 99 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-gray-700 {
+  --tw-border-opacity: 1;
+  border-color: rgb(55 65 81 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-info-600\/20 {
+  border-color: rgb(37 99 235 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-lilac-600\/20 {
+  border-color: rgb(130 82 233 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-neutral-200 {
+  --tw-border-opacity: 1;
+  border-color: rgb(235 236 239 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-neutral-500 {
+  --tw-border-opacity: 1;
+  border-color: rgb(107 114 128 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-neutral-600 {
+  --tw-border-opacity: 1;
+  border-color: rgb(75 85 99 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-neutral-700 {
+  --tw-border-opacity: 1;
+  border-color: rgb(55 65 81 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-pink-600\/50 {
+  border-color: rgb(214 31 105 / 0.5);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-primary-600 {
+  --tw-border-opacity: 1;
+  border-color: rgb(72 127 255 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-primary-600\/20 {
+  border-color: rgb(72 127 255 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-primary-600\/50 {
+  border-color: rgb(72 127 255 / 0.5);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-purple-600\/50 {
+  border-color: rgb(126 58 242 / 0.5);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-success-600\/20 {
+  border-color: rgb(22 163 74 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-success-600\/50 {
+  border-color: rgb(22 163 74 / 0.5);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-transparent {
+  border-color: transparent;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-warning-600\/20 {
+  border-color: rgb(255 159 41 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:border-warning-600\/50 {
+  border-color: rgb(255 159 41 / 0.5);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:\!bg-gray-700 {
+  --tw-bg-opacity: 1 !important;
+  background-color: rgb(55 65 81 / var(--tw-bg-opacity)) !important;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:\!bg-neutral-700 {
+  --tw-bg-opacity: 1 !important;
+  background-color: rgb(55 65 81 / var(--tw-bg-opacity)) !important;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:\!bg-primary-600 {
+  --tw-bg-opacity: 1 !important;
+  background-color: rgb(72 127 255 / var(--tw-bg-opacity)) !important;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:\!bg-primary-700 {
+  --tw-bg-opacity: 1 !important;
+  background-color: rgb(72 108 234 / var(--tw-bg-opacity)) !important;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-blue-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(28 100 242 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-cyan-600\/10 {
+  background-color: rgb(0 184 242 / 0.1);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-cyan-600\/20 {
+  background-color: rgb(0 184 242 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-danger-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(220 38 38 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-danger-600\/10 {
+  background-color: rgb(220 38 38 / 0.1);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-danger-600\/20 {
+  background-color: rgb(220 38 38 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-danger-600\/25 {
+  background-color: rgb(220 38 38 / 0.25);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-dark-2 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(39 49 66 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-dark-3 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(50 61 78 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-gray-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(107 114 128 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-gray-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(75 85 99 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-gray-700 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(55 65 81 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-gray-800 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(31 41 55 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-gray-800\/50 {
+  background-color: rgb(31 41 55 / 0.5);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-gray-900\/80 {
+  background-color: rgb(17 24 39 / 0.8);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-info-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(37 99 235 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-info-600\/10 {
+  background-color: rgb(37 99 235 / 0.1);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-info-600\/20 {
+  background-color: rgb(37 99 235 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-info-600\/25 {
+  background-color: rgb(37 99 235 / 0.25);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-light-600\/25 {
+  background-color: rgb(228 241 255 / 0.25);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-lilac-600\/10 {
+  background-color: rgb(130 82 233 / 0.1);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-lilac-600\/20 {
+  background-color: rgb(130 82 233 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-neutral-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(107 114 128 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-neutral-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(75 85 99 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-neutral-600\/25 {
+  background-color: rgb(75 85 99 / 0.25);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-neutral-600\/50 {
+  background-color: rgb(75 85 99 / 0.5);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-neutral-700 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(55 65 81 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-neutral-800 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(31 41 55 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-primary-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(72 127 255 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-primary-600\/10 {
+  background-color: rgb(72 127 255 / 0.1);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-primary-600\/20 {
+  background-color: rgb(72 127 255 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-primary-600\/25 {
+  background-color: rgb(72 127 255 / 0.25);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-purple-600\/25 {
+  background-color: rgb(126 58 242 / 0.25);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-success-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(22 163 74 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-success-600\/10 {
+  background-color: rgb(22 163 74 / 0.1);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-success-600\/20 {
+  background-color: rgb(22 163 74 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-success-600\/25 {
+  background-color: rgb(22 163 74 / 0.25);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-transparent {
+  background-color: transparent;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-warning-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 159 41 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-warning-600\/10 {
+  background-color: rgb(255 159 41 / 0.1);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-warning-600\/20 {
+  background-color: rgb(255 159 41 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:bg-warning-600\/25 {
+  background-color: rgb(255 159 41 / 0.25);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:\!text-blue-500 {
+  --tw-text-opacity: 1 !important;
+  color: rgb(63 131 248 / var(--tw-text-opacity)) !important;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:\!text-primary-500 {
+  --tw-text-opacity: 1 !important;
+  color: rgb(69 142 255 / var(--tw-text-opacity)) !important;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-blue-500 {
+  --tw-text-opacity: 1;
+  color: rgb(63 131 248 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-cyan-500 {
+  --tw-text-opacity: 1;
+  color: rgb(6 182 212 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-cyan-600 {
+  --tw-text-opacity: 1;
+  color: rgb(0 184 242 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-danger-400 {
+  --tw-text-opacity: 1;
+  color: rgb(248 113 113 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-danger-500 {
+  --tw-text-opacity: 1;
+  color: rgb(239 68 68 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-danger-600 {
+  --tw-text-opacity: 1;
+  color: rgb(220 38 38 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-gray-200 {
+  --tw-text-opacity: 1;
+  color: rgb(229 231 235 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-gray-300 {
+  --tw-text-opacity: 1;
+  color: rgb(209 213 219 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-gray-400 {
+  --tw-text-opacity: 1;
+  color: rgb(156 163 175 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-gray-500 {
+  --tw-text-opacity: 1;
+  color: rgb(107 114 128 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-info-400 {
+  --tw-text-opacity: 1;
+  color: rgb(96 165 250 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-info-500 {
+  --tw-text-opacity: 1;
+  color: rgb(59 130 246 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-info-600 {
+  --tw-text-opacity: 1;
+  color: rgb(37 99 235 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-neutral-200 {
+  --tw-text-opacity: 1;
+  color: rgb(235 236 239 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-neutral-300 {
+  --tw-text-opacity: 1;
+  color: rgb(209 213 219 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-neutral-400 {
+  --tw-text-opacity: 1;
+  color: rgb(156 163 175 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-neutral-600 {
+  --tw-text-opacity: 1;
+  color: rgb(75 85 99 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-neutral-900 {
+  --tw-text-opacity: 1;
+  color: rgb(17 24 39 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-pink-500 {
+  --tw-text-opacity: 1;
+  color: rgb(231 70 148 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-primary-400 {
+  --tw-text-opacity: 1;
+  color: rgb(81 159 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-primary-500 {
+  --tw-text-opacity: 1;
+  color: rgb(69 142 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-primary-600 {
+  --tw-text-opacity: 1;
+  color: rgb(72 127 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-primary-800 {
+  --tw-text-opacity: 1;
+  color: rgb(71 89 214 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-purple-400 {
+  --tw-text-opacity: 1;
+  color: rgb(172 148 250 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-purple-500 {
+  --tw-text-opacity: 1;
+  color: rgb(144 97 249 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-purple-600 {
+  --tw-text-opacity: 1;
+  color: rgb(126 58 242 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-success-400 {
+  --tw-text-opacity: 1;
+  color: rgb(74 222 128 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-success-500 {
+  --tw-text-opacity: 1;
+  color: rgb(34 197 94 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-success-600 {
+  --tw-text-opacity: 1;
+  color: rgb(22 163 74 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-warning-400 {
+  --tw-text-opacity: 1;
+  color: rgb(250 204 21 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-warning-500 {
+  --tw-text-opacity: 1;
+  color: rgb(234 179 8 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-warning-600 {
+  --tw-text-opacity: 1;
+  color: rgb(255 159 41 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:text-white {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:placeholder-gray-400::-moz-placeholder {
+  --tw-placeholder-opacity: 1;
+  color: rgb(156 163 175 / var(--tw-placeholder-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:placeholder-gray-400::placeholder {
+  --tw-placeholder-opacity: 1;
+  color: rgb(156 163 175 / var(--tw-placeholder-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:ring-offset-gray-800 {
+  --tw-ring-offset-color: #1F2937;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:before\:bg-neutral-500::before {
+  content: var(--tw-content);
+  --tw-bg-opacity: 1;
+  background-color: rgb(107 114 128 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:after\:border-neutral-600::after {
+  content: var(--tw-content);
+  --tw-border-opacity: 1;
+  border-color: rgb(75 85 99 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:after\:bg-neutral-600::after {
+  content: var(--tw-content);
+  --tw-bg-opacity: 1;
+  background-color: rgb(75 85 99 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:odd\:bg-neutral-600:nth-child(odd) {
+  --tw-bg-opacity: 1;
+  background-color: rgb(75 85 99 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:border-neutral-600:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(75 85 99 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:border-primary-600:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(72 127 255 / var(--tw-border-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:\!bg-primary-700:hover {
+  --tw-bg-opacity: 1 !important;
+  background-color: rgb(72 108 234 / var(--tw-bg-opacity)) !important;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-blue-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(26 86 219 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-danger-500\/20:hover {
+  background-color: rgb(239 68 68 / 0.2);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-danger-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(220 38 38 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-danger-600\/10:hover {
+  background-color: rgb(220 38 38 / 0.1);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-danger-600\/25:hover {
+  background-color: rgb(220 38 38 / 0.25);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-gray-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(75 85 99 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-gray-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(55 65 81 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-gray-800:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(31 41 55 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-info-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(37 99 235 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-neutral-500:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(107 114 128 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-neutral-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(75 85 99 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-neutral-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(55 65 81 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-primary-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(72 127 255 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-primary-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(72 108 234 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-primary-800\/25:hover {
+  background-color: rgb(71 89 214 / 0.25);
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-purple-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(126 58 242 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-success-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(22 163 74 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-success-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(21 128 61 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-warning-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 159 41 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:bg-warning-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(243 144 22 / var(--tw-bg-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:text-blue-500:hover {
+  --tw-text-opacity: 1;
+  color: rgb(63 131 248 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:text-danger-600:hover {
+  --tw-text-opacity: 1;
+  color: rgb(220 38 38 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:text-gray-300:hover {
+  --tw-text-opacity: 1;
+  color: rgb(209 213 219 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:text-primary-600:hover {
+  --tw-text-opacity: 1;
+  color: rgb(72 127 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:hover\:text-white:hover {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:focus\:text-white:focus {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:focus\:ring-blue-600:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(28 100 242 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:focus\:ring-blue-800:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(30 66 159 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:focus\:ring-danger-600:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(220 38 38 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:focus\:ring-gray-600:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(75 85 99 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:focus\:ring-primary-600:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(72 127 255 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:focus\:ring-primary-800:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(71 89 214 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:focus\:ring-purple-600:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(126 58 242 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:focus\:ring-success-600:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(22 163 74 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:focus\:ring-success-800:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(22 101 52 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:focus\:ring-warning-600:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(255 159 41 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dark\:focus\:ring-warning-800:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(229 130 9 / var(--tw-ring-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .peer:checked ~ .dark\:peer-checked\:text-white {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .peer:focus ~ .dark\:peer-focus\:ring-blue-800 {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(30 66 159 / var(--tw-ring-opacity));
+}
+@media (min-width: 576px) {
+
+  .kb-shell[data-skin="admina"] .sm\:col-span-10 {
+    grid-column: span 10 / span 10;
+  }
+  .kb-shell[data-skin="admina"] .sm\:col-span-2 {
+    grid-column: span 2 / span 2;
+  }
+  .kb-shell[data-skin="admina"] .sm\:col-span-4 {
+    grid-column: span 4 / span 4;
+  }
+  .kb-shell[data-skin="admina"] .sm\:col-span-6 {
+    grid-column: span 6 / span 6;
+  }
+  .kb-shell[data-skin="admina"] .sm\:block {
+    display: block;
+  }
+  .kb-shell[data-skin="admina"] .sm\:min-w-max {
+    min-width: -moz-max-content;
+    min-width: max-content;
+  }
+  .kb-shell[data-skin="admina"] .sm\:grid-cols-12 {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .sm\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .sm\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .sm\:grid-cols-6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .sm\:grid-cols-\[40px_minmax\(0\2c 1\.35fr\)_minmax\(0\2c 1fr\)_auto\] {
+    grid-template-columns: 40px minmax(0,1.35fr) minmax(0,1fr) auto;
+  }
+  .kb-shell[data-skin="admina"] .sm\:flex-row {
+    flex-direction: row;
+  }
+  .kb-shell[data-skin="admina"] .sm\:flex-row-reverse {
+    flex-direction: row-reverse;
+  }
+  .kb-shell[data-skin="admina"] .sm\:gap-5 {
+    gap: 1.25rem;
+  }
+  .kb-shell[data-skin="admina"] .sm\:border-b-0 {
+    border-bottom-width: 0px;
+  }
+  .kb-shell[data-skin="admina"] .sm\:border-r {
+    border-right-width: 1px;
+  }
+
+}
+@media (min-width: 768px) {
+
+  .kb-shell[data-skin="admina"] .md\:inset-0 {
+    inset: 0px;
+  }
+  .kb-shell[data-skin="admina"] .md\:col-span-4 {
+    grid-column: span 4 / span 4;
+  }
+  .kb-shell[data-skin="admina"] .md\:col-span-6 {
+    grid-column: span 6 / span 6;
+  }
+  .kb-shell[data-skin="admina"] .md\:col-span-8 {
+    grid-column: span 8 / span 8;
+  }
+  .kb-shell[data-skin="admina"] .md\:mt-\[60px\] {
+    margin-top: 60px;
+  }
+  .kb-shell[data-skin="admina"] .md\:block {
+    display: block;
+  }
+  .kb-shell[data-skin="admina"] .md\:inline-block {
+    display: inline-block;
+  }
+  .kb-shell[data-skin="admina"] .md\:grid-cols-12 {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .md\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .md\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .md\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .md\:grid-cols-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .md\:flex-nowrap {
+    flex-wrap: nowrap;
+  }
+  .kb-shell[data-skin="admina"] .md\:gap-8 {
+    gap: 2rem;
+  }
+  .kb-shell[data-skin="admina"] .md\:gap-y-0 {
+    row-gap: 0px;
+  }
+  .kb-shell[data-skin="admina"] .md\:border-l {
+    border-left-width: 1px;
+  }
+  .kb-shell[data-skin="admina"] .md\:border-r {
+    border-right-width: 1px;
+  }
+  .kb-shell[data-skin="admina"] .md\:border-neutral-200 {
+    --tw-border-opacity: 1;
+    border-color: rgb(235 236 239 / var(--tw-border-opacity));
+  }
+  .kb-shell[data-skin="admina"] .md\:p-5 {
+    padding: 1.25rem;
+  }
+  .kb-shell[data-skin="admina"][data-theme="dark"] .dark\:md\:border-neutral-600 {
+    --tw-border-opacity: 1;
+    border-color: rgb(75 85 99 / var(--tw-border-opacity));
+  }
+
+}
+@media (min-width: 992px) {
+
+  .kb-shell[data-skin="admina"] .lg\:col-span-10 {
+    grid-column: span 10 / span 10;
+  }
+  .kb-shell[data-skin="admina"] .lg\:col-span-12 {
+    grid-column: span 12 / span 12;
+  }
+  .kb-shell[data-skin="admina"] .lg\:col-span-3 {
+    grid-column: span 3 / span 3;
+  }
+  .kb-shell[data-skin="admina"] .lg\:col-span-4 {
+    grid-column: span 4 / span 4;
+  }
+  .kb-shell[data-skin="admina"] .lg\:col-span-5 {
+    grid-column: span 5 / span 5;
+  }
+  .kb-shell[data-skin="admina"] .lg\:col-span-6 {
+    grid-column: span 6 / span 6;
+  }
+  .kb-shell[data-skin="admina"] .lg\:col-span-7 {
+    grid-column: span 7 / span 7;
+  }
+  .kb-shell[data-skin="admina"] .lg\:col-span-8 {
+    grid-column: span 8 / span 8;
+  }
+  .kb-shell[data-skin="admina"] .lg\:col-span-9 {
+    grid-column: span 9 / span 9;
+  }
+  .kb-shell[data-skin="admina"] .lg\:mt-\[100px\] {
+    margin-top: 100px;
+  }
+  .kb-shell[data-skin="admina"] .lg\:block {
+    display: block;
+  }
+  .kb-shell[data-skin="admina"] .lg\:w-1\/2 {
+    width: 50%;
+  }
+  .kb-shell[data-skin="admina"] .lg\:max-w-\[464px\] {
+    max-width: 464px;
+  }
+  .kb-shell[data-skin="admina"] .lg\:grid-cols-12 {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .lg\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .lg\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .lg\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .lg\:border-b-0 {
+    border-bottom-width: 0px;
+  }
+  .kb-shell[data-skin="admina"] .lg\:border-r {
+    border-right-width: 1px;
+  }
+  .kb-shell[data-skin="admina"] .lg\:px-6 {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+  .kb-shell[data-skin="admina"] .lg\:py-8 {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+  .kb-shell[data-skin="admina"] .lg\:py-\[60px\] {
+    padding-top: 60px;
+    padding-bottom: 60px;
+  }
+
+}
+@media (min-width: 1200px) {
+
+  .kb-shell[data-skin="admina"] .xl\:col-span-12 {
+    grid-column: span 12 / span 12;
+  }
+  .kb-shell[data-skin="admina"] .xl\:col-span-3 {
+    grid-column: span 3 / span 3;
+  }
+  .kb-shell[data-skin="admina"] .xl\:col-span-4 {
+    grid-column: span 4 / span 4;
+  }
+  .kb-shell[data-skin="admina"] .xl\:col-span-5 {
+    grid-column: span 5 / span 5;
+  }
+  .kb-shell[data-skin="admina"] .xl\:col-span-6 {
+    grid-column: span 6 / span 6;
+  }
+  .kb-shell[data-skin="admina"] .xl\:col-span-7 {
+    grid-column: span 7 / span 7;
+  }
+  .kb-shell[data-skin="admina"] .xl\:col-span-8 {
+    grid-column: span 8 / span 8;
+  }
+  .kb-shell[data-skin="admina"] .xl\:col-span-9 {
+    grid-column: span 9 / span 9;
+  }
+  .kb-shell[data-skin="admina"] .xl\:mt-\[120px\] {
+    margin-top: 120px;
+  }
+  .kb-shell[data-skin="admina"] .xl\:block {
+    display: block;
+  }
+  .kb-shell[data-skin="admina"] .xl\:flex {
+    display: flex;
+  }
+  .kb-shell[data-skin="admina"] .xl\:grid-cols-12 {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .xl\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .xl\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .xl\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .xl\:px-\[60px\] {
+    padding-left: 60px;
+    padding-right: 60px;
+  }
+  .kb-shell[data-skin="admina"] .xl\:py-10 {
+    padding-top: 2.5rem;
+    padding-bottom: 2.5rem;
+  }
+  .kb-shell[data-skin="admina"] .xl\:py-\[80px\] {
+    padding-top: 80px;
+    padding-bottom: 80px;
+  }
+
+}
+@media (min-width: 1400px) {
+
+  .kb-shell[data-skin="admina"] .\32xl\:col-span-12 {
+    grid-column: span 12 / span 12;
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:col-span-2 {
+    grid-column: span 2 / span 2;
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:col-span-3 {
+    grid-column: span 3 / span 3;
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:col-span-4 {
+    grid-column: span 4 / span 4;
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:col-span-5 {
+    grid-column: span 5 / span 5;
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:col-span-6 {
+    grid-column: span 6 / span 6;
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:col-span-7 {
+    grid-column: span 7 / span 7;
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:col-span-8 {
+    grid-column: span 8 / span 8;
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:col-span-9 {
+    grid-column: span 9 / span 9;
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:col-start-4 {
+    grid-column-start: 4;
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:-mt-\[50px\] {
+    margin-top: -50px;
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:mb-\[110px\] {
+    margin-bottom: 110px;
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:scale-105 {
+    --tw-scale-x: 1.05;
+    --tw-scale-y: 1.05;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:grid-cols-12 {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:gap-0 {
+    gap: 0px;
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:px-\[100px\] {
+    padding-left: 100px;
+    padding-right: 100px;
+  }
+  .kb-shell[data-skin="admina"] .\32xl\:py-\[50px\] {
+    padding-top: 50px;
+    padding-bottom: 50px;
+  }
+
+}
+@media (min-width: 1650px) {
+
+  .kb-shell[data-skin="admina"] .\33xl\:col-span-10 {
+    grid-column: span 10 / span 10;
+  }
+  .kb-shell[data-skin="admina"] .\33xl\:col-start-2 {
+    grid-column-start: 2;
+  }
+  .kb-shell[data-skin="admina"] .\33xl\:grid-cols-12 {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .\33xl\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .\33xl\:grid-cols-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .kb-shell[data-skin="admina"] .\33xl\:px-10 {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+  .kb-shell[data-skin="admina"] .\33xl\:px-\[140px\] {
+    padding-left: 140px;
+    padding-right: 140px;
+  }
+
+}
+.kb-shell[data-skin="admina"] .rtl\:rotate-180:where([dir="rtl"], .kb-shell[data-skin="admina"] [dir="rtl"] *) {
+  --tw-rotate: 180deg;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+.kb-shell[data-skin="admina"] .rtl\:space-x-reverse:where([dir="rtl"], .kb-shell[data-skin="admina"] [dir="rtl"] *) > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+}
+.kb-shell[data-skin="admina"] .peer:checked ~ .rtl\:peer-checked\:after\:-translate-x-full:where([dir="rtl"], .kb-shell[data-skin="admina"] [dir="rtl"] *)::after {
+  content: var(--tw-content);
+  --tw-translate-x: -100%;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+/* --------------------------------------------------------------------------
+   Additions — pieces this app needs that the static template has no markup
+   for. Kept at the end, and deliberately small: everything above is the
+   template's own CSS, everything here is ours.
+   -------------------------------------------------------------------------- */
+
+/* The workspace name. The template hardcodes a brand in the panel head; a
+   multi-tenant app has to say which workspace you're actually in. */
+.kb-shell[data-skin="admina"] .twin-panel__workspace {
+  margin: -8px 20px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ts-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Unread counts. The template's menus carry no counts, but most of this
+   app's queues do, and a nav item without its number is just a link. */
+.kb-shell[data-skin="admina"] .twin-menu__badge {
+  margin-inline-start: auto;
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--ts-purple);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 19px;
+  text-align: center;
+}
+
+/* Rolled-up count on the rail, so a collapsed category still shows it has
+   something waiting. */
+.kb-shell[data-skin="admina"] .rail-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+.kb-shell[data-skin="admina"] .rail-icon[aria-selected="true"] .rail-badge {
+  background: #fff;
+  color: var(--ts-purple);
+}
+
+/* Close control inside the drawer — the template closes only via its
+   backdrop, which is hard to hit one-handed on a phone. */
+.kb-shell[data-skin="admina"] .twin-panel__close {
+  display: none;
+  border: 0;
+  background: transparent;
+  color: var(--ts-text);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+}
+.kb-shell[data-skin="admina"] .twin-panel__close:hover {
+  background: var(--ts-hover);
+  color: var(--ts-heading);
+}
+@media (max-width: 1199px) {
+  .kb-shell[data-skin="admina"] .twin-panel__close { display: inline-flex; }
+}
+
+/* The rail icons are inline SVG here rather than the template's icon font,
+   which it loads from a CDN this app doesn't pull in. */
+.kb-shell[data-skin="admina"] .rail-icon svg { width: 22px; height: 22px; }
+
+/* Admina's stat cards are white with the colour carried by the number and the
+   icon, not by the card's background. This app's .kb-tile tints the whole
+   surface, which reads correctly in the other skins but fights Admina's
+   flat-white grid — so under this skin the tint moves to the text and the
+   surface goes white. */
+.kb-shell[data-skin="admina"] .kb-tile {
+  background: var(--ts-surface);
+  color: var(--ts-heading);
+}
+/* Both pseudo-elements: ::before paints the tint gradient, ::after the 3px
+   colour bar across the top. Neither exists in Admina's flat white grid. */
+.kb-shell[data-skin="admina"] .kb-tile::before,
+.kb-shell[data-skin="admina"] .kb-tile::after { display: none; }
+.kb-shell[data-skin="admina"] .kb-tile > :first-child { color: var(--ts-heading); }
+/* No accent bar: Admina's stat cards are plain white with the colour carried
+   entirely by the number and its icon. A tinted edge is this app's older
+   language, not the template's. */
+.kb-shell[data-skin="admina"] .kb-tile { border: 0; }
+
+/* The panel footer holds account links, not the template's upgrade advert. */
+.kb-shell[data-skin="admina"] .twin-panel__foot {
+  border-top: 1px solid var(--ts-border);
+  padding-top: 14px;
+}
+.kb-shell[data-skin="admina"] .twin-panel__foot a,
+.kb-shell[data-skin="admina"] .twin-panel__foot button {
+  color: var(--ts-text);
+  font-size: 12.5px;
+}
+.kb-shell[data-skin="admina"] .twin-panel__foot a:hover,
+.kb-shell[data-skin="admina"] .twin-panel__foot button:hover {
+  color: var(--ts-accent, var(--ts-purple));
+}
+
+/* The app's own topbar sits inside the template's .navbar-header, which
+   already supplies the height, stickiness and padding. */
+.kb-shell[data-skin="admina"] .navbar-header > header { padding: 0; }
+
+/* Admina has no dark hero tile — its dashboard is a flat white grid, with the
+   emphasis carried by type size. */
+.kb-shell[data-skin="admina"] {
+  --kb-hero-bg: var(--ts-surface);
+  --kb-hero-ink: var(--ts-heading);
+}
+
+/* --------------------------------------------------------------------------
+   Card geometry — Admina's cards are flat on the neutral canvas at a 20px
+   radius with 24px padding, no border and no lift. This app's default card is
+   14px with a hairline border and a soft shadow, which reads as a different
+   product entirely, so it is restated here for this skin.
+   -------------------------------------------------------------------------- */
+.kb-shell[data-skin="admina"] .kb-card,
+.kb-shell[data-skin="admina"] .kb-glass {
+  border-radius: 20px;
+  border: 0;
+  box-shadow: none;
+  background: var(--ts-surface);
+}
+.kb-shell[data-skin="admina"] .kb-tile {
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: none;
+}
+.kb-shell[data-skin="admina"] .kb-pill {
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+/* --------------------------------------------------------------------------
+   Navbar — values taken from the template's index.html markup, where they are
+   Tailwind 3 utilities bound to a colour config this app doesn't have:
+     search   h-11 w-[24.25rem] rounded-full border-neutral-200 ps-5 pe-14
+     submit   h-8 w-8 rounded-full bg-primary-600, end-1.5
+     icons    h-11 w-11 rounded-full border-neutral-200, hover -> primary-600
+   -------------------------------------------------------------------------- */
+.kb-shell[data-skin="admina"] .admina-nav-back {
+  align-items: center;
+  justify-content: center;
+  color: var(--ts-heading);
+  transition: color 0.2s ease;
+}
+.kb-shell[data-skin="admina"] .admina-nav-back:hover { color: var(--ts-purple); }
+
+.kb-shell[data-skin="admina"] .admina-search input {
+  height: 2.75rem;
+  width: 24.25rem;
+  max-width: 100%;
+  border-radius: 9999px;
+  border: 1px solid var(--ts-border);
+  background: var(--ts-surface);
+  padding-inline: 1.25rem 3.5rem;
+  font-size: 0.875rem;
+  color: var(--ts-heading);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+.kb-shell[data-skin="admina"] .admina-search input::placeholder { color: #9ca3af; }
+.kb-shell[data-skin="admina"] .admina-search input:focus { border-color: var(--ts-purple); }
+
+.kb-shell[data-skin="admina"] .admina-search button {
+  position: absolute;
+  inset-inline-end: 0.375rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  width: 2rem;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--ts-purple);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.kb-shell[data-skin="admina"] .admina-search button:hover { background: #486cea; }
+
+.kb-shell[data-skin="admina"] .admina-nav-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.75rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  border: 1px solid var(--ts-border);
+  background: var(--ts-surface);
+  color: var(--ts-text);
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.kb-shell[data-skin="admina"] .admina-nav-icon:hover {
+  border-color: var(--ts-purple);
+  color: var(--ts-purple);
+}
+
+.kb-shell[data-skin="admina"] .admina-nav-badge {
+  position: absolute;
+  top: -2px;
+  inset-inline-end: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* The template shows an avatar, name and role as one control. */
+.kb-shell[data-skin="admina"] .admina-nav-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  text-decoration: none;
+}
+.kb-shell[data-skin="admina"] .admina-nav-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.75rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: var(--ts-purple);
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+}
+.kb-shell[data-skin="admina"] .admina-nav-user__name {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ts-heading);
+  white-space: nowrap;
+}
+.kb-shell[data-skin="admina"] .admina-nav-user__role {
+  display: block;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--ts-text);
+}
+
+/* --------------------------------------------------------------------------
+   Canvas — the template paints a soft warm-to-lavender wash behind the grid
+   (assets/images/body-bg.png). Reproduced as gradients so no binary asset has
+   to be copied in, and so it can be re-tinted for dark mode instead of simply
+   being hidden the way the template hides its image.
+   -------------------------------------------------------------------------- */
+.kb-shell[data-skin="admina"] .dashboard-main {
+  background-color: #f7f7fb;
+  background-image:
+    radial-gradient(60rem 32rem at 8% -6%, rgba(253, 246, 227, 0.85), transparent 60%),
+    radial-gradient(52rem 30rem at 92% 4%, rgba(232, 236, 255, 0.9), transparent 62%);
+  background-attachment: fixed;
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] .dashboard-main {
+  background-color: #1b2431;
+  background-image:
+    radial-gradient(60rem 32rem at 8% -6%, rgba(46, 57, 79, 0.6), transparent 60%),
+    radial-gradient(52rem 30rem at 92% 4%, rgba(39, 49, 66, 0.8), transparent 62%);
+}
+.kb-shell[data-skin="admina"] .navbar-header { background: transparent; border-bottom: 0; }
+
+/* Panel footer — the template's upgrade card, carrying account links. */
+.kb-shell[data-skin="admina"] .twin-panel__foot {
+  border-top: 0;
+  text-align: center;
+}
+.kb-shell[data-skin="admina"] .admina-foot-art {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--ts-purple-soft);
+  color: var(--ts-purple);
+  margin-bottom: 10px;
+}
+.kb-shell[data-skin="admina"] .admina-foot-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+}
+.kb-shell[data-skin="admina"] .admina-foot-links a,
+.kb-shell[data-skin="admina"] .admina-foot-links button {
+  color: var(--ts-text);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.kb-shell[data-skin="admina"] .admina-foot-links a:hover,
+.kb-shell[data-skin="admina"] .admina-foot-links button:hover { color: var(--ts-purple); }
+
+.kb-shell[data-skin="admina"] .twin-version {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+/* Admina's numbers are large and dark; its labels are small and grey. The
+   template sets these per-element in markup, which this app's shared tiles
+   can't do, so the relationship is restated once here. */
+.kb-shell[data-skin="admina"] .kb-tile p:first-child,
+.kb-shell[data-skin="admina"] .kb-tile > div > span:first-child {
+  color: var(--ts-heading);
+  font-weight: 600;
+}
+.kb-shell[data-skin="admina"] .kb-tile span[class*="opacity"] { color: var(--ts-text); opacity: 1; }
+
+/* --------------------------------------------------------------------------
+   Page header + breadcrumb. The template's `h6` class is Bootstrap-style
+   sizing carried into its Tailwind build; the computed value is 1.125rem/600.
+   -------------------------------------------------------------------------- */
+.kb-shell[data-skin="admina"] .admina-page-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0;
+  color: var(--ts-heading);
+}
+.kb-shell[data-skin="admina"] .admina-crumbs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.875rem;
+  color: var(--ts-text);
+}
+.kb-shell[data-skin="admina"] .admina-crumbs a {
+  color: var(--ts-text);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.kb-shell[data-skin="admina"] .admina-crumbs a:hover { color: var(--ts-purple); }
+
+/* --------------------------------------------------------------------------
+   Form controls. Admina's inputs are 2.75rem tall at r8 with a hairline
+   border that turns blue on focus, and its labels sit above at 0.875rem/500.
+   This app's forms use bare Tailwind borders, which read a full generation
+   older next to them.
+   -------------------------------------------------------------------------- */
+.kb-shell[data-skin="admina"] input[type="text"],
+.kb-shell[data-skin="admina"] input[type="email"],
+.kb-shell[data-skin="admina"] input[type="password"],
+.kb-shell[data-skin="admina"] input[type="number"],
+.kb-shell[data-skin="admina"] input[type="tel"],
+.kb-shell[data-skin="admina"] input[type="date"],
+.kb-shell[data-skin="admina"] input[type="datetime-local"],
+.kb-shell[data-skin="admina"] input[type="search"],
+.kb-shell[data-skin="admina"] input[type="url"],
+/* A bare <input> defaults to type=text but carries no type attribute, so it
+   matched none of the selectors above and kept whatever background a utility
+   class gave it — which is how search boxes stayed white in dark mode. */
+.kb-shell[data-skin="admina"] input:not([type]),
+.kb-shell[data-skin="admina"] select,
+.kb-shell[data-skin="admina"] textarea {
+  border-radius: 8px;
+  border: 1px solid var(--ts-border);
+  background: var(--ts-surface);
+  color: var(--ts-heading);
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease;
+}
+.kb-shell[data-skin="admina"] input:focus,
+.kb-shell[data-skin="admina"] select:focus,
+.kb-shell[data-skin="admina"] textarea:focus {
+  border-color: var(--ts-purple);
+  outline: none;
+}
+.kb-shell[data-skin="admina"] input::placeholder,
+.kb-shell[data-skin="admina"] textarea::placeholder { color: #9ca3af; }
+
+/* The navbar search sets its own height/radius and must not inherit these. */
+.kb-shell[data-skin="admina"] .admina-search input { border-radius: 9999px; padding-block: 0; }
+
+/* --------------------------------------------------------------------------
+   Buttons. Admina's primary is a solid blue at r8 with 0.625rem/1.25rem
+   padding; its secondary is the same shape with a border and no fill.
+   -------------------------------------------------------------------------- */
+.kb-shell[data-skin="admina"] .kb-pill,
+.kb-shell[data-skin="admina"] button.kb-pill {
+  border-radius: 8px;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.kb-shell[data-skin="admina"] .kb-pill-primary {
+  background: var(--ts-purple);
+  color: #fff;
+  border: 1px solid var(--ts-purple);
+}
+.kb-shell[data-skin="admina"] .kb-pill-primary:hover { background: #486cea; border-color: #486cea; }
+.kb-shell[data-skin="admina"] .kb-pill-ghost {
+  background: transparent;
+  color: var(--ts-text);
+  border: 1px solid var(--ts-border);
+}
+.kb-shell[data-skin="admina"] .kb-pill-ghost:hover {
+  border-color: var(--ts-purple);
+  color: var(--ts-purple);
+}
+
+/* --------------------------------------------------------------------------
+   Tables. Admina's header row is a tinted band with uppercase labels, and its
+   body rows are separated by hairlines rather than boxed.
+   -------------------------------------------------------------------------- */
+.kb-shell[data-skin="admina"] table { width: 100%; border-collapse: collapse; }
+.kb-shell[data-skin="admina"] thead th {
+  background: var(--ts-hover);
+  color: var(--ts-heading);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.875rem 1rem;
+  text-align: start;
+  white-space: nowrap;
+}
+.kb-shell[data-skin="admina"] thead th:first-child { border-start-start-radius: 8px; }
+.kb-shell[data-skin="admina"] thead th:last-child { border-start-end-radius: 8px; }
+.kb-shell[data-skin="admina"] tbody td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--ts-border);
+  font-size: 0.875rem;
+  color: var(--ts-text);
+}
+.kb-shell[data-skin="admina"] tbody tr:hover td { background: var(--ts-hover); }
+
+/* Admina's page titles are its `h6` size — 1.125rem/600 — not the 1.5rem
+   this app uses. Restyling the existing headings reaches all 89 pages without
+   restructuring each one; pages that adopt <PageHeader/> get the breadcrumb
+   trail as well. */
+.kb-shell[data-skin="admina"] main > h1,
+.kb-shell[data-skin="admina"] main > div > h1,
+.kb-shell[data-skin="admina"] .admina-page-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ts-heading);
+}
+/* Section labels: the template uses sentence case at 1rem/600, not this
+   app's uppercase micro-caps. */
+.kb-shell[data-skin="admina"] h2.text-sm.uppercase,
+.kb-shell[data-skin="admina"] h2[class*="uppercase"] {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1rem;
+  color: var(--ts-heading);
+}
+
+/* Links inside page content pick up the template's blue. */
+.kb-shell[data-skin="admina"] main a:not(.kb-pill):not(.kb-tile):not(.kb-card) {
+  color: inherit;
+}
+.kb-shell[data-skin="admina"] main a.underline:hover { color: var(--ts-purple); }
+
+/* --------------------------------------------------------------------------
+   Page width. This app centres most pages in a narrow measure (mx-auto
+   max-w-3xl), which suits a document but leaves Admina's grid floating in the
+   middle of a wide screen with dead space either side. The template's
+   dashboard-main-body has no max-width at all — content fills the column and
+   the grid does the arranging.
+   -------------------------------------------------------------------------- */
+.kb-shell[data-skin="admina"] .dashboard-main-body > main,
+.kb-shell[data-skin="admina"] .dashboard-main-body main {
+  max-width: none;
+  margin-inline: 0;
+  padding: 0;
+  width: 100%;
+}
+
+/* Admina never rings a card to mark it primary — emphasis is carried by a
+   filled blue button. The shortcut tile keeps its label colour instead. */
+.kb-shell[data-skin="admina"] .kb-tile-primary { box-shadow: none; }
+.kb-shell[data-skin="admina"] .kb-tile-primary span:first-child { color: var(--ts-purple); }
+
+/* Defensive: a page whose own markup forces a wide row shouldn't push the
+   whole shell sideways. The column clips, and anything genuinely wide (a
+   table, a chart) scrolls inside its own container the way Admina's do. */
+.kb-shell[data-skin="admina"] .dashboard-main { min-width: 0; overflow-x: clip; }
+.kb-shell[data-skin="admina"] .dashboard-main-body { min-width: 0; }

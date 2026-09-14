@@ -122,7 +122,7 @@ export async function placeConnectedOrder(params: {
     partyId: buyerParty.id,
     lines,
   });
-  await sendQuote(quote.id);
+  await sendQuote(quote.id, quote.tenantId);
 
   return quote;
 }

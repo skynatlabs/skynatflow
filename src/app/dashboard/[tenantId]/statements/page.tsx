@@ -39,10 +39,10 @@ export default async function StatementsIndexPage({
     }));
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Statements</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-        Every customer's running account balance — every invoice against every payment they've made.
+        Every customer&apos;s running account balance — every invoice against every payment they&apos;ve made.
       </p>
 
       {barData.length > 0 && (

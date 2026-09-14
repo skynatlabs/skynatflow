@@ -1,7 +1,16 @@
-import Link from "next/link";
 import { listPdfTemplates } from "@/lib/core/pdfTemplates";
-import { PDF_STYLE_LIST } from "@/lib/pdf/styles";
-import { createPdfTemplateAction, setDefaultPdfTemplateAction, deletePdfTemplateAction } from "./actions";
+import { getPdfStyle } from "@/lib/pdf/styles";
+import { DOCUMENT_PRESETS } from "@/lib/pdf/presets";
+import { TemplateCard } from "./TemplateCard";
+import {
+  createPdfTemplateAction,
+  setDefaultPdfTemplateAction,
+  deletePdfTemplateAction,
+} from "./actions";
+
+export const dynamic = "force-dynamic";
+
+const MAX_TEMPLATES = 12;
 
 export default async function PdfTemplatesPage({
   params,
@@ -10,93 +19,122 @@ export default async function PdfTemplatesPage({
 }) {
   const { tenantId } = await params;
   const templates = await listPdfTemplates(tenantId);
-  const invoiceStyles = PDF_STYLE_LIST.filter((s) => !s.isSlip);
-  const slipStyles = PDF_STYLE_LIST.filter((s) => s.isSlip);
-  const canAddMore = templates.length < 3;
+  const canAddMore = templates.length < MAX_TEMPLATES;
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-2xl font-semibold text-[var(--kb-text)]">PDF templates</h1>
-      <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-        10 invoice/quote layouts plus 2 delivery-slip layouts to choose from. Save up to 3 — one
-        default, two customized — each with your own accent color and logo.
-      </p>
+    <main className="mx-auto w-full max-w-6xl p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-[var(--kb-text)] sm:text-2xl">
+            Document templates
+          </h1>
+          <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
+            Start from a design, then edit it block by block. Point different templates at quotes,
+            invoices and delivery slips.
+          </p>
+        </div>
+      </div>
 
-      <section className="mt-6">
-        <h2 className="text-lg font-semibold text-[var(--kb-text)]">Your saved templates</h2>
-        <ul className="kb-card mt-3 divide-y divide-[var(--kb-panel-border)]">
+      {/* ------------------------------------------------------------ gallery */}
+      {templates.length > 0 && (
+        <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map((t) => (
-            <li key={t.id} className="flex items-center justify-between px-5 py-3">
-              <div>
-                <p className="font-medium text-[var(--kb-text)]">{t.name}</p>
-                <p className="text-xs text-[var(--kb-text-dim)]">{t.styleKey}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Link
-                  href={`/dashboard/${tenantId}/settings/pdf-templates/${t.id}`}
-                  className="kb-pill kb-pill-ghost text-xs"
-                >
-                  Customize layout
-                </Link>
-                {t.isDefault ? (
-                  <span className="kb-pill kb-pill-primary text-xs">Default</span>
-                ) : (
+            <TemplateCard
+              key={t.id}
+              tenantId={tenantId}
+              templateId={t.id}
+              name={t.name}
+              styleLabel={getPdfStyle(t.styleKey).label}
+              appliesTo={t.appliesTo ?? "ALL"}
+              isDefault={t.isDefault}
+              makeDefault={
+                t.isDefault ? null : (
                   <form action={setDefaultPdfTemplateAction}>
                     <input type="hidden" name="tenantId" value={tenantId} />
                     <input type="hidden" name="templateId" value={t.id} />
-                    <button type="submit" className="kb-pill kb-pill-ghost text-xs">Make default</button>
+                    <button type="submit" className="kb-pill kb-pill-ghost text-[11px]">
+                      Make default
+                    </button>
                   </form>
-                )}
+                )
+              }
+              remove={
                 <form action={deletePdfTemplateAction}>
                   <input type="hidden" name="tenantId" value={tenantId} />
                   <input type="hidden" name="templateId" value={t.id} />
-                  <button type="submit" className="text-xs text-red-500 hover:underline">Remove</button>
+                  <button type="submit" className="text-[11px] text-white/70 hover:text-white">
+                    Remove
+                  </button>
                 </form>
-              </div>
-            </li>
+              }
+            />
           ))}
-          {templates.length === 0 && (
-            <li className="px-5 py-4 text-sm text-[var(--kb-text-dim)]">
-              Nothing saved yet — a plain default is used until you add one.
-            </li>
-          )}
-        </ul>
-      </section>
+        </div>
+      )}
 
+      {templates.length === 0 && (
+        <p className="kb-card mt-6 p-5 text-sm text-[var(--kb-text-dim)]">
+          No templates yet — a plain default is used for your documents until you add one below.
+        </p>
+      )}
+
+      {/* ---------------------------------------------------------- new one */}
       {canAddMore ? (
-        <section className="mt-8">
-          <h2 className="text-lg font-semibold text-[var(--kb-text)]">Add a template</h2>
-          <form action={createPdfTemplateAction} className="kb-card mt-3 flex flex-wrap items-end gap-3 p-4">
+        <section className="mt-10">
+          <h2 className="text-sm font-semibold text-[var(--kb-text)]">New template</h2>
+          <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
+            Pick the design it starts as. Everything stays editable afterwards.
+          </p>
+
+          <form action={createPdfTemplateAction} className="kb-card mt-3 p-4 sm:p-5">
             <input type="hidden" name="tenantId" value={tenantId} />
-            <label className="text-xs">
+
+            <label className="block max-w-sm text-xs">
               <span className="block font-medium text-[var(--kb-text-dim)]">Name</span>
-              <input name="name" required placeholder="e.g. Standard invoice" className="mt-1 w-48 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm" />
+              <input
+                name="name"
+                required
+                placeholder="e.g. Standard invoice"
+                className="mt-1 w-full rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] px-2.5 py-1.5 text-sm text-[var(--kb-text)]"
+              />
             </label>
-            <label className="text-xs">
-              <span className="block font-medium text-[var(--kb-text-dim)]">Style</span>
-              <select name="styleKey" required className="mt-1 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm">
-                <optgroup label="Invoice / Quote">
-                  {invoiceStyles.map((s) => (
-                    <option key={s.key} value={s.key}>{s.label} ({s.family})</option>
-                  ))}
-                </optgroup>
-                <optgroup label="Delivery slip">
-                  {slipStyles.map((s) => (
-                    <option key={s.key} value={s.key}>{s.label}</option>
-                  ))}
-                </optgroup>
-              </select>
-            </label>
-            <label className="text-xs">
-              <span className="block font-medium text-[var(--kb-text-dim)]">Accent color (optional)</span>
-              <input name="accentColorHex" type="color" className="mt-1 h-9 w-16 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)]" />
-            </label>
-            <button type="submit" className="kb-pill kb-pill-primary text-xs">Save template</button>
+
+            <fieldset className="mt-4">
+              <legend className="text-xs font-medium text-[var(--kb-text-dim)]">Design</legend>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {DOCUMENT_PRESETS.map((preset, i) => (
+                  <label
+                    key={preset.key}
+                    className="cursor-pointer rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-3 transition has-[:checked]:border-[var(--kb-accent-a)]"
+                  >
+                    <span className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="presetKey"
+                        value={preset.key}
+                        defaultChecked={i === 0}
+                        required
+                      />
+                      <span className="text-sm font-medium text-[var(--kb-text)]">
+                        {preset.label}
+                      </span>
+                    </span>
+                    <span className="mt-1 block text-[11px] leading-snug text-[var(--kb-text-dim)]">
+                      {preset.description}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <button type="submit" className="kb-pill kb-pill-primary mt-4 text-xs">
+              Create template
+            </button>
           </form>
         </section>
       ) : (
         <p className="mt-6 text-xs text-[var(--kb-text-dim)]">
-          You&apos;ve saved the maximum of 3 templates — remove one to add another.
+          You&apos;ve saved the maximum of {MAX_TEMPLATES} templates — remove one to add another.
         </p>
       )}
     </main>

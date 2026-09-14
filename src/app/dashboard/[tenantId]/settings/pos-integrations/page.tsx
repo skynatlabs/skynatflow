@@ -12,7 +12,7 @@ export default async function PosIntegrationsPage({
   const connectedByProvider = new Map(connected.map((c) => [c.provider, c]));
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">POS integrations</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Use flow&apos;s own built-in till, or connect a card provider — scaffolded per region, more

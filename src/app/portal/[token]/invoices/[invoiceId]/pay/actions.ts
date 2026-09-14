@@ -36,6 +36,9 @@ export async function startPortalCheckoutAction(formData: FormData) {
   const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const returnUrl = `${base}/portal/${token}/invoices/${invoiceId}/pay/confirm?checkoutId=${checkout.id}`;
   const cancelUrl = `${base}/portal/${token}/invoices/${invoiceId}`;
+  // Where the provider POSTs the signed outcome. This, not returnUrl, is
+  // what actually settles the invoice.
+  const notifyUrl = `${base}/api/webhooks/payments/${provider.toLowerCase()}`;
 
   const client = PAYMENT_GATEWAYS[provider].create(gateway.publicKey, gateway.secretKey);
   const result = await client.createCheckout({
@@ -45,6 +48,7 @@ export async function startPortalCheckoutAction(formData: FormData) {
     description: `Invoice payment — ${invoice.id}`,
     returnUrl,
     cancelUrl,
+    notifyUrl,
     customerEmail: party.email ?? undefined,
   });
 

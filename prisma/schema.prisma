@@ -120,11 +120,36 @@ model Tenant {
   // it's deliberately settable only by an OWNER (see settings/banking),
   // never a capability any staff role gets, to reduce the "a compromised
   // or dishonest staff account swaps the bank account" fraud path.
+  // Business details that appear on every document. A valid tax invoice in
+  // South Africa has to carry the supplier's name, address and VAT number —
+  // the PDF renderer has had fields for these since it was written, and
+  // nothing ever populated them, so every invoice this app produced was
+  // missing them.
+  // Where this business is regulated. Nothing in the compliance engine is
+  // hardcoded to a country — these two fields are what select a jurisdiction's
+  // obligations out of the shared library, and a workspace in Texas gets Texas
+  // rows by the same code path that gives a Johannesburg one CIPC.
+  countryCode                  String? // ISO 3166-1 alpha-2: "ZA", "US", "GB"
+  regionCode                   String? // state or province, where it changes what you owe: "CA", "TX", "GP"
+  // The entity type in the owner's own words — "Pty Ltd", "LLC", "Sole Trader".
+  // Deliberately free text: an enum of company types is a geo-lock wearing a
+  // different hat.
+  entityType                   String?
+  businessAddress              String?
+  businessEmail                String?
+  businessPhone                String?
+  vatNumber                    String?
+  registrationNumber           String?
   bankName                     String?
   bankAccountHolder            String?
   bankAccountNumber            String?
   bankBranchCode               String?
   bankSwift                    String?
+  // How much this workspace lets the agent do on its own. See AgentAutonomy.
+  agentAutonomy                AgentAutonomy   @default(SUGGEST_ONLY)
+  // Master switch for the proactive layer. Off means the agent only ever
+  // responds when spoken to — no tick, no event reactions, no nudges.
+  agentProactiveEnabled        Boolean         @default(true)
   whatsappVerifyNumber         String?
   // AI-generated proposal content is metered — the LLM call only writes
   // text (never the PDF design/layout, which stays fixed code, both for
@@ -179,6 +204,13 @@ model Tenant {
 
   connectionsAsSupplier WholesaleConnection[] @relation("SupplierConnections")
   connectionsAsBuyer    WholesaleConnection[] @relation("BuyerConnections")
+  agentThreads          AgentThread[]
+  agentRuns             AgentRun[]
+  tenantFacts           TenantFact[]
+  agentDefinitions      AgentDefinition[]
+  domainEvents          DomainEvent[]
+
+  obligations Obligation[]
 
   @@map("tenants")
 }
@@ -228,6 +260,8 @@ model Membership {
   transactionsAsSalesPerson Transaction[]
   jobCardsAssigned          JobCard[]
 
+  obligations Obligation[]
+
   @@unique([userId, tenantId])
   @@index([tenantId])
   @@index([userId])
@@ -249,22 +283,22 @@ enum JobCardStatus {
 // "make sure every step actually happened" need without inventing a
 // separate generic task system.
 model JobCard {
-  id             String        @id @default(cuid())
-  tenantId       String
-  tenant         Tenant        @relation(fields: [tenantId], references: [id])
-  transactionId  String
-  transaction    Transaction   @relation(fields: [transactionId], references: [id])
-  partyId        String
-  party          Party         @relation(fields: [partyId], references: [id])
-  title          String
-  assignedToId   String?
-  assignedTo     Membership?   @relation(fields: [assignedToId], references: [id])
-  status         JobCardStatus @default(SCHEDULED)
-  scheduledAt    DateTime?
-  notes          String?
+  id                 String        @id @default(cuid())
+  tenantId           String
+  tenant             Tenant        @relation(fields: [tenantId], references: [id])
+  transactionId      String
+  transaction        Transaction   @relation(fields: [transactionId], references: [id])
+  partyId            String
+  party              Party         @relation(fields: [partyId], references: [id])
+  title              String
+  assignedToId       String?
+  assignedTo         Membership?   @relation(fields: [assignedToId], references: [id])
+  status             JobCardStatus @default(SCHEDULED)
+  scheduledAt        DateTime?
+  notes              String?
   completionPhotoUrl String?
-  createdAt      DateTime      @default(now())
-  completedAt    DateTime?
+  createdAt          DateTime      @default(now())
+  completedAt        DateTime?
 
   tasks JobCardTask[]
 
@@ -274,12 +308,12 @@ model JobCard {
 }
 
 model JobCardTask {
-  id         String   @id @default(cuid())
-  jobCardId  String
-  jobCard    JobCard  @relation(fields: [jobCardId], references: [id])
-  label      String
-  isDone     Boolean  @default(false)
-  sortOrder  Int      @default(0)
+  id        String  @id @default(cuid())
+  jobCardId String
+  jobCard   JobCard @relation(fields: [jobCardId], references: [id])
+  label     String
+  isDone    Boolean @default(false)
+  sortOrder Int     @default(0)
 
   @@map("job_card_tasks")
 }
@@ -308,17 +342,19 @@ model Party {
   portalToken String?   @unique
   createdAt   DateTime  @default(now())
 
-  transactions           Transaction[]
-  events                 Event[]
-  recurringInvoices      RecurringInvoice[]
-  aiDrafts               AiDraft[]
-  disputes               Dispute[]
-  membershipInvolvements MembershipInvolvement[]
-  donations              Donation[]
-  rentals                Rental[]
-  leasesAsRenter         Lease[]
+  transactions             Transaction[]
+  events                   Event[]
+  recurringInvoices        RecurringInvoice[]
+  aiDrafts                 AiDraft[]
+  disputes                 Dispute[]
+  membershipInvolvements   MembershipInvolvement[]
+  donations                Donation[]
+  rentals                  Rental[]
+  leasesAsRenter           Lease[]
   purchaseOrdersAsSupplier PurchaseOrder[]
-  jobCards               JobCard[]
+  jobCards                 JobCard[]
+
+  obligations Obligation[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -331,6 +367,13 @@ model Item {
   tenantId        String
   tenant          Tenant          @relation(fields: [tenantId], references: [id])
   name            String
+  // The explanatory line printed under the item name on a document — what it
+  // is, what it includes, which standard it complies with. The PDF renderer
+  // has a column switch for these; without somewhere to write them it would
+  // be a switch that does nothing.
+  description     String?
+  // "m", "pcs", "hours" — printed under the quantity on a document.
+  unit            String?
   sku             String?
   hsnCode         String? // HSN/tax-classification code, shown alongside SKU on the line item
   unitPriceCents  Int
@@ -349,11 +392,13 @@ model Item {
   rentalRateUnit  RentalRateUnit?
   createdAt       DateTime        @default(now())
 
-  transactionLines TransactionLine[]
-  batches          ItemBatch[]
+  transactionLines   TransactionLine[]
+  batches            ItemBatch[]
   purchaseOrderLines PurchaseOrderLine[]
-  stocktakes       Stocktake[]
-  rentals          Rental[]
+  stocktakes         Stocktake[]
+  rentals            Rental[]
+
+  obligations Obligation[]
 
   @@index([tenantId])
   @@index([tenantId, isActive])
@@ -424,38 +469,38 @@ model PurchaseOrderLine {
 // Money: append-only ledger. Quotes, invoices, payments — one typed table,
 // never mutated after creation, only superseded by a new row referencing it.
 model Transaction {
-  id                    String            @id @default(cuid())
-  tenantId              String
-  tenant                Tenant            @relation(fields: [tenantId], references: [id])
-  partyId               String
-  party                 Party             @relation(fields: [partyId], references: [id])
-  type                  TransactionType
-  status                TransactionStatus @default(DRAFT)
-  amountCents           Int
-  parentId              String? // e.g. an INVOICE points back at the QUOTE it came from
-  parent                Transaction?      @relation("TransactionLineage", fields: [parentId], references: [id])
-  children              Transaction[]     @relation("TransactionLineage")
-  createdAt             DateTime          @default(now())
-  dueAt                 DateTime?
-  respondedAt           DateTime? // when the customer last replied/acted — drives the follow-up engine
-  signatureDataUrl      String? // customer's e-signature on quote acceptance, captured via the portal
+  id                      String            @id @default(cuid())
+  tenantId                String
+  tenant                  Tenant            @relation(fields: [tenantId], references: [id])
+  partyId                 String
+  party                   Party             @relation(fields: [partyId], references: [id])
+  type                    TransactionType
+  status                  TransactionStatus @default(DRAFT)
+  amountCents             Int
+  parentId                String? // e.g. an INVOICE points back at the QUOTE it came from
+  parent                  Transaction?      @relation("TransactionLineage", fields: [parentId], references: [id])
+  children                Transaction[]     @relation("TransactionLineage")
+  createdAt               DateTime          @default(now())
+  dueAt                   DateTime?
+  respondedAt             DateTime? // when the customer last replied/acted — drives the follow-up engine
+  signatureDataUrl        String? // customer's e-signature on quote acceptance, captured via the portal
   // Acceptance audit trail — the difference between "we have a drawn
   // signature" and "this holds up as a real contract record." The hash
   // binds the amount/lines/signature/timestamp together so any later
   // tampering with the quote is detectable by recomputing and comparing.
-  acceptanceIp          String?
-  acceptanceHash        String?
-  reviewRequestSentAt   DateTime? // fires once, the moment an invoice first reaches PAID
+  acceptanceIp            String?
+  acceptanceHash          String?
+  reviewRequestSentAt     DateTime? // fires once, the moment an invoice first reaches PAID
   // Who this quote/invoice is attributed to — shown on the document (with
   // their contact details, if the tenant opts in) so the customer knows
   // exactly who to reach, and lets reporting break down sales by person.
   salesPersonMembershipId String?
-  salesPersonMembership   Membership? @relation(fields: [salesPersonMembershipId], references: [id])
+  salesPersonMembership   Membership?       @relation(fields: [salesPersonMembershipId], references: [id])
   // Whole-document discount, applied on top of the line-level discounts —
   // matches the "Discount %" field on the totals block of most invoicing
   // tools. amountCents already reflects this once applied; kept here too
   // so the PDF/online view can show the breakdown, not just the result.
-  discountPercent         Float?      @default(0)
+  discountPercent         Float?            @default(0)
   // Free-text business fields shown on the document alongside the line
   // items — subject line and a PO/reference number, the two fields every
   // real invoicing tool has that this one didn't.
@@ -464,47 +509,49 @@ model Transaction {
   // Quote presentation (BASIC vs PROPOSAL). Only meaningful on QUOTE rows;
   // introText/scopeOfWork are populated for PROPOSAL and shown above the
   // line items on both the web link and the PDF.
-  quoteKind             QuoteKind?        @default(BASIC)
-  introText             String?
-  scopeOfWork           String?
+  quoteKind               QuoteKind?        @default(BASIC)
+  introText               String?
+  scopeOfWork             String?
   // Extra fields for a PROPOSAL-kind quote's project info — populated by
   // AI (src/lib/ai/proposal.ts) from the line items plus projectLocation,
   // the one field a human has to actually type in. The AI only ever
   // writes text into these fields; the PDF layout/design is fixed code,
   // never generated, so this stays fast, cheap, and visually consistent.
-  projectLocation       String?
-  performanceExpectancy String?
-  projectTimeline       String?
-  systemInfo            String?
+  projectLocation         String?
+  performanceExpectancy   String?
+  projectTimeline         String?
+  systemInfo              String?
   // Quote-open tracking (Soler's hot-lead pattern): a customer opening the
   // portal link for a quote is a buying signal, tracked independent of
   // whether they've responded yet.
-  openCount             Int               @default(0)
-  firstOpenedAt         DateTime?
-  lastOpenedAt          DateTime?
+  openCount               Int               @default(0)
+  firstOpenedAt           DateTime?
+  lastOpenedAt            DateTime?
   // POS checkout — only set on PAYMENT rows recorded at a till.
-  paymentMethod         String? // "cash" | "card" | provider id, e.g. "yoco"
-  tillSessionId         String?
-  tillSession           TillSession?      @relation(fields: [tillSessionId], references: [id])
+  paymentMethod           String? // "cash" | "card" | provider id, e.g. "yoco"
+  tillSessionId           String?
+  tillSession             TillSession?      @relation(fields: [tillSessionId], references: [id])
   // Overrides the default follow-up cadence when an inbound email reply
   // gave a real scheduling cue ("call me back in 2 weeks") — the
   // follow-up cron checks this before falling back to
   // Tenant.followUpWindowDays/followUpRepeatDays.
-  nextFollowUpAt        DateTime?
+  nextFollowUpAt          DateTime?
   // Owner-set context for a manual reminder ("said he'll be ready in 2
   // months") — shown next to the quote and on the This Week board so the
   // reminder isn't just a bare date with no memory of why.
-  followUpNote          String?
+  followUpNote            String?
   // Google Calendar event id for this reminder, if the tenant has
   // connected a calendar — lets setManualReminder update the existing
   // event instead of creating a duplicate, and clearManualReminder
   // delete it instead of leaving an orphaned calendar entry.
-  calendarEventId       String?
+  calendarEventId         String?
 
   itemLines        TransactionLine[]
   paymentCheckouts PaymentCheckout[]
   ecommerceOrder   EcommerceOrder?
   jobCards         JobCard[]
+
+  obligations Obligation[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -513,18 +560,18 @@ model Transaction {
 }
 
 model TransactionLine {
-  id                String      @id @default(cuid())
-  transactionId     String
-  transaction       Transaction @relation(fields: [transactionId], references: [id])
-  itemId            String
-  item              Item        @relation(fields: [itemId], references: [id])
-  quantity          Int
-  unitPriceCents    Int
+  id              String      @id @default(cuid())
+  transactionId   String
+  transaction     Transaction @relation(fields: [transactionId], references: [id])
+  itemId          String
+  item            Item        @relation(fields: [itemId], references: [id])
+  quantity        Int
+  unitPriceCents  Int
   // Snapshotted at the time this line was added, not read live off Item —
   // so a later change to the catalog's tax rate never silently rewrites
   // the tax on a quote/invoice that already went out.
-  discountPercent   Float?      @default(0)
-  taxRatePercent    Float?
+  discountPercent Float?      @default(0)
+  taxRatePercent  Float?
 
   @@index([transactionId])
   @@map("transaction_lines")
@@ -677,11 +724,29 @@ model ApiKey {
   tenantId   String
   tenant     Tenant    @relation(fields: [tenantId], references: [id])
   name       String
-  keyPrefix  String // first 8 chars, shown in the list so a key is identifiable without re-revealing it
+  keyPrefix  String    @unique // shown in the list so a key is identifiable without re-revealing it
   keyHash    String    @unique
+  // A key carries a Role rather than its own permission list. The app already
+  // has one permission model (Role -> Capability, lib/core/access.ts) and
+  // every core function is written against it; a second, parallel scheme for
+  // API callers would be two things to keep in step, and the one that drifts
+  // is always the one nobody is looking at.
+  role       String    @default("STAFF") // OWNER | STAFF | DRIVER | REP | TECHNICIAN, as on Membership
+  // May read whatever its role can see, and write nothing. The common case
+  // for dashboards, exports, and anything that runs in a browser.
+  readOnly   Boolean   @default(false)
+  expiresAt  DateTime?
+  createdBy  String?
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
   revokedAt  DateTime?
+
+  // Fixed-window rate limiting, counted on the row. In-memory counters are
+  // per-instance and therefore meaningless once this runs on more than one
+  // machine; one extra write per request is the honest price of a limit that
+  // actually holds.
+  windowStart DateTime @default(now())
+  windowCount Int      @default(0)
 
   @@index([tenantId])
   @@map("api_keys")
@@ -707,15 +772,23 @@ model WebhookEndpoint {
 }
 
 model WebhookDelivery {
-  id         String          @id @default(cuid())
-  endpointId String
-  endpoint   WebhookEndpoint @relation(fields: [endpointId], references: [id])
-  event      String
-  statusCode Int?
-  error      String?
-  createdAt  DateTime        @default(now())
+  id          String          @id @default(cuid())
+  endpointId  String
+  endpoint    WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  event       String
+  payload     Json            @default("{}")
+  statusCode  Int?
+  error       String?
+  // Retry bookkeeping. A delivery that never lands has to stay visible rather
+  // than being dropped — "we sent it" is a claim someone eventually checks.
+  attempts    Int             @default(0)
+  status      String          @default("PENDING") // PENDING | DELIVERED | FAILED
+  nextAttempt DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime        @default(now())
 
   @@index([endpointId])
+  @@index([status, nextAttempt])
   @@map("webhook_deliveries")
 }
 
@@ -1092,15 +1165,20 @@ enum PaymentGatewayProvider {
 }
 
 model PaymentGateway {
-  id           String                 @id @default(cuid())
-  tenantId     String
-  tenant       Tenant                 @relation(fields: [tenantId], references: [id])
-  provider     PaymentGatewayProvider
-  region       String // "RSA" | "USA"
-  publicKey    String? // safe to expose client-side (Stripe publishable key, PayFast merchant id, etc.)
-  secretKey    String? // opaque; stubbed (returns a fake success) until set
-  isActive     Boolean                @default(false)
-  createdAt    DateTime               @default(now())
+  id            String                 @id @default(cuid())
+  tenantId      String
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id])
+  provider      PaymentGatewayProvider
+  region        String // "RSA" | "USA"
+  publicKey     String? // safe to expose client-side (Stripe publishable key, PayFast merchant id, etc.)
+  secretKey     String? // opaque; stubbed (returns a fake success) until set
+  // Signing secret for the provider's server-to-server callback: Stripe's
+  // whsec_..., PayFast's passphrase, Paystack/Yoco's webhook secret. A
+  // payment is only written to the ledger when a callback signed with this
+  // verifies — a customer landing back on the return URL proves nothing.
+  webhookSecret String?
+  isActive      Boolean                @default(false)
+  createdAt     DateTime               @default(now())
 
   @@unique([tenantId, provider])
   @@index([tenantId])
@@ -1112,20 +1190,26 @@ model PaymentGateway {
 // checkout is allowed to call recordPayment and write a real PAYMENT row,
 // so a customer closing the tab mid-checkout never corrupts the ledger.
 model PaymentCheckout {
-  id            String                 @id @default(cuid())
-  tenantId      String
-  tenant        Tenant                 @relation(fields: [tenantId], references: [id])
-  invoiceId     String
-  invoice       Transaction            @relation(fields: [invoiceId], references: [id])
-  provider      PaymentGatewayProvider
-  amountCents   Int
-  reference     String? // gateway's checkout/session id
-  status        String                 @default("PENDING") // PENDING | CONFIRMED | FAILED
-  createdAt     DateTime               @default(now())
-  confirmedAt   DateTime?
+  id             String                 @id @default(cuid())
+  tenantId       String
+  tenant         Tenant                 @relation(fields: [tenantId], references: [id])
+  invoiceId      String
+  invoice        Transaction            @relation(fields: [invoiceId], references: [id])
+  provider       PaymentGatewayProvider
+  amountCents    Int
+  reference      String? // gateway's checkout/session id
+  status         String                 @default("PENDING") // PENDING | CONFIRMED | FAILED
+  createdAt      DateTime               @default(now())
+  confirmedAt    DateTime?
+  // Set when a verified webhook confirmed this checkout, and by which
+  // provider event. Null on a CONFIRMED row means it was confirmed some
+  // other way, which should never happen now and is worth auditing.
+  webhookEventId String?                @unique
+  failureReason  String?
 
   @@index([tenantId])
   @@index([invoiceId])
+  @@index([reference])
   @@map("payment_checkouts")
 }
 
@@ -1137,17 +1221,17 @@ enum EcommercePlatform {
 }
 
 model EcommerceIntegration {
-  id                 String            @id @default(cuid())
-  tenantId           String
-  tenant             Tenant            @relation(fields: [tenantId], references: [id])
-  platform           EcommercePlatform
-  storeUrl           String // e.g. https://shop.example.com
-  consumerKey        String? // WooCommerce REST API key (ck_...)
-  consumerSecretEnc  String? // AES-256-GCM encrypted (WooCommerce cs_... secret)
-  webhookSecretEnc   String? // AES-256-GCM encrypted — verifies WooCommerce's X-WC-Webhook-Signature
-  isActive           Boolean           @default(false)
-  lastProductSyncAt  DateTime?
-  createdAt          DateTime          @default(now())
+  id                String            @id @default(cuid())
+  tenantId          String
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  platform          EcommercePlatform
+  storeUrl          String // e.g. https://shop.example.com
+  consumerKey       String? // WooCommerce REST API key (ck_...)
+  consumerSecretEnc String? // AES-256-GCM encrypted (WooCommerce cs_... secret)
+  webhookSecretEnc  String? // AES-256-GCM encrypted — verifies WooCommerce's X-WC-Webhook-Signature
+  isActive          Boolean           @default(false)
+  lastProductSyncAt DateTime?
+  createdAt         DateTime          @default(now())
 
   orders EcommerceOrder[]
 
@@ -1160,15 +1244,15 @@ model EcommerceIntegration {
 // idempotency guard so a WooCommerce webhook retry (it retries on
 // anything but a 200) never creates a duplicate invoice for the same order.
 model EcommerceOrder {
-  id                     String               @id @default(cuid())
-  tenantId               String
-  tenant                 Tenant               @relation(fields: [tenantId], references: [id])
-  integrationId          String
-  integration            EcommerceIntegration @relation(fields: [integrationId], references: [id])
-  externalOrderId        String // WooCommerce order id, as a string
-  invoiceId              String?              @unique
-  invoice                Transaction?         @relation(fields: [invoiceId], references: [id])
-  createdAt              DateTime             @default(now())
+  id              String               @id @default(cuid())
+  tenantId        String
+  tenant          Tenant               @relation(fields: [tenantId], references: [id])
+  integrationId   String
+  integration     EcommerceIntegration @relation(fields: [integrationId], references: [id])
+  externalOrderId String // WooCommerce order id, as a string
+  invoiceId       String?              @unique
+  invoice         Transaction?         @relation(fields: [invoiceId], references: [id])
+  createdAt       DateTime             @default(now())
 
   @@unique([integrationId, externalOrderId])
   @@index([tenantId])
@@ -1194,22 +1278,22 @@ enum InvolvementRole {
 // than a single current status — closing (setting endDate) never deletes
 // the row, so a past involvement is provable years later.
 model MembershipInvolvement {
-  id        String          @id @default(cuid())
-  tenantId  String
-  tenant    Tenant          @relation(fields: [tenantId], references: [id])
-  partyId   String
-  party     Party           @relation(fields: [partyId], references: [id])
-  role      InvolvementRole
-  startDate DateTime
-  endDate   DateTime?
+  id           String          @id @default(cuid())
+  tenantId     String
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  partyId      String
+  party        Party           @relation(fields: [partyId], references: [id])
+  role         InvolvementRole
+  startDate    DateTime
+  endDate      DateTime?
   // When set, this membership/sponsorship is due for renewal on this date
   // — the PA job "chase a lapsing membership the same way a quote gets
   // chased" (src/lib/core/nonprofit.ts checkMembershipRenewals) reads
   // this instead of assuming an annual cadence, since renewal terms
   // genuinely vary member to member.
   renewalDueAt DateTime?
-  notes     String?
-  createdAt DateTime        @default(now())
+  notes        String?
+  createdAt    DateTime        @default(now())
 
   @@index([tenantId, partyId])
   @@map("membership_involvements")
@@ -1249,6 +1333,229 @@ model ComplianceFiling {
 
   @@index([tenantId, filingType])
   @@map("compliance_filings")
+}
+
+// ---------------------------------------------------------------------
+// Obligations — the dated things this business owes somebody else, and
+// what it costs to miss them.
+//
+// One engine rather than seven registers. A CIPC annual return, a liquor
+// licence, a driver's PDP, an insurance policy, the notice window on a
+// supplier contract and a warranty on something we sold are all the same
+// shape: something falls due on a date, some of them repeat, each has a
+// consequence, and a few of them should physically stop work happening
+// when they lapse. Modelled once, the agent watches all of them with one
+// piece of logic and a new category is a row instead of a table.
+//
+// Distinct from ComplianceFiling above, deliberately: that records what
+// was filed, this records what is owed. Completing an obligation of kind
+// COMPLIANCE_FILING writes a ComplianceFiling row, so the log keeps
+// working exactly as it did.
+// ---------------------------------------------------------------------
+
+enum ObligationKind {
+  COMPLIANCE_FILING // CIPC annual return, COIDA return, AGM minutes
+  LICENCE // trading, liquor, health, professional body registration
+  CERTIFICATE // tax clearance, BEE affidavit, letter of good standing
+  TAX // VAT201, EMP201, IRP6
+  INSURANCE // policy renewal
+  CONTRACT // customer or supplier agreement with a notice window
+  WARRANTY // what we sold, and how long it stays our problem
+  DOCUMENT // a person's or an asset's document: PDP, work permit, roadworthy
+}
+
+enum ObligationRecurrence {
+  NONE
+  MONTHLY
+  BIMONTHLY // SARS VAT201 for most small vendors
+  QUARTERLY
+  BIANNUAL // IRP6 provisional tax
+  ANNUAL
+}
+
+// How bad it is to miss this. Drives ordering, how early the agent starts
+// warning, and whether it is allowed to stay quiet about it.
+enum ObligationSeverity {
+  CRITICAL // the company stops existing, or stops being allowed to trade
+  HIGH // locked out of tenders, sites or customers
+  MEDIUM // penalty, interest or a fine
+  LOW // administrative tidiness
+}
+
+enum ObligationStatus {
+  OPEN
+  DONE
+  WAIVED // consciously decided not to do — kept, not deleted, so "why isn't this on the list" stays answerable
+}
+
+model Obligation {
+  id          String               @id @default(cuid())
+  tenantId    String
+  tenant      Tenant               @relation(fields: [tenantId], references: [id])
+  kind        ObligationKind
+  title       String
+  authority   String? // who wants it: CIPC, SARS, the Department of Employment and Labour, an insurer, a supplier
+  reference   String? // registration, policy or certificate number
+  dueAt       DateTime
+  recurrence  ObligationRecurrence @default(NONE)
+  severity    ObligationSeverity   @default(MEDIUM)
+  status      ObligationStatus     @default(OPEN)
+  // How many days before dueAt this stops being background and becomes
+  // work. Seeded per kind — a CIPC return needs a month of warning, a
+  // vehicle licence disc needs a week.
+  leadDays    Int                  @default(30)
+  // Plain sentence naming what actually happens if this lapses. Stored
+  // rather than derived because it is the single most useful thing on the
+  // record and it differs per business — the agent quotes it verbatim
+  // instead of inventing a reason the thing matters.
+  consequence String?
+
+  // Contract-specific. noticeDays is the window before dueAt in which
+  // notice has to be given, which is the date that actually matters on an
+  // auto-renewing agreement — miss it and you have renewed by silence.
+  noticeDays Int?
+  autoRenews Boolean @default(false)
+
+  // When true, this lapsing is not advice. Work that depends on the
+  // subject is refused rather than warned about — an expired PDP means
+  // that driver does not get dispatched.
+  blocksWork Boolean @default(false)
+
+  // The library row this came from, when it came from one. Lets a correction
+  // made here be offered back to the library, and lets us stop suggesting a
+  // template this business has already dismissed.
+  templateId String?
+
+  // What the obligation is about, when it is about something. All
+  // optional and all real foreign keys rather than a loose type/id pair,
+  // so "show me everything expiring on this vehicle" is a query and not a
+  // string comparison.
+  partyId       String?
+  party         Party?       @relation(fields: [partyId], references: [id])
+  membershipId  String?
+  membership    Membership?  @relation(fields: [membershipId], references: [id])
+  itemId        String?
+  item          Item?        @relation(fields: [itemId], references: [id])
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+
+  completedAt       DateTime?
+  documentDataUrl   String? // proof, same base64 pattern as e-signatures and receipts
+  notes             String?
+  // What the owner was last told about this, and when. The compliance watch
+  // runs on every tick, so without this it would re-raise the same lapsed
+  // licence every fifteen minutes and be muted within a day. Notifications
+  // fire on a change of state, not on the state itself.
+  lastNotifiedState String?
+  lastNotifiedAt    DateTime?
+
+  // Set when this row was created by advancing a recurring obligation,
+  // so a history of "we have done this every year" is reconstructable.
+  previousId String?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, status, dueAt])
+  @@index([tenantId, kind])
+  @@index([tenantId, blocksWork, status])
+  @@map("obligations")
+}
+
+// ---------------------------------------------------------------------
+// The obligation library — shared across every workspace, owned by none.
+//
+// This is the part that stops compliance being a South African feature. No
+// obligation title, authority or deadline is written in code: they are rows
+// here, keyed by country and region. A workspace in Ohio and a workspace in
+// Gauteng run the identical code path and get entirely different calendars,
+// because the difference lives in data.
+//
+// Rows arrive three ways, and all three matter:
+//
+//   CURATED  - seeded for the markets we already serve.
+//   DOCUMENT - extracted from a document a real business uploaded. Their
+//              licence tells us what that licence is called in their country
+//              far more reliably than any list we could write.
+//   RESEARCH - the model filling in a jurisdiction nobody has covered yet,
+//              the first time a business from there signs up.
+//
+// The counters are the quality signal. A template many businesses kept is
+// more trustworthy than one everybody dismissed, and that ordering is what
+// keeps a bad guess from propagating to the next user from that country.
+// ---------------------------------------------------------------------
+
+enum ObligationTemplateSource {
+  CURATED
+  DOCUMENT // learned from a document a business uploaded
+  RESEARCH // researched for a jurisdiction on first use
+  USER // typed in by a business, offered onward
+}
+
+model ObligationTemplate {
+  id          String                   @id @default(cuid())
+  countryCode String // ISO 3166-1 alpha-2
+  regionCode  String? // null = applies across the whole country
+  title       String
+  authority   String?
+  kind        ObligationKind
+  recurrence  ObligationRecurrence     @default(ANNUAL)
+  severity    ObligationSeverity       @default(MEDIUM)
+  leadDays    Int                      @default(30)
+  consequence String?
+  noticeDays  Int?
+  blocksWork  Boolean                  @default(false)
+  source      ObligationTemplateSource @default(RESEARCH)
+
+  // When in the year it usually falls. Null where it depends on the
+  // business's own dates (an incorporation anniversary, a policy renewal)
+  // rather than on a fixed national deadline.
+  dueMonth                    Int?
+  dueDay                      Int?
+  // Set when the date follows the business's own registration anniversary
+  // rather than a fixed calendar date.
+  fromRegistrationAnniversary Boolean @default(false)
+
+  // Which businesses this applies to. Null means "does not depend on it",
+  // which is different from false — an obligation that applies whether or
+  // not you employ people must not be filtered out of an employer's list.
+  requiresCompany   Boolean?
+  requiresVat       Boolean?
+  requiresEmployees Boolean?
+  requiresVehicles  Boolean?
+
+  // Trust signals, not analytics: these order what gets offered first and
+  // retire templates nobody accepts.
+  adoptedCount   Int @default(0)
+  confirmedCount Int @default(0)
+  dismissedCount Int @default(0)
+
+  // Provenance for our own debugging. Never shown to another workspace —
+  // a business's compliance profile is not something to leak sideways.
+  contributedByTenantId String?
+  sourceNote            String?
+  createdAt             DateTime @default(now())
+
+  @@unique([countryCode, regionCode, title])
+  @@index([countryCode, regionCode])
+  @@map("obligation_templates")
+}
+
+// Records that a jurisdiction has been looked at, so the research pass runs
+// once per country rather than once per signup — and so a country with
+// genuinely nothing found is not re-researched on every visit.
+model JurisdictionCoverage {
+  id            String    @id @default(cuid())
+  countryCode   String
+  regionCode    String?
+  templateCount Int       @default(0)
+  researchedAt  DateTime?
+  /**
+   * Why coverage is thin, when it is. Shown to the user rather than hidden.
+   */
+  note          String?
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([countryCode, regionCode])
+  @@map("jurisdiction_coverage")
 }
 
 // ---------------------------------------------------------------------
@@ -1366,31 +1673,55 @@ model Lease {
 // ---------------------------------------------------------------------
 
 model TenantPdfTemplate {
-  id             String   @id @default(cuid())
-  tenantId       String
-  tenant         Tenant   @relation(fields: [tenantId], references: [id])
-  name           String
-  styleKey       String // one of the keys in PDF_STYLES
-  isDefault      Boolean  @default(false)
-  accentColorHex String?
-  logoDataUrl    String?
+  id               String   @id @default(cuid())
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  name             String
+  styleKey         String // one of the keys in PDF_STYLES
+  isDefault        Boolean  @default(false)
+  accentColorHex   String?
+  logoDataUrl      String?
   // Per-field overrides on top of the base style (styleKey) — the real
   // "customize each part" controls: font, header layout, table header
   // style, logo shape. Null = inherit whatever the base style says, so
   // picking a style and never touching these still renders exactly like
   // that style always has.
-  fontFamily      String? // "Helvetica" | "Times-Roman" | "Courier"
-  headerLayout    String? // "centered" | "split" | "band"
+  fontFamily       String? // "Helvetica" | "Times-Roman" | "Courier"
+  headerLayout     String? // "centered" | "split" | "band"
   tableHeaderStyle String? // "dark" | "accent" | "line-only"
-  logoShape       String? // "circle" | "square" | "none"
-  // Drag-to-reorder builder: which optional blocks appear (beyond the
-  // fixed header/items-table/total anchors) and in what order. Stored as
-  // a plain string array, e.g. ["customerInfo","terms","bankingDetails",
-  // "verify"] — a missing/empty value falls back to that default order
-  // with nothing hidden, so older templates render exactly as before.
-  sectionOrder   Json?
-  hiddenSections Json?
-  createdAt      DateTime @default(now())
+  logoShape        String? // "circle" | "square" | "none"
+  // Superseded by `sections` below. Kept so templates saved before the
+  // section builder existed still resolve; nothing writes them any more.
+  sectionOrder     Json?
+  hiddenSections   Json?
+  // The section-by-section layout: an ordered array of
+  // { key, visible, title, body, align, fields } — see lib/pdf/sections.ts.
+  // Null means "the catalogue defaults", so a template nobody has edited
+  // renders the standard document.
+  sections         Json?
+  // Colour beyond the accent. Null inherits the base style, so picking a
+  // style and touching nothing renders exactly as that style always has.
+  textColorHex     String?
+  mutedColorHex    String?
+  // Typography and page setup.
+  fontScale        Float? // 0.85 - 1.25, multiplies every size
+  pageSize         String? // "A5" | "A4" | "LETTER"
+  orientation      String? // "portrait" | "landscape"
+  // Coarse preset, set by the design presets. Superseded per-edge by the
+  // four values below whenever the owner sets them explicitly.
+  pageMargin       String? // "compact" | "normal" | "roomy"
+  marginTopIn      Float?
+  marginBottomIn   Float?
+  marginLeftIn     Float?
+  marginRightIn    Float?
+  // Page background. Null = white, which is what a printed document wants
+  // unless somebody deliberately decides otherwise.
+  backgroundHex    String?
+  // Which documents this template renders. A workspace usually wants a
+  // different look for a delivery slip than for a proposal, which one
+  // workspace-wide default could never express.
+  appliesTo        String   @default("ALL") // ALL | QUOTE | INVOICE | SLIP
+  createdAt        DateTime @default(now())
 
   @@index([tenantId])
   @@map("tenant_pdf_templates")
@@ -1414,19 +1745,19 @@ enum EmailProviderType {
 }
 
 model EmailAccount {
-  id                  String            @id @default(cuid())
-  tenantId            String
-  tenant              Tenant            @relation(fields: [tenantId], references: [id])
-  provider            EmailProviderType
-  emailAddress        String
-  imapHost            String?
-  imapPort            Int?
-  imapUser            String?
-  imapPasswordEnc     String? // AES-encrypted, never plaintext
-  flowInboundAddress  String?           @unique // e.g. "acme-co@mail.flow.skynat.co"
-  isActive            Boolean           @default(true)
-  lastCheckedAt       DateTime?
-  createdAt           DateTime          @default(now())
+  id                 String            @id @default(cuid())
+  tenantId           String
+  tenant             Tenant            @relation(fields: [tenantId], references: [id])
+  provider           EmailProviderType
+  emailAddress       String
+  imapHost           String?
+  imapPort           Int?
+  imapUser           String?
+  imapPasswordEnc    String? // AES-encrypted, never plaintext
+  flowInboundAddress String?           @unique // e.g. "acme-co@mail.flow.skynat.co"
+  isActive           Boolean           @default(true)
+  lastCheckedAt      DateTime?
+  createdAt          DateTime          @default(now())
 
   emails InboundEmail[]
 
@@ -1448,25 +1779,25 @@ enum EmailCategory {
 // important in the dashboard instead of getting buried in an inbox
 // nobody checks — the actual problem this feature exists to solve.
 model InboundEmail {
-  id             String        @id @default(cuid())
-  tenantId       String
-  tenant         Tenant        @relation(fields: [tenantId], references: [id])
-  emailAccountId String
-  emailAccount   EmailAccount  @relation(fields: [emailAccountId], references: [id])
-  fromAddress    String
-  subject        String
-  bodyText       String
-  receivedAt     DateTime
-  category       EmailCategory @default(OTHER)
-  isImportant    Boolean       @default(false)
-  looksLikePaymentProof Boolean @default(false)
-  aiSummary      String?
+  id                    String        @id @default(cuid())
+  tenantId              String
+  tenant                Tenant        @relation(fields: [tenantId], references: [id])
+  emailAccountId        String
+  emailAccount          EmailAccount  @relation(fields: [emailAccountId], references: [id])
+  fromAddress           String
+  subject               String
+  bodyText              String
+  receivedAt            DateTime
+  category              EmailCategory @default(OTHER)
+  isImportant           Boolean       @default(false)
+  looksLikePaymentProof Boolean       @default(false)
+  aiSummary             String?
   // If the AI reads a scheduling cue in a quote reply ("call me back in
   // 2 weeks"), it links back to the quote and the follow-up cron reads
   // Transaction.nextFollowUpAt instead of the default cadence.
-  linkedTransactionId String?
-  isRead         Boolean       @default(false)
-  createdAt      DateTime      @default(now())
+  linkedTransactionId   String?
+  isRead                Boolean       @default(false)
+  createdAt             DateTime      @default(now())
 
   @@index([tenantId, isRead])
   @@index([tenantId, category])
@@ -1488,17 +1819,17 @@ enum NotificationType {
 // record of "the business was told about this," not a different history
 // per channel.
 model Notification {
-  id           String           @id @default(cuid())
-  tenantId     String
-  tenant       Tenant           @relation(fields: [tenantId], references: [id])
-  membershipId String? // null = visible to every member of the tenant
-  type         NotificationType
-  title        String
-  body         String
-  linkHref     String?
-  isRead       Boolean          @default(false)
-  sentViaWhatsApp Boolean       @default(false)
-  createdAt    DateTime         @default(now())
+  id              String           @id @default(cuid())
+  tenantId        String
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  membershipId    String? // null = visible to every member of the tenant
+  type            NotificationType
+  title           String
+  body            String
+  linkHref        String?
+  isRead          Boolean          @default(false)
+  sentViaWhatsApp Boolean          @default(false)
+  createdAt       DateTime         @default(now())
 
   @@index([tenantId, isRead])
   @@index([tenantId, membershipId, isRead])
@@ -1512,20 +1843,23 @@ model Notification {
 // these per deployment; getAiModel() reads it so a provider switch takes
 // effect immediately, no redeploy needed.
 model PlatformSetting {
-  id         String   @id @default("singleton")
-  aiProvider String   @default("anthropic") // "anthropic" | "google"
+  id            String   @id @default("singleton")
+  aiProvider    String   @default("anthropic") // "anthropic" | "google"
   // Which engine renders spoken voice (daily briefing, PA answers) when a
   // tenant's own character allowance for the period hasn't run out —
   // "browser" costs nothing and needs no key (client-side Web Speech API);
   // "google" is the paid Neural2 upgrade, only actually used once a
   // GOOGLE_TTS_API_KEY is configured. Safe to flip any time — this only
   // changes what a synth request tries first, nothing is stored per-voice.
-  voiceProvider String @default("browser") // "browser" | "google"
-  // Platform-wide dashboard color skin — "default" (navy/coral) or "sunset"
-  // (charcoal/amber). Chosen once here, applies to every tenant; not a
-  // per-user preference. See src/app/globals.css .kb-shell[data-skin].
-  colorSkin  String   @default("default") // "default" | "sunset"
-  updatedAt  DateTime @updatedAt
+  voiceProvider String   @default("browser") // "browser" | "google"
+  // Platform-wide dashboard color skin — see ColorSkin in src/lib/ai/model.ts
+  // for the current option list and src/app/globals.css
+  // .kb-shell[data-skin] for the actual palettes. Chosen once here, applies
+  // to every tenant; not a per-user preference. The column default below is
+  // never actually read — getPlatformColorSkin() falls back to its own
+  // DEFAULT_SKIN constant ("jewel") whenever this row is unset or invalid.
+  colorSkin     String   @default("default")
+  updatedAt     DateTime @updatedAt
 
   @@map("platform_settings")
 }
@@ -1537,11 +1871,11 @@ model PlatformSetting {
 // simply gets a fresh row (and fresh allowance) the moment the month
 // rolls over — no cron/reset job needed.
 model VoiceUsage {
-  id              String   @id @default(cuid())
-  tenantId        String
-  period          String
-  charactersUsed  Int      @default(0)
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  tenantId       String
+  period         String
+  charactersUsed Int      @default(0)
+  updatedAt      DateTime @updatedAt
 
   @@unique([tenantId, period])
   @@map("voice_usage")
@@ -1568,16 +1902,181 @@ model PlatformApiKey {
 // can be added later without a schema change. Tokens are AES-256-GCM
 // encrypted at rest, same as IMAP passwords (src/lib/crypto.ts).
 model CalendarIntegration {
-  id                    String   @id @default(cuid())
-  tenantId              String   @unique
-  tenant                Tenant   @relation(fields: [tenantId], references: [id])
-  provider              String   @default("GOOGLE")
-  refreshTokenEnc       String
-  accessTokenEnc        String?
-  accessTokenExpiresAt  DateTime?
-  calendarId            String   @default("primary")
-  connectedByEmail      String? // whose Google account this is, shown in settings so it's obvious if the wrong person connected it
-  createdAt             DateTime @default(now())
+  id                   String    @id @default(cuid())
+  tenantId             String    @unique
+  tenant               Tenant    @relation(fields: [tenantId], references: [id])
+  provider             String    @default("GOOGLE")
+  refreshTokenEnc      String
+  accessTokenEnc       String?
+  accessTokenExpiresAt DateTime?
+  calendarId           String    @default("primary")
+  connectedByEmail     String? // whose Google account this is, shown in settings so it's obvious if the wrong person connected it
+  createdAt            DateTime  @default(now())
 
   @@map("calendar_integrations")
+}
+
+// ============================================================================
+// AGENT LAYER
+// ============================================================================
+// The agent is not a feature bolted next to the app — it is a second operator
+// of the same Business Graph. That means it needs the three things any
+// operator needs and a bolted-on chatbot doesn't: somewhere to remember, a
+// record of what it did, and a defined limit on what it may do alone.
+
+// How much this workspace lets the agent do without asking first. Deliberately
+// per-tenant and not per-user: it is a statement about the business's appetite
+// for autonomy, not one person's preference.
+enum AgentAutonomy {
+  SUGGEST_ONLY // never writes; proposes and waits
+  REVERSIBLE // writes things that can be undone (drafts, tasks, notes)
+  FULL // everything except money movement, which always asks
+}
+
+enum AgentRunTrigger {
+  USER // someone typed or spoke a request
+  SCHEDULE // the periodic tenant tick
+  EVENT // something happened in the business
+  AGENT // a named agent's own schedule
+}
+
+enum AgentRunStatus {
+  RUNNING
+  DONE
+  FAILED
+  AWAITING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+// One conversation. Threads are per-user so a follow-up ("do the same for
+// Jane") resolves against what that person said, not the whole workspace.
+model AgentThread {
+  id        String         @id @default(cuid())
+  tenantId  String
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String?
+  title     String?
+  channel   String         @default("web") // web | whatsapp | voice
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  messages  AgentMessage[]
+  runs      AgentRun[]
+
+  @@index([tenantId, userId])
+  @@map("agent_threads")
+}
+
+model AgentMessage {
+  id        String      @id @default(cuid())
+  threadId  String
+  thread    AgentThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  role      String // user | assistant
+  content   String
+  createdAt DateTime    @default(now())
+
+  @@index([threadId, createdAt])
+  @@map("agent_messages")
+}
+
+// The audit trail for autonomy. Every run — typed, scheduled or event-driven —
+// lands here with what it saw, what it decided and what it changed, so an
+// action taken while nobody was watching is always attributable and, where
+// the action supports it, undoable. This generalises the AiDraft queue, which
+// only ever covered follow-up messages.
+model AgentRun {
+  id       String           @id @default(cuid())
+  tenantId String
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  threadId String?
+  thread   AgentThread?     @relation(fields: [threadId], references: [id])
+  agentId  String?
+  agent    AgentDefinition? @relation(fields: [agentId], references: [id])
+
+  trigger        AgentRunTrigger
+  status         AgentRunStatus  @default(RUNNING)
+  // Who or what caused this. A user id for USER runs, an event id for EVENT
+  // runs, null for the scheduled tick.
+  actorUserId    String?
+  input          String
+  reply          String?
+  // Ordered tool calls with their inputs and outputs, as JSON. This is what
+  // the run detail page renders as "here is exactly what it did".
+  steps          Json            @default("[]")
+  // Set when the run stopped to ask. Holds the proposed tool calls so they
+  // can be executed verbatim on approval rather than re-inferred.
+  pendingActions Json?
+  error          String?
+  createdAt      DateTime        @default(now())
+  finishedAt     DateTime?
+  resolvedAt     DateTime?
+  resolvedBy     String?
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@map("agent_runs")
+}
+
+// What the agent has learned about this workspace that isn't derivable from a
+// query — payment habits, who to contact about what, standing instructions.
+// Keyed so a fact can be updated rather than duplicated as it changes.
+model TenantFact {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  key         String
+  value       String
+  // Where this came from, so a wrong fact can be traced and removed.
+  sourceRunId String?
+  confidence  String   @default("observed") // observed | confirmed | stated
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@map("tenant_facts")
+}
+
+// A named agent: a saved configuration of tools, autonomy and schedule. Once
+// the runtime exists, "hire a collections agent" is a row here, not new code.
+model AgentDefinition {
+  id        String        @id @default(cuid())
+  tenantId  String
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  // What this agent is for, in the owner's words. Goes into its system prompt.
+  brief     String
+  // Tool names it may use. Empty = every tool the triggering role allows.
+  toolNames String[]      @default([])
+  autonomy  AgentAutonomy @default(SUGGEST_ONLY)
+  // Cron expression, evaluated by the tenant tick. Null = event/manual only.
+  schedule  String?
+  isActive  Boolean       @default(true)
+  lastRunAt DateTime?
+  createdAt DateTime      @default(now())
+  runs      AgentRun[]
+
+  @@index([tenantId, isActive])
+  @@map("agent_definitions")
+}
+
+// Domain events emitted by the core layer. The agent subscribes to these so it
+// reacts to the business changing, not only to the clock — a quote opened four
+// times is a buying signal the moment it happens, not the next morning.
+model DomainEvent {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type        String // quote.opened_repeatedly, invoice.overdue, payment.failed, ...
+  subjectType String
+  subjectId   String
+  payload     Json      @default("{}")
+  createdAt   DateTime  @default(now())
+  // Null until the agent has looked at it. The tick claims a batch atomically
+  // by stamping this, so two overlapping ticks can't both react to one event.
+  processedAt DateTime?
+
+  @@index([tenantId, processedAt])
+  @@index([type, createdAt])
+  @@map("domain_events")
 }

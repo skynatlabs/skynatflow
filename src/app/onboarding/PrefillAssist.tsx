@@ -65,14 +65,14 @@ export default function PrefillAssist() {
     <div className="kb-card mb-4 p-4">
       <p className="text-sm font-medium text-[var(--kb-text)]">Have a website? Paste the link.</p>
       <p className="mt-0.5 text-xs text-[var(--kb-text-dim)]">
-        We'll pull your business name, type, and a few products to get you started faster.
+        We&apos;ll pull your business name, type, and a few products to get you started faster.
       </p>
       <div className="mt-3 flex gap-2">
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://yourbusiness.com"
-          className="flex-1 rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none"
+          className="flex-1 rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none"
         />
         <button
           type="button"

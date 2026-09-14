@@ -12,7 +12,7 @@ export default async function ApiKeysAdminPage() {
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Every external-service credential the platform uses, settable here instead of only as an
         env var — a key saved here takes effect immediately, no redeploy. Leaving one blank falls
-        back to its env var, if that's set.
+        back to its env var, if that&apos;s set.
       </p>
 
       {GROUPS.map((group) => {

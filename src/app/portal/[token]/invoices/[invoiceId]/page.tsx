@@ -46,7 +46,7 @@ export default async function PortalInvoicePage({
       : await prisma.paymentGateway.findMany({ where: { tenantId: invoice.tenantId, isActive: true } });
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <div className="kb-card p-6">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-[var(--kb-text)]">Invoice</h1>

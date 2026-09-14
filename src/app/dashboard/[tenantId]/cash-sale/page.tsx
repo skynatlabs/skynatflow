@@ -4,7 +4,7 @@ import { ProductPicker } from "../quotes/new/ProductPicker";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
 
 const inputClass =
-  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
+  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
 const labelClass = "block text-sm font-medium text-[var(--kb-text)]";
 
 export default async function CashSalePage({
@@ -16,7 +16,7 @@ export default async function CashSalePage({
   const products = await listProducts(tenantId);
 
   return (
-    <main className="mx-auto max-w-md p-8">
+    <main className="mx-auto max-w-md p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Cash sale</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         For the customer standing right in front of you — no quote step, marked paid immediately.

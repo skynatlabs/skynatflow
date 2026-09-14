@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { DEFAULT_SECTION_ORDER } from "@/lib/pdf/DocumentTemplate";
-import { getPdfStyle } from "@/lib/pdf/styles";
-import { SectionBuilder } from "./SectionBuilder";
-import { saveStyleOverridesAction } from "./actions";
+import { getPdfStyle, PAGE_MARGINS, PT_PER_INCH } from "@/lib/pdf/styles";
+import { createHash } from "node:crypto";
+import { resolveSections } from "@/lib/pdf/sections";
+import { TemplateStudio } from "./TemplateStudio";
+
+export const dynamic = "force-dynamic";
 
 export default async function PdfTemplateEditorPage({
   params,
@@ -12,110 +14,76 @@ export default async function PdfTemplateEditorPage({
   params: Promise<{ tenantId: string; templateId: string }>;
 }) {
   const { tenantId, templateId } = await params;
-  const template = await prisma.tenantPdfTemplate.findUnique({ where: { id: templateId } });
-  if (!template || template.tenantId !== tenantId) notFound();
 
-  const savedOrder = Array.isArray(template.sectionOrder)
-    ? (template.sectionOrder as string[])
-    : DEFAULT_SECTION_ORDER;
-  const hiddenSections = Array.isArray(template.hiddenSections) ? (template.hiddenSections as string[]) : [];
-  // Any section not yet in the saved order (e.g. added after this
-  // template was first created) is appended, visible by default — never
-  // silently dropped from the layout.
-  const initialOrder = [...savedOrder, ...DEFAULT_SECTION_ORDER.filter((k) => !savedOrder.includes(k))];
-  const baseStyle = getPdfStyle(template.styleKey);
+  const [template, tenant] = await Promise.all([
+    prisma.tenantPdfTemplate.findUnique({ where: { id: templateId } }),
+    prisma.tenant.findUnique({ where: { id: tenantId } }),
+  ]);
+  if (!template || template.tenantId !== tenantId || !tenant) notFound();
+
+  const base = getPdfStyle(template.styleKey);
+  // The margin boxes always show a number. Falling back to the preset the
+  // template is actually rendering with means what you read is what you get,
+  // rather than four empty boxes beside a document that plainly has margins.
+  const presetInches =
+    (PAGE_MARGINS[template.pageMargin ?? "normal"] ?? PAGE_MARGINS.normal) / PT_PER_INCH;
+  const round = (n: number) => Math.round(n * 100) / 100;
+
+  // A fingerprint of what the renderer will read. The preview URL carries it,
+  // so a save busts the iframe's cache and a no-op save doesn't — which is
+  // what makes "Save" visibly do something without the client having to
+  // guess whether the write landed.
+  const version = createHash("sha1")
+    .update(JSON.stringify({ ...template, logoDataUrl: template.logoDataUrl?.length ?? 0 }))
+    .digest("hex")
+    .slice(0, 10);
 
   return (
-    <main className="mx-auto max-w-xl p-8">
+    <main className="mx-auto w-full max-w-[95rem] p-4 sm:p-6 lg:p-8">
       <Link
         href={`/dashboard/${tenantId}/settings/pdf-templates`}
         className="text-xs text-[var(--kb-text-dim)] hover:underline"
       >
         &larr; Back to templates
       </Link>
-      <h1 className="mt-2 text-2xl font-semibold text-[var(--kb-text)]">{template.name} — layout</h1>
-      <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-        Customize which optional sections appear on this template, and in what order.
-      </p>
 
-      <div className="kb-card mt-6 p-6">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--kb-text-dim)]">
-          Appearance
-        </h2>
-        <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
-          Fine-tune this template beyond the base style — leave anything on "Default" to keep what
-          the style already does.
-        </p>
-        <form action={saveStyleOverridesAction} className="mt-3 grid grid-cols-2 gap-3">
-          <input type="hidden" name="tenantId" value={tenantId} />
-          <input type="hidden" name="templateId" value={templateId} />
-          <label className="text-xs">
-            <span className="block font-medium text-[var(--kb-text-dim)]">Font</span>
-            <select
-              name="fontFamily"
-              defaultValue={template.fontFamily ?? ""}
-              className="mt-1 w-full rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm"
-            >
-              <option value="">Default ({baseStyle.fontFamily})</option>
-              <option value="Helvetica">Helvetica (sans-serif)</option>
-              <option value="Times-Roman">Times Roman (serif)</option>
-              <option value="Courier">Courier (monospace)</option>
-            </select>
-          </label>
-          <label className="text-xs">
-            <span className="block font-medium text-[var(--kb-text-dim)]">Header layout</span>
-            <select
-              name="headerLayout"
-              defaultValue={template.headerLayout ?? ""}
-              className="mt-1 w-full rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm"
-            >
-              <option value="">Default ({baseStyle.headerLayout})</option>
-              <option value="centered">Centered</option>
-              <option value="split">Split (logo left, details right)</option>
-              <option value="band">Colored band</option>
-            </select>
-          </label>
-          <label className="text-xs">
-            <span className="block font-medium text-[var(--kb-text-dim)]">Item table header</span>
-            <select
-              name="tableHeaderStyle"
-              defaultValue={template.tableHeaderStyle ?? ""}
-              className="mt-1 w-full rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm"
-            >
-              <option value="">Default ({baseStyle.tableHeaderStyle})</option>
-              <option value="dark">Dark fill</option>
-              <option value="accent">Accent color fill</option>
-              <option value="line-only">Line only (no fill)</option>
-            </select>
-          </label>
-          <label className="text-xs">
-            <span className="block font-medium text-[var(--kb-text-dim)]">Logo shape</span>
-            <select
-              name="logoShape"
-              defaultValue={template.logoShape ?? ""}
-              className="mt-1 w-full rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm"
-            >
-              <option value="">Default ({baseStyle.logoShape})</option>
-              <option value="circle">Circle</option>
-              <option value="square">Square</option>
-              <option value="none">No logo</option>
-            </select>
-          </label>
-          <button type="submit" className="kb-pill kb-pill-primary col-span-2 text-xs">
-            Save appearance
-          </button>
-        </form>
-      </div>
-
-      <div className="kb-card mt-4 p-6">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--kb-text-dim)]">
-          Sections
-        </h2>
-        <SectionBuilder
+      <div className="mt-3">
+        <TemplateStudio
           tenantId={tenantId}
           templateId={templateId}
-          initialOrder={initialOrder}
-          initialHidden={hiddenSections}
+          baseStyle={base}
+          logoDataUrl={template.logoDataUrl}
+          previewSrc={`/api/dashboard/${tenantId}/pdf-templates/${templateId}/preview`}
+          version={version}
+          initialSections={resolveSections(template.sections)}
+          initialSettings={{
+            name: template.name,
+            styleKey: template.styleKey,
+            appliesTo: template.appliesTo ?? "ALL",
+            accentColorHex: template.accentColorHex ?? base.accentColor,
+            textColorHex: template.textColorHex ?? base.textColor,
+            mutedColorHex: template.mutedColorHex ?? base.mutedColor,
+            backgroundHex: template.backgroundHex ?? "#ffffff",
+            fontFamily: template.fontFamily ?? "",
+            fontScale: template.fontScale ?? 1,
+            headerLayout: template.headerLayout ?? "",
+            tableHeaderStyle: template.tableHeaderStyle ?? "",
+            logoShape: template.logoShape ?? "",
+            pageSize: template.pageSize ?? "A4",
+            orientation: template.orientation ?? "portrait",
+            pageMargin: template.pageMargin ?? "",
+            marginTopIn: round(template.marginTopIn ?? presetInches),
+            marginBottomIn: round(template.marginBottomIn ?? presetInches),
+            marginLeftIn: round(template.marginLeftIn ?? presetInches),
+            marginRightIn: round(template.marginRightIn ?? presetInches),
+          }}
+          initialBusiness={{
+            businessAddress: tenant.businessAddress ?? "",
+            businessEmail: tenant.businessEmail ?? "",
+            businessPhone: tenant.businessPhone ?? "",
+            vatNumber: tenant.vatNumber ?? "",
+            registrationNumber: tenant.registrationNumber ?? "",
+          }}
         />
       </div>
     </main>

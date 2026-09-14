@@ -8,24 +8,25 @@ import { TrendAreaChart } from "@/components/dashboard/MiniCharts";
 export const dynamic = "force-dynamic";
 
 const inputClass =
-  "mt-1 w-full rounded-lg border border-[var(--kb-panel-border)] bg-white px-2.5 py-2 text-sm text-[var(--kb-text)]";
+  "mt-1 w-full rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2.5 py-2 text-sm text-[var(--kb-text)]";
 
 export default async function CustomersPage({
   params,
   searchParams,
 }: {
   params: Promise<{ tenantId: string }>;
-  searchParams: Promise<{ page?: string; add?: string }>;
+  searchParams: Promise<{ page?: string; add?: string; q?: string }>;
 }) {
   const { tenantId } = await params;
-  const { page: pageParam, add } = await searchParams;
+  const { page: pageParam, add, q } = await searchParams;
+  const search = q?.trim() ?? "";
   const page = Math.max(1, Number(pageParam ?? 1));
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
   sixMonthsAgo.setDate(1);
   const [tenant, { items: customers, total, pageCount }, recentCustomers] = await Promise.all([
     prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } }),
-    listCustomersPaginated(tenantId, page),
+    listCustomersPaginated(tenantId, page, undefined, search),
     prisma.party.findMany({
       where: { tenantId, role: { in: ["CUSTOMER", "PATIENT"] }, createdAt: { gte: sixMonthsAgo } },
       select: { createdAt: true },
@@ -49,7 +50,7 @@ export default async function CustomersPage({
   }));
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
+    <main className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-[var(--kb-text)]">
           {niche.customerLabel}s <span className="text-sm font-normal text-[var(--kb-text-dim)]">({total})</span>
@@ -68,8 +69,28 @@ export default async function CustomersPage({
         <TrendAreaChart title={`New ${niche.customerLabel.toLowerCase()}s, last 6 months`} data={trendData} />
       </div>
 
+      {/* Mirrors the global search in the top bar, which submits `q` here —
+          without this the query was applied but invisible, so there was no
+          way to see or clear what you had searched for. */}
+      <form className="mt-6 flex gap-2">
+        <input
+          name="q"
+          defaultValue={search}
+          placeholder={`Search ${niche.customerLabel.toLowerCase()}s by name, email or phone…`}
+          className={`${inputClass} mt-0 flex-1`}
+        />
+        <button type="submit" className="kb-pill kb-pill-primary text-xs">
+          Search
+        </button>
+        {search && (
+          <Link href="?" className="kb-pill kb-pill-ghost text-xs">
+            Clear
+          </Link>
+        )}
+      </form>
+
       {add === "1" && (
-        <form action={createCustomerAction} className="kb-card mt-4 grid grid-cols-2 gap-3 p-5">
+        <form action={createCustomerAction} className="kb-card mt-4 grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5">
           <input type="hidden" name="tenantId" value={tenantId} />
           <label className="text-xs">
             <span className="block font-medium text-[var(--kb-text-dim)]">Name *</span>
@@ -123,10 +144,20 @@ export default async function CustomersPage({
       )}
 
       {customers.length === 0 ? (
-        <p className="mt-6 text-sm text-[var(--kb-text-dim)]">
-          No {niche.customerLabel.toLowerCase()}s yet. Run <code>npm run db:seed</code> for
-          a worked example, or add one above.
-        </p>
+        search ? (
+          <p className="mt-6 text-sm text-[var(--kb-text-dim)]">
+            No {niche.customerLabel.toLowerCase()}s match &quot;{search}&quot;.{" "}
+            <Link href="?" className="underline">
+              Clear the search
+            </Link>{" "}
+            to see all of them.
+          </p>
+        ) : (
+          <p className="mt-6 text-sm text-[var(--kb-text-dim)]">
+            No {niche.customerLabel.toLowerCase()}s yet. Run <code>npm run db:seed</code> for
+            a worked example, or add one above.
+          </p>
+        )
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {customers.map((c) => (
@@ -147,7 +178,7 @@ export default async function CustomersPage({
       {pageCount > 1 && (
         <div className="mt-4 flex items-center justify-between text-sm">
           <Link
-            href={`?page=${page - 1}`}
+            href={`?page=${page - 1}${search ? `&q=${encodeURIComponent(search)}` : ""}`}
             aria-disabled={page <= 1}
             className={`kb-pill kb-pill-ghost text-xs ${page <= 1 ? "pointer-events-none opacity-40" : ""}`}
           >
@@ -157,7 +188,7 @@ export default async function CustomersPage({
             Page {page} of {pageCount}
           </span>
           <Link
-            href={`?page=${page + 1}`}
+            href={`?page=${page + 1}${search ? `&q=${encodeURIComponent(search)}` : ""}`}
             aria-disabled={page >= pageCount}
             className={`kb-pill kb-pill-ghost text-xs ${page >= pageCount ? "pointer-events-none opacity-40" : ""}`}
           >

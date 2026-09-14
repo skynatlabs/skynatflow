@@ -131,7 +131,7 @@ async function seedDemo(spec: DemoSpec, passwordHash: string) {
     partyId: customer.id,
     lines: [{ itemId: item.id, quantity: 1, unitPriceCents: spec.priceCents }],
   });
-  await sendQuote(quote.id);
+  await sendQuote(quote.id, tenant.id);
   await recordResponse(quote.id, "ACCEPTED");
   const invoice = await convertToInvoice({ quoteId: quote.id });
   await recordPayment({ invoiceId: invoice.id, amountCents: Math.round(spec.priceCents * 0.2) });

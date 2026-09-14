@@ -30,7 +30,7 @@ export default async function PurchaseOrdersPage({
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Purchase orders</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Reorder suggestions come straight from your sales velocity — the same numbers behind the

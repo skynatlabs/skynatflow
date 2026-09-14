@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Admina template chrome, scoped to [data-skin="admina"] — see admina.css. */
+@import "./admina.css";
 
 :root {
   --background: #ffffff;
@@ -26,6 +28,139 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* The canvas behind everything.
+   
+   A body background propagates to the browser canvas, so a white body shows
+   through wherever the shell doesn't reach: overscroll bounce on a phone, and
+   the strip beyond a short page. On a dark dashboard that reads as dark mode
+   being broken, because the white is the first thing that moves when you
+   scroll.
+   
+   Scoped with :has() rather than by stamping the theme on <html>, because the
+   theme cookie is a *dashboard* setting — the marketing site has no shell and
+   must stay light even for someone who left the dashboard in dark mode. Each
+   skin repeats its own --kb-bg here since body sits outside .kb-shell and
+   cannot read a variable declared on it. */
+body:has(.kb-shell[data-theme="dark"]) {
+  background: #0b0a14;
+  color: #f4f4fa;
+  /* Makes the scrollbar, and every native control the browser paints itself
+     (date pickers, selects, spinners), render dark. Without it those stay
+     light and look pasted on. */
+  color-scheme: dark;
+}
+body:has(.kb-shell[data-skin="professional"][data-theme="dark"]) { background: #0a1917; }
+body:has(.kb-shell[data-skin="creative"][data-theme="dark"])     { background: #0b0a17; }
+body:has(.kb-shell[data-skin="futuristic"][data-theme="dark"])   { background: #060b14; }
+body:has(.kb-shell[data-skin="jewel"][data-theme="dark"])        { background: #0a1613; }
+body:has(.kb-shell[data-skin="summer"][data-theme="dark"])       { background: #0b0d10; }
+body:has(.kb-shell[data-skin="admina"][data-theme="dark"])       { background: #0b1120; }
+
+/* Light shells get the matching treatment, so a light dashboard's canvas is
+   its own off-white rather than pure white behind a grey page. */
+body:has(.kb-shell[data-skin="admina"]:not([data-theme="dark"])) { background: #f5f6fa; }
+
+/* ---------------------------------------------------------------- the dock
+   The command bar lives at the bottom of every dashboard page: always there,
+   always ready, the way a composer is in a chat app. It floats over the
+   content column rather than spanning the viewport, so on a desktop it sits
+   centred over the page instead of running underneath the sidebar — hence the
+   left inset, which mirrors the same breakpoints the shells use for their own
+   content offset. */
+.kb-shell {
+  --kb-dock-left: 0px;
+}
+@media (min-width: 1024px) {
+  .kb-shell:not([data-skin="admina"]) { --kb-dock-left: 16rem; }
+}
+@media (min-width: 1200px) {
+  .kb-shell[data-skin="admina"] { --kb-dock-left: 13.75rem; }
+}
+@media (min-width: 1400px) {
+  .kb-shell[data-skin="admina"] { --kb-dock-left: 17.1875rem; }
+}
+@media (min-width: 1650px) {
+  .kb-shell[data-skin="admina"] { --kb-dock-left: 19.5rem; }
+}
+
+.kb-dock {
+  position: fixed;
+  left: var(--kb-dock-left);
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  padding: 0 0.75rem;
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  /* The gutter either side of the bar must not swallow clicks meant for the
+     page underneath it. */
+  pointer-events: none;
+}
+
+.kb-dock-inner {
+  pointer-events: auto;
+  margin-inline: auto;
+  display: flex;
+  max-width: 46rem;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kb-dock-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--kb-panel-border);
+  background: var(--kb-panel);
+  padding: 0.3125rem 0.3125rem 0.3125rem 0.9375rem;
+  box-shadow: 0 14px 36px -14px rgba(0, 0, 0, 0.4);
+}
+.kb-dock-bar:focus-within {
+  border-color: var(--kb-accent-a);
+}
+
+/* Four class selectors on purpose. The Admina skin styles every bare <input>
+   with its own surface, border and padding — correctly, for forms — and that
+   rule is more specific than a single class, so the composer rendered as a
+   boxed field sitting inside the pill instead of being the pill. */
+.kb-shell .kb-dock .kb-dock-bar .kb-dock-input,
+.kb-dock-input {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+  color: var(--kb-text);
+  outline: none;
+  box-shadow: none;
+}
+.kb-shell .kb-dock .kb-dock-bar .kb-dock-input:focus,
+.kb-dock-input:focus {
+  border: 0;
+  outline: none;
+  box-shadow: none;
+}
+.kb-dock-input::placeholder { color: var(--kb-text-dim); }
+.kb-dock-input:disabled { opacity: 0.6; }
+
+.kb-dock-panel {
+  display: flex;
+  max-height: min(60vh, 32rem);
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid var(--kb-panel-border);
+  background: var(--kb-panel);
+  box-shadow: 0 22px 52px -18px rgba(0, 0, 0, 0.45);
+}
+
+/* Room at the foot of every page so the bar never covers the last row. */
+.kb-dock-host {
+  padding-bottom: 6rem;
+}
+
 /* Dashboard brand theme, v4 — matches the marketing site's approved
    pink/orange/blue "split" palette exactly (see .kb-marketing below,
    which is now just this same palette at a richer saturation for
@@ -34,6 +169,16 @@ body {
    blended into a 3-stop gradient — same discipline as the marketing
    site. Structure (radii, shadows, layout) is untouched — colors only. */
 .kb-shell {
+  /* Overdue and failed are the one status pair with no home in the tint
+     palette: peach is already spoken for by PAID, and rendering a late
+     invoice the same colour as a settled one makes a list unreadable at a
+     glance. Its own token, so it is themed like everything else rather than
+     hardcoded light-red — which stayed light-red in dark mode. */
+  --kb-status-danger: #fee2e2;
+  --kb-status-danger-ink: #dc2626;
+
+  --kb-hero-bg: var(--kb-navy);
+  --kb-hero-ink: #ffffff;
   --kb-bg: #f7f6fb;
   --kb-panel: #ffffff;
   --kb-panel-border: #e6e6f2;
@@ -66,6 +211,11 @@ body {
 
 /* Dark mode: same pink/orange/blue system, inverted. */
 .kb-shell[data-theme="dark"] {
+  /* Deep enough to sit on a dark card, with the hue moved into the ink —
+     the same pattern every tint uses in dark mode. */
+  --kb-status-danger: #2b1417;
+  --kb-status-danger-ink: #f87171;
+
   --kb-bg: #0b0a14;
   --kb-panel: #15131f;
   --kb-panel-border: #2a273d;
@@ -294,6 +444,204 @@ body {
   --kb-tint-mint-ink: #2dd4bf;
 }
 
+/* "Jewel" skin — emerald canvas, mango & magenta accents. From the 2a
+   concept mockup: deep emerald-navy for chrome, warm cream working
+   canvas, magenta+mango as the one gradient pair, emerald standalone. */
+.kb-shell[data-skin="jewel"] {
+  --kb-bg: #f5f1e8;
+  --kb-panel: #ffffff;
+  --kb-panel-border: #e6ddc8;
+  --kb-text: #0f2e28;
+  --kb-text-dim: #6b6355;
+
+  --kb-accent-a: #e8477a;   /* magenta — primary actions, key numbers */
+  --kb-accent-mid: #f2b705; /* mango — gradient partner for accent-a only */
+  --kb-accent-b: #0f766e;   /* emerald — standalone accent */
+  --kb-navy: #0f2e28;
+  --kb-navy-soft: #153c34;
+
+  --kb-tint-blue: #d9efe9;
+  --kb-tint-blue-ink: #0f2e28;
+  --kb-tint-yellow: #fdf0c9;
+  --kb-tint-yellow-ink: #8a6200;
+  --kb-tint-peach: #fde4ee;
+  --kb-tint-peach-ink: #9d1c53;
+  --kb-tint-violet: #e3f2ee;
+  --kb-tint-violet-ink: #0f766e;
+  --kb-tint-mint: #d4f3e4;
+  --kb-tint-mint-ink: #0f766e;
+}
+.kb-shell[data-skin="jewel"][data-theme="dark"] {
+  --kb-bg: #0a1613;
+  --kb-panel: #102420;
+  --kb-panel-border: #1c3a33;
+  --kb-text: #f0ede2;
+  --kb-text-dim: #96a89f;
+  --kb-navy: #071310;
+  --kb-navy-soft: #102420;
+
+  --kb-tint-blue: #142e28;
+  --kb-tint-blue-ink: #f0ede2;
+  --kb-tint-yellow: #142e28;
+  --kb-tint-yellow-ink: #f2b705;
+  --kb-tint-peach: #142e28;
+  --kb-tint-peach-ink: #f2789e;
+  --kb-tint-violet: #142e28;
+  --kb-tint-violet-ink: #2dd4bf;
+  --kb-tint-mint: #142e28;
+  --kb-tint-mint-ink: #2dd4bf;
+}
+
+/* Jewel's editorial greeting headline — italic serif instead of every
+   other skin's bold sans. Scoped to the skin, not global: only this
+   theme's home-page greeting picks it up. */
+.kb-shell[data-skin="jewel"] .kb-hero-greeting {
+  font-family: var(--font-instrument-serif), Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* "Summer" skin — five flat, fully-saturated colors and nothing else.
+   No dark/dull chrome anywhere (the sidebar is bold blue, not navy-grey)
+   and no gradients (see the no-gradient overrides below) — every accent
+   is one solid hex from the palette, used exactly as given. */
+.kb-shell[data-skin="summer"] {
+  --kb-bg: #ffffff;
+  --kb-panel: #ffffff;
+  --kb-panel-border: #e5e5e5;
+  --kb-text: #14171a;
+  --kb-text-dim: #6b7280;
+
+  --kb-accent-a: #ff3f8e;   /* pink — primary actions, key numbers */
+  --kb-accent-mid: #ff7a00; /* orange — secondary accent, no longer a gradient partner in this skin */
+  --kb-accent-b: #ffdd00;   /* yellow — standalone accent */
+  --kb-navy: #00a6fb;       /* blue — sidebar chrome, deliberately vivid, not dark */
+  --kb-navy-soft: #00f2ea;  /* cyan — nested boxes on the blue sidebar */
+
+  --kb-tint-blue: #00a6fb;
+  --kb-tint-blue-ink: #ffffff;
+  --kb-tint-yellow: #ffdd00;
+  --kb-tint-yellow-ink: #14171a;
+  --kb-tint-peach: #ff3f8e;
+  --kb-tint-peach-ink: #ffffff;
+  --kb-tint-violet: #ff7a00;
+  --kb-tint-violet-ink: #ffffff;
+  --kb-tint-mint: #00f2ea;
+  --kb-tint-mint-ink: #14171a;
+}
+.kb-shell[data-skin="summer"][data-theme="dark"] {
+  --kb-bg: #0b0d10;
+  --kb-panel: #16191d;
+  --kb-panel-border: #262b31;
+  --kb-text: #f5f6f7;
+  --kb-text-dim: #9aa3ad;
+  --kb-navy: #00a6fb;
+  --kb-navy-soft: #0089d6;
+
+  /* Same five accents — only the tile backgrounds move to the dark panel
+     color so the vivid hue reads as ink/icon color instead, same pattern
+     every other skin's dark mode already uses. */
+  --kb-tint-blue: #16191d;
+  --kb-tint-blue-ink: #00a6fb;
+  --kb-tint-yellow: #16191d;
+  --kb-tint-yellow-ink: #ffdd00;
+  --kb-tint-peach: #16191d;
+  --kb-tint-peach-ink: #ff3f8e;
+  --kb-tint-violet: #16191d;
+  --kb-tint-violet-ink: #ff7a00;
+  --kb-tint-mint: #16191d;
+  --kb-tint-mint-ink: #00f2ea;
+}
+
+/* No gradients in Summer, anywhere — every other skin blends accent-a
+   into accent-mid/-b for buttons and glossy panels; this skin swaps those
+   to one flat color per the "no gradients" brief. */
+.kb-shell[data-skin="summer"] .kb-pill-primary,
+.kb-shell[data-skin="summer"] .kb-glossy {
+  background: var(--kb-accent-a);
+}
+.kb-shell[data-skin="summer"] .kb-gradient-text {
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  color: var(--kb-accent-a);
+}
+
+
+/* "Admina" skin — ported from the Admina Tailwind admin template
+   (admina-tailwind-admin/tailwind.config.js) rather than transplanted.
+   The template is Tailwind 3 + gulp + static HTML + Flowbite; this app is
+   Tailwind 4 + React, so porting its 85 pages would mean a rewrite and
+   would cost the seven-skin system. Mapping its palette onto the existing
+   kb-* tokens gets the same look across every surface for the price of one
+   CSS block, and dark mode keeps working.
+
+   Source values: primary-600 #487FFF (the template's stated main colour),
+   neutral ramp, and the semantic main/surface pairs for danger, success,
+   warning and info. */
+.kb-shell[data-skin="admina"] {
+  /* Two variables the additions at the end of admina.css reference but the
+     template itself never declares: it hardcodes #fff for card/sidebar
+     surfaces, and names its accent --ts-purple even though the value is the
+     blue #487FFF. Declared here so they resolve in both themes — a var() that
+     resolves to nothing invalidates the whole declaration, which is what
+     silently flattened the card radius and the hero tile. */
+  --ts-surface: #ffffff;
+  --ts-accent: var(--kb-accent-a);
+  --kb-bg: #f5f6fa;            /* neutral-50 — the template's app canvas */
+  --kb-panel: #ffffff;
+  --kb-panel-border: #ebecef;  /* neutral-200 */
+  --kb-text: #111827;          /* neutral-900 */
+  --kb-text-dim: #6b7280;      /* neutral-500 */
+
+  --kb-accent-a: #487fff;      /* primary-600 — the main theme colour */
+  --kb-accent-mid: #519fff;    /* primary-400 — gradient partner */
+  --kb-accent-b: #45b369;      /* success-main — standalone accent */
+  --kb-navy: #1f2937;          /* neutral-800 sidebar, per the template */
+  --kb-navy-soft: #374151;     /* neutral-700 for nested blocks */
+
+  /* Semantic pairs come straight from the template's surface/main values,
+     which is what makes status pills read the same as its screenshots. */
+  --kb-tint-blue: #e7eefc;     /* info-surface */
+  --kb-tint-blue-ink: #144bd6; /* info-main */
+  --kb-tint-yellow: #fff9e2;   /* warning-surface */
+  --kb-tint-yellow-ink: #b47900;
+  --kb-tint-peach: #fcdae2;    /* danger-surface */
+  --kb-tint-peach-ink: #d53128;/* danger-hover, legible on that surface */
+  --kb-tint-violet: #ede9fe;
+  --kb-tint-violet-ink: #6d28d9;
+  --kb-tint-mint: #daf0e1;     /* success-surface */
+  --kb-tint-mint-ink: #007a46; /* darkened success for contrast on surface */
+}
+.kb-shell[data-skin="admina"][data-theme="dark"] {
+  /* The template's own dark sidebar/card colour. */
+  --ts-surface: #273142;
+  --kb-bg: #0b1120;
+  --kb-panel: #151c2c;
+  --kb-panel-border: #26304a;
+  --kb-text: #f3f4f6;
+  --kb-text-dim: #9ca3af;
+  --kb-navy: #0b1120;
+  --kb-navy-soft: #151c2c;
+
+  /* Same pattern every other dark skin uses: the tile drops to the panel
+     colour and the hue moves to the ink, so saturated surfaces don't glow. */
+  --kb-tint-blue: #151c2c;
+  --kb-tint-blue-ink: #60a5fa;
+  --kb-tint-yellow: #151c2c;
+  --kb-tint-yellow-ink: #ff9f29;
+  --kb-tint-peach: #151c2c;
+  --kb-tint-peach-ink: #f87171;
+  --kb-tint-violet: #151c2c;
+  --kb-tint-violet-ink: #a78bfa;
+  --kb-tint-mint: #151c2c;
+  --kb-tint-mint-ink: #45b369;
+}
+
+/* Admina's cards sit flatter than this app's default lifted-shadow look —
+   a hairline border and a very soft shadow, which is what gives its
+
 /* Card text needs to stay dark-on-white regardless of the charcoal
    canvas's white --kb-text/--kb-text-dim — redefine both locally so every
    descendant using var(--kb-text-dim) (secondary copy, timestamps, etc.)
@@ -477,3 +825,6 @@ body {
 .kb-tint-peach { --kb-tile-tint: var(--kb-tint-peach); --kb-tile-ink: var(--kb-tint-peach-ink); color: var(--kb-tint-peach-ink); }
 .kb-tint-violet { --kb-tile-tint: var(--kb-tint-violet); --kb-tile-ink: var(--kb-tint-violet-ink); color: var(--kb-tint-violet-ink); }
 .kb-tint-mint { --kb-tile-tint: var(--kb-tint-mint); --kb-tile-ink: var(--kb-tint-mint-ink); color: var(--kb-tint-mint-ink); }
+
+/* Primary shortcut tile — a ring in every skin that uses lifted cards. */
+.kb-tile-primary { box-shadow: inset 0 0 0 2px var(--kb-accent-a); }

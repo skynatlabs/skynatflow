@@ -57,10 +57,10 @@ export default async function TodayPage({
   }
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Today</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-        Real times for what's actually booked, everything else ranked by what needs you most —
+        Real times for what&apos;s actually booked, everything else ranked by what needs you most —
         nothing here has a made-up time slot.
       </p>
 

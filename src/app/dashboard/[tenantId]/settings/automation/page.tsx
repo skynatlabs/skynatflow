@@ -24,7 +24,7 @@ export default async function AutomationSettingsPage({
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
 
   return (
-    <main className="mx-auto max-w-xl p-8">
+    <main className="mx-auto max-w-xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Follow-up automation</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Control when follow-ups fire, and whether they need your OK first or send themselves —

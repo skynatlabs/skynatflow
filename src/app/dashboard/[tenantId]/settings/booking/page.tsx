@@ -14,7 +14,7 @@ export default async function BookingSettingsPage({
   const config = getBookingConfig(tenant);
 
   return (
-    <main className="mx-auto max-w-md p-8">
+    <main className="mx-auto max-w-md p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Booking page</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         A public link where customers pick their own appointment slot — no back-and-forth.
@@ -58,7 +58,7 @@ export default async function BookingSettingsPage({
               min={0}
               max={23}
               defaultValue={config.startHour}
-              className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+              className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)]"
             />
           </div>
           <div className="flex-1">
@@ -69,7 +69,7 @@ export default async function BookingSettingsPage({
               min={0}
               max={23}
               defaultValue={config.endHour}
-              className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+              className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)]"
             />
           </div>
           <div className="flex-1">
@@ -80,7 +80,7 @@ export default async function BookingSettingsPage({
               min={15}
               step={15}
               defaultValue={config.slotMins}
-              className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+              className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)]"
             />
           </div>
         </div>
@@ -106,7 +106,7 @@ export default async function BookingSettingsPage({
             type="url"
             placeholder="https://g.page/r/..."
             defaultValue={tenant.googleReviewUrl ?? ""}
-            className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+            className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)]"
           />
         </div>
         <button type="submit" className="kb-pill kb-pill-primary w-full justify-center py-3">
@@ -130,7 +130,7 @@ export default async function BookingSettingsPage({
           ).map((opt) => (
             <label
               key={opt.value}
-              className="flex cursor-pointer items-start gap-2 rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm has-[:checked]:border-[var(--kb-accent-a)]"
+              className="flex cursor-pointer items-start gap-2 rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm has-[:checked]:border-[var(--kb-accent-a)]"
             >
               <input
                 type="radio"

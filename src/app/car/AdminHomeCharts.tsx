@@ -12,6 +12,7 @@ import {
   Tooltip,
   Cell,
 } from "recharts";
+import { CardTooltip } from "@/components/dashboard/CardTooltip";
 
 const AXIS_STYLE = { fontSize: 11, fill: "var(--kb-text-dim)" };
 
@@ -21,20 +22,6 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
       <h2 className="text-sm font-semibold text-[var(--kb-text)]">{title}</h2>
       <div className="mt-4">{children}</div>
     </section>
-  );
-}
-
-function CardTooltip({ active, payload, label, formatter }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="kb-card px-3 py-2 text-xs" style={{ boxShadow: "0 8px 24px -8px rgba(0,0,0,0.25)" }}>
-      <p className="font-semibold text-[var(--kb-text)]">{label}</p>
-      {payload.map((p: any) => (
-        <p key={p.dataKey} className="text-[var(--kb-text-dim)]">
-          {p.name}: <span className="font-semibold text-[var(--kb-text)]">{formatter ? formatter(p.value) : p.value}</span>
-        </p>
-      ))}
-    </div>
   );
 }
 

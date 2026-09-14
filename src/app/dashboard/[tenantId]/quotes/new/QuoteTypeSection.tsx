@@ -26,7 +26,7 @@ export function QuoteTypeSection({
     <div>
       <label className={labelClass}>Quote type</label>
       <div className="mt-1 grid grid-cols-2 gap-2">
-        <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm has-[:checked]:border-[var(--kb-accent-a)]">
+        <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm has-[:checked]:border-[var(--kb-accent-a)]">
           <input
             type="radio"
             name="quoteKind"
@@ -40,7 +40,7 @@ export function QuoteTypeSection({
             <span className="block text-xs text-[var(--kb-text-dim)]">Just line items and a total.</span>
           </span>
         </label>
-        <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm has-[:checked]:border-[var(--kb-accent-a)]">
+        <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm has-[:checked]:border-[var(--kb-accent-a)]">
           <input
             type="radio"
             name="quoteKind"

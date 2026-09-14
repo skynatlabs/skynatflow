@@ -5,9 +5,10 @@ inventory, delivery, cross-tenant wholesale trading, and a customer-facing
 portal, all on one shared core, one WhatsApp-native channel. Companion build
 to the strategic report and build manual produced alongside this repo.
 
-Seven verticals live side by side on the same engine — Corporate, Services,
-Logistics, Medical, Retail, Wholesale, Ecommerce — chosen at onboarding, so
-performance can be compared across industries before committing to one.
+Eight verticals live side by side on the same engine — Corporate, Services,
+Logistics, Medical, Retail, Wholesale, Ecommerce, Nonprofit — chosen at
+onboarding, so performance can be compared across industries before
+committing to one.
 
 **New here?** Read [`HANDOVER.md`](./HANDOVER.md) first — current live status,
 demo logins, and what's genuinely still open, in one place.
@@ -50,7 +51,7 @@ confirms the signed-in session actually has a real Membership on the tenant
 being acted on, then checks that role's capability, before anything runs.
 
 The **niche-config layer** (`src/lib/niches/config.ts`) is what "one engine,
-seven skins" means in code: every vertical shares the same tables; only
+eight skins" means in code: every vertical shares the same tables; only
 vocabulary and pipeline-stage labels change per niche, selected once at
 onboarding.
 

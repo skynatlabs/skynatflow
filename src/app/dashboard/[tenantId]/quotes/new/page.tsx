@@ -11,7 +11,7 @@ import { QuoteTypeSection } from "./QuoteTypeSection";
 import { SmartEntryBox } from "./SmartEntryBox";
 
 const inputClass =
-  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
+  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
 const labelClass = "block text-sm font-medium text-[var(--kb-text)]";
 
 export default async function NewQuotePage({
@@ -51,7 +51,7 @@ export default async function NewQuotePage({
   const suggestedRep = source ? null : await suggestSalesPersonForNewLead(tenantId);
 
   return (
-    <main className="mx-auto max-w-4xl p-8">
+    <main className="mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">
         {source ? "Duplicate quote" : `New quote for a ${niche.customerLabel.toLowerCase()}`}
       </h1>
@@ -92,6 +92,22 @@ export default async function NewQuotePage({
               <span className="text-[var(--kb-text-dim)]">(E.164, e.g. +27821234567)</span>
             </label>
             <input name="customerPhone" className={inputClass} />
+          </div>
+          {/* Email and company are what turn a quote into something that can
+              be sent and invoiced without a second trip back to the customer
+              record — and they are how an existing customer gets matched
+              rather than duplicated. */}
+          <div>
+            <label className={labelClass}>
+              Email <span className="text-[var(--kb-text-dim)]">(to send it to them)</span>
+            </label>
+            <input name="customerEmail" type="email" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>
+              Company <span className="text-[var(--kb-text-dim)]">(optional)</span>
+            </label>
+            <input name="customerCompany" className={inputClass} />
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">

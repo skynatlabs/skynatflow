@@ -15,11 +15,12 @@ export async function connectPaymentGatewayAction(formData: FormData) {
   const region = String(formData.get("region") ?? "RSA");
   const publicKey = String(formData.get("publicKey") ?? "").trim() || null;
   const secretKey = String(formData.get("secretKey") ?? "").trim() || null;
+  const webhookSecret = String(formData.get("webhookSecret") ?? "").trim() || null;
 
   await prisma.paymentGateway.upsert({
     where: { tenantId_provider: { tenantId, provider } },
-    create: { tenantId, provider, region, publicKey, secretKey, isActive: true },
-    update: { publicKey, secretKey, isActive: true },
+    create: { tenantId, provider, region, publicKey, secretKey, webhookSecret, isActive: true },
+    update: { publicKey, secretKey, webhookSecret, isActive: true },
   });
   revalidatePath(`/dashboard/${tenantId}/settings/payment-gateways`);
 }

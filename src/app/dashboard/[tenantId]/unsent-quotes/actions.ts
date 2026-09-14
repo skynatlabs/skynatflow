@@ -11,6 +11,6 @@ export async function sendQuoteNowAction(formData: FormData) {
   assertCan(access.role, "quote:send");
 
   const quoteId = String(formData.get("quoteId") ?? "");
-  await sendQuote(quoteId);
+  await sendQuote(quoteId, tenantId);
   revalidatePath(`/dashboard/${tenantId}/unsent-quotes`);
 }

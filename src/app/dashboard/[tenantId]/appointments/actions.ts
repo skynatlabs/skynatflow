@@ -9,6 +9,6 @@ export async function markNoShowAction(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
   await requireTenantAccess(tenantId);
 
-  await markNoShowAndRebook(eventId);
+  await markNoShowAndRebook(eventId, tenantId);
   revalidatePath(`/dashboard/${tenantId}/appointments`);
 }

@@ -93,7 +93,7 @@ export function ImportClient({ tenantId }: { tenantId: string }) {
         <select
           value={preset}
           onChange={(e) => applyPreset(e.target.value)}
-          className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)]"
+          className="mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)]"
         >
           {Object.entries(IMPORT_PRESETS).map(([key, p]) => (
             <option key={key} value={key}>
@@ -132,7 +132,7 @@ export function ImportClient({ tenantId }: { tenantId: string }) {
                 <select
                   value={mapping[f.key] ?? ""}
                   onChange={(e) => setMapping((m) => ({ ...m, [f.key]: e.target.value }))}
-                  className="flex-1 rounded-lg border border-[var(--kb-panel-border)] bg-white px-2.5 py-2 text-sm text-[var(--kb-text)]"
+                  className="flex-1 rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2.5 py-2 text-sm text-[var(--kb-text)]"
                 >
                   <option value="">— not mapped —</option>
                   {headers.map((h) => (

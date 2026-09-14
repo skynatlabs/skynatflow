@@ -4,6 +4,7 @@
 // language, so the owner never has to open the app to know what needs them.
 
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeCron } from "@/lib/cron/auth";
 import { findStaleTransactions } from "@/lib/core/money";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/client";
 import { prisma } from "@/lib/db";
@@ -13,10 +14,8 @@ function money(cents: number) {
 }
 
 export async function GET(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret");
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = authorizeCron(req, "daily-briefing");
+  if (!auth.ok) return auth.response;
 
   const tenants = await prisma.tenant.findMany({
     include: { memberships: { where: { role: "OWNER" }, include: { user: true } } },

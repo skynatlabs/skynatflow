@@ -26,7 +26,7 @@ describe("markNoShowAndRebook", () => {
       data: { tenantId, partyId: patient.id, type: EventType.CONSULTATION, scheduledAt: new Date(Date.now() - 3600000) },
     });
 
-    const result = await markNoShowAndRebook(event.id);
+    const result = await markNoShowAndRebook(event.id, tenantId);
     expect(result.ok).toBe(true);
 
     const updated = await prisma.event.findUnique({ where: { id: event.id } });
@@ -39,7 +39,7 @@ describe("markNoShowAndRebook", () => {
       data: { tenantId, partyId: patient.id, type: EventType.CONSULTATION, scheduledAt: new Date(Date.now() - 3600000) },
     });
 
-    const result = await markNoShowAndRebook(event.id);
+    const result = await markNoShowAndRebook(event.id, tenantId);
     expect(result.ok).toBe(false);
 
     const updated = await prisma.event.findUnique({ where: { id: event.id } });
@@ -47,7 +47,7 @@ describe("markNoShowAndRebook", () => {
   });
 
   it("returns a clear failure for an unknown event id instead of throwing", async () => {
-    const result = await markNoShowAndRebook("nonexistent-event-id");
+    const result = await markNoShowAndRebook("nonexistent-event-id", tenantId);
     expect(result.ok).toBe(false);
     expect(result.reason).toBeTruthy();
   });

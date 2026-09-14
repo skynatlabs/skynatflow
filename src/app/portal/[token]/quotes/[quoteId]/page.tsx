@@ -119,7 +119,7 @@ export default async function PortalQuotePage({
                 <img
                   src={quote.signatureDataUrl}
                   alt="Your signature"
-                  className="mt-3 h-24 rounded-lg border border-[var(--kb-panel-border)] bg-white"
+                  className="mt-3 h-24 rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)]"
                 />
               )}
               {quote.acceptanceHash && (
@@ -195,7 +195,7 @@ export default async function PortalQuotePage({
                   required
                   rows={2}
                   placeholder="Tell us what's wrong — wrong price, wrong item, anything."
-                  className="w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2 text-sm text-[var(--kb-text)]"
+                  className="w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2 text-sm text-[var(--kb-text)]"
                 />
                 <button type="submit" className="kb-pill mt-2 text-xs">
                   Send report

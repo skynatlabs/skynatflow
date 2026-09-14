@@ -1,7 +1,7 @@
 "use client";
 
 const selectClass =
-  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] focus:border-[var(--kb-accent-a)] focus:outline-none";
+  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)] focus:border-[var(--kb-accent-a)] focus:outline-none";
 
 export function TemplatePicker({
   templates,

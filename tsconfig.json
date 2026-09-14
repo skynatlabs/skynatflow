@@ -32,6 +32,10 @@
   ],
   "exclude": [
     "node_modules",
-    "apps/driver"
+    "apps/driver",
+    "apps/desktop",
+    "automation-saas",
+    "SassTech",
+    "admina-tailwind-admin"
   ]
 }

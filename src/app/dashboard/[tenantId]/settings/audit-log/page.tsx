@@ -39,7 +39,7 @@ export default async function AuditLogPage({
   const capabilities = Array.from(new Set(entries.map((e) => e.capability))).sort();
 
   return (
-    <main className="mx-auto max-w-4xl p-8">
+    <main className="mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Audit log</h1>
         <a
@@ -58,12 +58,12 @@ export default async function AuditLogPage({
           name="q"
           defaultValue={q}
           placeholder="Search by target or actor..."
-          className="flex-1 rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2 text-sm text-[var(--kb-text)]"
+          className="flex-1 rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2 text-sm text-[var(--kb-text)]"
         />
         <select
           name="capability"
           defaultValue={capability ?? ""}
-          className="rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2 text-sm text-[var(--kb-text)]"
+          className="rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2 text-sm text-[var(--kb-text)]"
         >
           <option value="">All actions</option>
           {capabilities.map((c) => (

@@ -41,7 +41,7 @@ export default async function ProductsPage({
     }));
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
+    <main className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--kb-text)]">
@@ -52,7 +52,7 @@ export default async function ProductsPage({
             typing the same item from scratch every time.
           </p>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <Link href={`/dashboard/${tenantId}/settings/templates`} className="kb-pill text-xs">
             Proposal templates
           </Link>

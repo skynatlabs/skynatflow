@@ -16,11 +16,20 @@ export async function openTill(params: { tenantId: string; openedById: string; o
 // Closes the session and computes the reconciliation variance — expected
 // (opening float + cash sales during the session) vs. what was actually
 // counted, same "surface it, don't absorb it" philosophy as Stocktake.
-export async function closeTill(sessionId: string, closingCountedCents: number, closedById: string) {
-  const session = await prisma.tillSession.findUniqueOrThrow({
+// tenantId appended (not prepended) so a missed call site is a compile
+// error rather than two silently swapped string arguments. Without it a
+// form post could close and reconcile another company's till session.
+export async function closeTill(
+  sessionId: string,
+  closingCountedCents: number,
+  closedById: string,
+  tenantId: string
+) {
+  const session = await prisma.tillSession.findUnique({
     where: { id: sessionId },
     include: { payments: true },
   });
+  if (!session || session.tenantId !== tenantId) throw new Error("Till session not found.");
 
   const cashSalesCents = session.payments
     .filter((p) => p.paymentMethod === "cash")
@@ -49,9 +58,13 @@ export async function checkoutSale(params: {
   tillSessionId?: string;
   posProvider?: PosProviderType;
 }) {
+  // recordCashSale re-checks party + items below, but resolve this one
+  // against the tenant here too so a foreign partyId fails before any
+  // card is charged rather than after.
   const party = params.partyId
-    ? await prisma.party.findUniqueOrThrow({ where: { id: params.partyId } })
+    ? await prisma.party.findFirst({ where: { id: params.partyId, tenantId: params.tenantId } })
     : await getOrCreateWalkInParty(params.tenantId, "CUSTOMER");
+  if (!party) throw new Error("Customer not found.");
 
   if (params.paymentMethod === "card" && params.posProvider) {
     const amountCents = params.lines.reduce((sum, l) => sum + l.quantity * l.unitPriceCents, 0);

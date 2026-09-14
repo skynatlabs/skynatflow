@@ -3,7 +3,6 @@
 // request itself. See src/lib/core/pos.ts closeTill.
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { PartyRole } from "@prisma/client";
 import { prisma } from "../../src/lib/db";
 import { openTill, closeTill, checkoutSale } from "../../src/lib/core/pos";
 
@@ -35,7 +34,7 @@ describe("closeTill — reconciliation variance", () => {
     const session = await openTill({ tenantId, openedById: membershipUserId, openingFloatCents: 50000 });
     await checkoutSale({ tenantId, lines: [{ itemId, quantity: 1, unitPriceCents: 10000 }], paymentMethod: "cash", tillSessionId: session.id });
 
-    const closed = await closeTill(session.id, 60000, membershipUserId);
+    const closed = await closeTill(session.id, 60000, membershipUserId, tenantId);
     expect(closed.varianceCents).toBe(0);
 
     const persisted = await prisma.tillSession.findUnique({ where: { id: session.id } });
@@ -47,7 +46,7 @@ describe("closeTill — reconciliation variance", () => {
     await checkoutSale({ tenantId, lines: [{ itemId, quantity: 1, unitPriceCents: 10000 }], paymentMethod: "cash", tillSessionId: session.id });
 
     // Expected 60000, only 55000 actually counted — a 5000c shortfall.
-    const closed = await closeTill(session.id, 55000, membershipUserId);
+    const closed = await closeTill(session.id, 55000, membershipUserId, tenantId);
     expect(closed.varianceCents).toBe(-5000);
 
     const persisted = await prisma.tillSession.findUnique({ where: { id: session.id } });
@@ -61,7 +60,7 @@ describe("closeTill — reconciliation variance", () => {
 
     // Expected is still just float + cash sale (60000) — the card sale
     // shouldn't inflate what we expect to find in the drawer.
-    const closed = await closeTill(session.id, 60000, membershipUserId);
+    const closed = await closeTill(session.id, 60000, membershipUserId, tenantId);
     expect(closed.varianceCents).toBe(0);
   });
 });

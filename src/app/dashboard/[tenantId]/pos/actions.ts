@@ -26,7 +26,7 @@ export async function closeTillAction(formData: FormData) {
 
   const sessionId = String(formData.get("sessionId") ?? "");
   const closingCountedRand = Number(formData.get("closingCountedRand") ?? 0);
-  await closeTill(sessionId, Math.round(closingCountedRand * 100), access.membershipId ?? access.userId);
+  await closeTill(sessionId, Math.round(closingCountedRand * 100), access.membershipId ?? access.userId, tenantId);
   revalidatePath(`/dashboard/${tenantId}/pos`);
 }
 

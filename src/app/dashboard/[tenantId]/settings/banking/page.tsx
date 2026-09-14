@@ -20,7 +20,7 @@ export default async function BankingSettingsPage({
   const isOwner = access.role === "OWNER";
 
   return (
-    <main className="mx-auto max-w-xl p-8">
+    <main className="mx-auto max-w-xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Banking &amp; verification</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         These details print on every invoice for EFT payment, and the WhatsApp number lets a
@@ -37,7 +37,7 @@ export default async function BankingSettingsPage({
 
       {!isOwner && (
         <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
-          You're signed in as {access.role.toLowerCase()} — only the owner account can view or
+          You&apos;re signed in as {access.role.toLowerCase()} — only the owner account can view or
           change these fields.
         </p>
       )}
@@ -65,7 +65,7 @@ export default async function BankingSettingsPage({
               className={inputClass}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="text-sm font-medium text-[var(--kb-text)]">Branch code</label>
               <input
@@ -90,8 +90,8 @@ export default async function BankingSettingsPage({
               className={inputClass}
             />
             <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
-              Printed on every PDF and shown on the online view page as "Verify this document via
-              WhatsApp" — a customer messages this number directly to confirm a quote/invoice is
+              Printed on every PDF and shown on the online view page as &quot;Verify this document via
+              WhatsApp&quot; — a customer messages this number directly to confirm a quote/invoice is
               real before paying or accepting.
             </p>
           </div>

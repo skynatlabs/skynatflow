@@ -17,7 +17,7 @@ export default function PermissionsPage() {
   const matrix = capabilityMatrix();
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
+    <main className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Roles &amp; permissions</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         What each role can do, at a glance. Roles are fixed for now — assign one to each teammate

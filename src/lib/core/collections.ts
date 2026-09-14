@@ -46,10 +46,17 @@ export async function getOverdueInvoices(tenantId: string): Promise<OverdueInvoi
 export async function applyLateFee(params: {
   invoiceId: string;
   feePercent: number;
+  // Required: a late fee appends a real charge to a customer ledger, so
+  // the invoice has to be proven to belong to the acting tenant first.
+  // The id arrives from a form post and was previously trusted as-is.
+  tenantId: string;
 }) {
-  const invoice = await prisma.transaction.findUniqueOrThrow({
+  const invoice = await prisma.transaction.findUnique({
     where: { id: params.invoiceId },
   });
+  if (!invoice || invoice.tenantId !== params.tenantId) {
+    throw new Error("Invoice not found.");
+  }
   if (invoice.type !== TransactionType.INVOICE) {
     throw new Error("Late fees can only be applied to an INVOICE");
   }

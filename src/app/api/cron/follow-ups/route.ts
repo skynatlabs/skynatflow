@@ -11,6 +11,7 @@
 // followUpRepeatDays rather than the old hardcoded 3 days.
 
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeCron } from "@/lib/cron/auth";
 import type { CollectionsTone } from "@prisma/client";
 import { findStaleTransactions, findAbandonedQuotes } from "@/lib/core/money";
 import { countFollowUpsSent, logFollowUpSent } from "@/lib/core/movement";
@@ -118,13 +119,8 @@ async function processTransaction(
 }
 
 export async function GET(req: NextRequest) {
-  // Basic shared-secret check so this endpoint can't be triggered by anyone
-  // who finds the URL — set CRON_SECRET and pass it as a query param from
-  // the Hostinger Cron Job command.
-  const secret = req.nextUrl.searchParams.get("secret");
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = authorizeCron(req, "follow-ups");
+  if (!auth.ok) return auth.response;
 
   const tenants = await prisma.tenant.findMany();
   let drafted = 0;

@@ -44,7 +44,15 @@ export async function setPlatformAiProvider(provider: AiProvider): Promise<void>
   });
 }
 
-export type ColorSkin = "default" | "sunset" | "professional" | "creative" | "futuristic";
+export type ColorSkin =
+  | "default"
+  | "sunset"
+  | "professional"
+  | "creative"
+  | "futuristic"
+  | "jewel"
+  | "summer"
+  | "admina";
 
 export const COLOR_SKIN_LABELS: Record<ColorSkin, string> = {
   default: "Default (indigo & violet)",
@@ -52,14 +60,30 @@ export const COLOR_SKIN_LABELS: Record<ColorSkin, string> = {
   professional: "Professional (teal, clean & corporate)",
   creative: "Creative (colorful, bold gradients)",
   futuristic: "Futuristic (neon glass, sci-fi)",
+  jewel: "Jewel (emerald, mango & magenta)",
+  summer: "Summer (cyan, blue, orange, yellow & pink — no gradients)",
+  admina: "Admina (blue & slate, dense data-first admin)",
 };
 
-const VALID_SKINS: ColorSkin[] = ["default", "sunset", "professional", "creative", "futuristic"];
+const VALID_SKINS: ColorSkin[] = [
+  "default",
+  "sunset",
+  "professional",
+  "creative",
+  "futuristic",
+  "jewel",
+  "summer",
+  "admina",
+];
+
+// Jewel is the current platform default (see COLOR_SKIN_LABELS) — chosen
+// from the 2a concept mockup as the house look going forward.
+const DEFAULT_SKIN: ColorSkin = "jewel";
 
 export async function getPlatformColorSkin(): Promise<ColorSkin> {
   const setting = await prisma.platformSetting.findUnique({ where: { id: "singleton" } });
   const skin = setting?.colorSkin;
-  return VALID_SKINS.includes(skin as ColorSkin) ? (skin as ColorSkin) : "default";
+  return VALID_SKINS.includes(skin as ColorSkin) ? (skin as ColorSkin) : DEFAULT_SKIN;
 }
 
 export async function setPlatformColorSkin(skin: ColorSkin): Promise<void> {

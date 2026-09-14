@@ -30,8 +30,15 @@ export function SmartEntryBox({ tenantId }: { tenantId: string }) {
         return;
       }
 
-      const { customerName, customerPhone, subject, poNumber, documentDiscountPercent, lineItems } =
-        data.extraction;
+      const {
+        customerName,
+        customerPhone,
+        customerEmail,
+        subject,
+        poNumber,
+        documentDiscountPercent,
+        lineItems,
+      } = data.extraction;
 
       if (customerName) {
         const el = document.querySelector<HTMLInputElement>('input[name="customerName"]');
@@ -40,6 +47,10 @@ export function SmartEntryBox({ tenantId }: { tenantId: string }) {
       if (customerPhone) {
         const el = document.querySelector<HTMLInputElement>('input[name="customerPhone"]');
         if (el) el.value = customerPhone;
+      }
+      if (customerEmail) {
+        const el = document.querySelector<HTMLInputElement>('input[name="customerEmail"]');
+        if (el) el.value = customerEmail;
       }
       if (subject) {
         const el = document.querySelector<HTMLInputElement>('input[name="subject"]');
@@ -64,11 +75,16 @@ export function SmartEntryBox({ tenantId }: { tenantId: string }) {
         window.__setQuoteLineItems(lines, documentDiscountPercent ?? undefined);
       }
 
+      const count = lineItems?.length ?? 0;
+      // Anything it couldn't price is said out loud. A line silently missing
+      // from a quote is the one failure mode nobody catches before sending.
+      const warnings: string[] = Array.isArray(data.warnings) ? data.warnings : [];
       setMessage(
-        `Filled in ${lineItems?.length ?? 0} item${lineItems?.length === 1 ? "" : "s"} — check everything below and adjust before sending.`
+        `Filled in ${count} item${count === 1 ? "" : "s"} — check everything below before sending.` +
+          (warnings.length ? ` ${warnings.join(" ")}` : "")
       );
     } catch {
-      setMessage("Couldn't reach the AI service — fill in the form manually below.");
+      setMessage("Couldn't read that just now — fill in the form manually below.");
     } finally {
       setLoading(false);
     }
@@ -77,17 +93,17 @@ export function SmartEntryBox({ tenantId }: { tenantId: string }) {
   return (
     <div className="kb-card mb-4 p-4">
       <p className="text-sm font-medium text-[var(--kb-text)]">
-        ✨ Or just describe it — we'll sort it into the form
+        ✨ Or just describe it — we&apos;ll sort it into the form
       </p>
       <p className="mt-0.5 text-xs text-[var(--kb-text-dim)]">
-        e.g. "Quote for John Smith, 2x solar panel at R5000 each, 10% discount, PO 4471"
+        Customer on the first lines, then one item per line — or just describe it in a sentence.
       </p>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        rows={2}
-        placeholder="Type or paste the quote details here..."
-        className="mt-2 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none"
+        rows={6}
+        placeholder={"Isaac Dlamini\nisaac@acme.co.za\n082 555 1234\n\n2 x iPhone 16 @ R20 000 each\n1 x AirPods Pro - 4500\nInstallation 1500"}
+        className="mt-2 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none"
       />
       <div className="mt-2 flex items-center justify-between">
         <button

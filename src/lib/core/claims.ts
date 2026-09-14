@@ -5,6 +5,7 @@
 // actually resolved.
 
 import { prisma } from "@/lib/db";
+import { emitEvent } from "@/lib/agent/events";
 
 export async function submitClaim(params: {
   tenantId: string;
@@ -22,11 +23,28 @@ async function requireOwnedClaim(tenantId: string, claimId: string) {
 }
 
 export async function markClaimDenied(tenantId: string, claimId: string, denialReason: string) {
-  await requireOwnedClaim(tenantId, claimId);
-  return prisma.insuranceClaim.update({
+  const claim = await requireOwnedClaim(tenantId, claimId);
+  const updated = await prisma.insuranceClaim.update({
     where: { id: claimId },
     data: { status: "DENIED", denialReason },
   });
+
+  // The whole reason this module exists: a denial that nobody reworks ages
+  // quietly into a write-off. Raising it as an event is what puts a clock on
+  // it, rather than trusting somebody to remember.
+  await emitEvent({
+    tenantId,
+    type: "dispute.raised",
+    subjectType: "InsuranceClaim",
+    subjectId: claimId,
+    payload: {
+      payerName: claim.payerName,
+      claimedCents: claim.claimedCents,
+      denialReason,
+    },
+  });
+
+  return updated;
 }
 
 export async function markClaimReworked(tenantId: string, claimId: string) {

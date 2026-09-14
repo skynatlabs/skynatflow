@@ -65,7 +65,7 @@ describe("quote -> invoice -> payment ledger", () => {
       partyId: customerId,
       lines: [{ itemId, quantity: 1, unitPriceCents: 8500000 }],
     });
-    await sendQuote(quote.id);
+    await sendQuote(quote.id, tenantId);
     await recordResponse(quote.id, "ACCEPTED");
 
     const invoice = await convertToInvoice({ quoteId: quote.id, dueInDays: 14 });
@@ -120,7 +120,7 @@ describe("quote -> invoice -> payment ledger", () => {
       partyId: customerId,
       lines: [{ itemId, quantity: 1, unitPriceCents: 500000 }],
     });
-    await sendQuote(quote.id);
+    await sendQuote(quote.id, tenantId);
     // backdate createdAt to simulate a quote sent days ago
     await prisma.transaction.update({
       where: { id: quote.id },

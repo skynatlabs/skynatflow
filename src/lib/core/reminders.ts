@@ -46,9 +46,14 @@ async function dueAppointments(markHours: number, windowMinutes = 65) {
 // appointment with nothing else recorded against it is just as often
 // "hasn't been logged yet" as it is a genuine no-show, so the PA acts on
 // judgment already made by a person rather than guessing on its own.
-export async function markNoShowAndRebook(eventId: string): Promise<{ ok: boolean; reason?: string }> {
+export async function markNoShowAndRebook(
+  eventId: string,
+  tenantId: string
+): Promise<{ ok: boolean; reason?: string }> {
   const event = await prisma.event.findUnique({ where: { id: eventId }, include: { party: true } });
-  if (!event) return { ok: false, reason: "Appointment not found." };
+  // Ownership matters here beyond the data write: an unscoped event id also
+  // sent a WhatsApp message to whoever that other tenant's customer is.
+  if (!event || event.tenantId !== tenantId) return { ok: false, reason: "Appointment not found." };
 
   await prisma.event.update({ where: { id: eventId }, data: { noShow: true } });
 

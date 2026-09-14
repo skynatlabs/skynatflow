@@ -21,7 +21,25 @@ export interface PdfStyleConfig {
   tableHeaderStyle: TableHeaderStyle;
   fontFamily: "Helvetica" | "Times-Roman" | "Courier";
   logoShape: "circle" | "square" | "none";
+  // Page-level overrides a template may set. Optional so the twelve base
+  // styles below stay exactly as written — unset means the built-in default.
+  fontScale?: number; // 0.85 - 1.25
+  pageSize?: "A5" | "A4" | "LETTER";
+  orientation?: "portrait" | "landscape";
+  pageMargin?: "compact" | "normal" | "roomy";
+  /** Per-edge margins in inches. When set, these beat pageMargin. */
+  margins?: { top?: number; bottom?: number; left?: number; right?: number };
+  backgroundHex?: string;
 }
+
+/** 72pt to the inch, which is what react-pdf measures in. */
+export const PT_PER_INCH = 72;
+
+export const PAGE_MARGINS: Record<string, number> = {
+  compact: 26,
+  normal: 40,
+  roomy: 56,
+};
 
 export const PDF_STYLES: Record<string, PdfStyleConfig> = {
   "minimal-mono": {

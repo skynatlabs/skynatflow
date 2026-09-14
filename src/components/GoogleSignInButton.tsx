@@ -7,7 +7,7 @@ export function GoogleSignInButton({ label }: { label: string }) {
     <button
       type="button"
       onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-      className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--kb-panel-border)] bg-white py-2.5 text-sm font-medium text-[var(--kb-text)] transition hover:bg-black/[0.02]"
+      className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] py-2.5 text-sm font-medium text-[var(--kb-text)] transition hover:bg-black/[0.02]"
     >
       <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
         <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.1 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z" />

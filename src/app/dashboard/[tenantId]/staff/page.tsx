@@ -12,7 +12,7 @@ import { inviteStaffAction, removeStaffAction } from "./actions";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
 
 const inputClass =
-  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
+  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
 const ROLES = ["OWNER", "STAFF", "DRIVER", "REP", "TECHNICIAN"] as const;
 
 export default async function StaffPage({
@@ -31,7 +31,7 @@ export default async function StaffPage({
   });
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Staff &amp; roles</h1>
         <div className="flex gap-2">

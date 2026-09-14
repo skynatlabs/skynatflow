@@ -4,7 +4,7 @@ import { useState } from "react";
 import { updateCustomerAction } from "./actions";
 
 const inputClass =
-  "mt-1 w-full rounded-lg border border-[var(--kb-panel-border)] bg-white px-2.5 py-2 text-sm text-[var(--kb-text)]";
+  "mt-1 w-full rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2.5 py-2 text-sm text-[var(--kb-text)]";
 
 export function EditCustomerForm({
   tenantId,
@@ -37,7 +37,7 @@ export function EditCustomerForm({
   }
 
   return (
-    <form action={updateCustomerAction} className="kb-card mt-4 grid grid-cols-2 gap-3 p-5">
+    <form action={updateCustomerAction} className="kb-card mt-4 grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5">
       <input type="hidden" name="tenantId" value={tenantId} />
       <input type="hidden" name="customerId" value={customerId} />
       <label className="text-xs">

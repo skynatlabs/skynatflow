@@ -20,7 +20,7 @@ export default async function PosPage({
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Point of sale</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Your own built-in till — scan/select an item, take cash or card, and reconcile at close-out.
@@ -30,7 +30,7 @@ export default async function PosPage({
         <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           ⚠️ Last till close-out was{" "}
           {lastClosedSession.varianceCents > 0 ? "over" : "short"} by {money(Math.abs(lastClosedSession.varianceCents))}
-          {" "}({lastClosedSession.closedAt?.toLocaleString()}) — worth a look before opening today's till.
+          {" "}({lastClosedSession.closedAt?.toLocaleString()}) — worth a look before opening today&apos;s till.
         </div>
       )}
 

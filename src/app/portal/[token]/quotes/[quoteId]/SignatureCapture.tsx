@@ -92,7 +92,7 @@ export function SignatureCapture({ token, quoteId }: { token: string; quoteId: s
         ref={canvasRef}
         width={500}
         height={160}
-        className="mt-2 w-full touch-none rounded-xl border border-[var(--kb-panel-border)] bg-white"
+        className="mt-2 w-full touch-none rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)]"
         onPointerDown={start}
         onPointerMove={move}
         onPointerUp={end}

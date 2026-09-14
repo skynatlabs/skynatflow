@@ -5,6 +5,7 @@
 import { randomBytes } from "crypto";
 import { PartyRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { emitEvent } from "@/lib/agent/events";
 
 export async function createParty(params: {
   tenantId: string;
@@ -20,7 +21,22 @@ export async function createParty(params: {
   postalCode?: string;
   country?: string;
 }) {
-  return prisma.party.create({ data: params });
+  const party = await prisma.party.create({ data: params });
+
+  // Customers only. A new supplier or a new staff member is housekeeping;
+  // a new customer is the start of a relationship the agent should know
+  // about when it next looks at who has gone quiet.
+  if (params.role === PartyRole.CUSTOMER) {
+    await emitEvent({
+      tenantId: params.tenantId,
+      type: "customer.created",
+      subjectType: "Party",
+      subjectId: party.id,
+      payload: { name: party.name },
+    });
+  }
+
+  return party;
 }
 
 export async function findPartyByPhone(tenantId: string, phone: string) {
@@ -88,9 +104,26 @@ const CUSTOMERS_PAGE_SIZE = 25;
 export async function listCustomersPaginated(
   tenantId: string,
   page = 1,
-  roles: PartyRole[] = [PartyRole.CUSTOMER, PartyRole.PATIENT]
+  roles: PartyRole[] = [PartyRole.CUSTOMER, PartyRole.PATIENT],
+  // Free-text filter used by the dashboard's global search box. Matches
+  // name, email or phone so a partial memory of any one of them finds the
+  // record. Always ANDed with tenantId — never widens the tenant scope.
+  query?: string
 ) {
-  const where = { tenantId, role: { in: roles } };
+  const q = query?.trim();
+  const where = {
+    tenantId,
+    role: { in: roles },
+    ...(q
+      ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" as const } },
+            { email: { contains: q, mode: "insensitive" as const } },
+            { phone: { contains: q } },
+          ],
+        }
+      : {}),
+  };
   const [items, total] = await Promise.all([
     prisma.party.findMany({
       where,

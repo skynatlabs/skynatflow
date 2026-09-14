@@ -4,14 +4,16 @@
 // glance. Actionable lists (who to contact, overdue items) live on the
 // Today/This Week pages — this page is purely "how's the business doing".
 
-import Link from "next/link";
 import { findStaleTransactions } from "@/lib/core/money";
 import { listThisWeekFollowUps } from "@/lib/core/followUpReminders";
 import { getReorderSuggestions } from "@/lib/core/inventory";
 import { prisma } from "@/lib/db";
 import { DailyVoiceBriefing } from "./DailyVoiceBriefing";
 import { VoiceAssistant } from "./VoiceAssistant";
-import { PaCommandBox } from "./PaCommandBox";
+import { AgentStatusStrip } from "./AgentStatusStrip";
+import { ReadinessStrip } from "./Readiness";
+import { getReadiness } from "@/lib/core/readiness";
+import { QuickActions, type QuickAction } from "./QuickActions";
 import {
   RevenueTrendChart,
   QuotePipelineChart,
@@ -31,10 +33,13 @@ function moneyCompact(cents: number) {
   });
 }
 
+// Sent and Accepted deliberately land on different hues (emerald vs.
+// mango) — they used to both resolve to the same tint-ink color under the
+// jewel skin, which made the pipeline donut read as almost entirely green.
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: "#c9cede",
   SENT: "var(--kb-accent-b)",
-  ACCEPTED: "var(--kb-tint-mint-ink)",
+  ACCEPTED: "var(--kb-accent-mid)",
   PARTIALLY_PAID: "var(--kb-tint-yellow-ink)",
   PAID: "var(--kb-accent-a)",
   DECLINED: "var(--kb-tint-peach-ink)",
@@ -69,8 +74,17 @@ export default async function TenantHomePage({
   const { tenantId } = await params;
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
 
+  // Async Server Component: this runs once per request on the server, so a
+  // per-request timestamp is intended, not impure client rendering.
+  // eslint-disable-next-line react-hooks/purity
   const twelveWeeksAgo = new Date(Date.now() - 84 * 86_400_000);
+  // Async Server Component: this runs once per request on the server, so a
+  // per-request timestamp is intended, not impure client rendering.
+  // eslint-disable-next-line react-hooks/purity
   const sixMonthsAgo = new Date(Date.now() - 182 * 86_400_000);
+  // Async Server Component: this runs once per request on the server, so a
+  // per-request timestamp is intended, not impure client rendering.
+  // eslint-disable-next-line react-hooks/purity
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000);
 
   const [
@@ -78,8 +92,6 @@ export default async function TenantHomePage({
     customerCount,
     openInvoices,
     quotes,
-    productCount,
-    membershipCount,
     thisWeek,
     revenueTx,
     tasks,
@@ -93,8 +105,6 @@ export default async function TenantHomePage({
       where: { tenantId, type: "INVOICE", status: { in: ["SENT", "PARTIALLY_PAID"] } },
     }),
     prisma.transaction.findMany({ where: { tenantId, type: "QUOTE" } }),
-    prisma.item.count({ where: { tenantId } }),
-    prisma.membership.count({ where: { tenantId } }),
     listThisWeekFollowUps(tenantId),
     prisma.transaction.findMany({
       where: { tenantId, type: { in: ["QUOTE", "INVOICE"] }, createdAt: { gte: twelveWeeksAgo } },
@@ -112,14 +122,9 @@ export default async function TenantHomePage({
     }),
   ]);
 
-  const checklist = [
-    { label: "Add a product", done: productCount > 0, href: `/dashboard/${tenantId}/products/new` },
-    { label: "Send a quote", done: quotes.length > 0, href: `/dashboard/${tenantId}/quotes/new` },
-    { label: "Add a customer", done: customerCount > 0, href: `/dashboard/${tenantId}/customers` },
-    { label: "Invite a teammate", done: membershipCount > 1, href: `/dashboard/${tenantId}/staff` },
-  ];
-  const checklistDone = checklist.filter((c) => c.done).length;
-  const showChecklist = checklistDone < checklist.length;
+  // Read off real rows rather than a stored "onboarding step", so it ticks
+  // itself off as ordinary work happens and can never disagree with reality.
+  const readiness = await getReadiness(tenantId);
 
   const staleTotalCents = stale.reduce((sum, t) => sum + t.amountCents, 0);
   const outstandingCents = openInvoices.reduce((sum, t) => sum + t.amountCents, 0);
@@ -138,6 +143,9 @@ export default async function TenantHomePage({
   // Revenue trend — bucket last 12 weeks
   const weeks: { start: Date; end: Date }[] = [];
   for (let i = 11; i >= 0; i--) {
+    // Async Server Component: this runs once per request on the server, so a
+    // per-request timestamp is intended, not impure client rendering.
+    // eslint-disable-next-line react-hooks/purity
     const end = new Date(Date.now() - i * 7 * 86_400_000);
     const start = new Date(end.getTime() - 7 * 86_400_000);
     weeks.push({ start, end });
@@ -196,6 +204,17 @@ export default async function TenantHomePage({
     count: newCustomers.filter((c) => c.createdAt >= start && c.createdAt < end).length,
   }));
 
+  // Hero tile: total revenue collected across the 12-week window already
+  // computed above for the trend chart, plus a simple first-half vs
+  // second-half delta so the tile has a real "vs last month"-style signal
+  // without another query.
+  const revenueHeroTotalCents = Math.round(revenueData.reduce((sum, w) => sum + w.revenue, 0) * 100);
+  const halfway = Math.floor(revenueData.length / 2);
+  const firstHalfRevenue = revenueData.slice(0, halfway).reduce((sum, w) => sum + w.revenue, 0);
+  const secondHalfRevenue = revenueData.slice(halfway).reduce((sum, w) => sum + w.revenue, 0);
+  const revenueDeltaPercent =
+    firstHalfRevenue > 0 ? Math.round(((secondHalfRevenue - firstHalfRevenue) / firstHalfRevenue) * 100) : null;
+
   const overdueCount = stale.length;
   const thisWeekNames = thisWeek.slice(0, 3).map((t) => t.party.name);
   const briefingParts = [`Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}, ${tenant.name}.`];
@@ -212,73 +231,178 @@ export default async function TenantHomePage({
   }
   const briefingText = briefingParts.join(" ");
 
+  // --- live agent state for the status strip and the shortcut counts -------
+  const [runningRuns, awaitingRuns, lastRun, activeAgents, unsentQuotes, openTasks] =
+    await Promise.all([
+      prisma.agentRun.count({ where: { tenantId, status: "RUNNING" } }),
+      prisma.agentRun.count({ where: { tenantId, status: "AWAITING_APPROVAL" } }),
+      prisma.agentRun.findFirst({
+        where: { tenantId, status: { in: ["DONE", "APPROVED", "AWAITING_APPROVAL"] } },
+        orderBy: { createdAt: "desc" },
+        select: { reply: true, createdAt: true },
+      }),
+      prisma.agentDefinition.count({ where: { tenantId, isActive: true } }),
+      prisma.transaction.count({ where: { tenantId, type: "QUOTE", status: "DRAFT" } }),
+      prisma.task.count({ where: { tenantId, status: { not: "DONE" } } }),
+    ]);
+
+  const quickActions: QuickAction[] = [
+    {
+      href: `/dashboard/${tenantId}/quotes/new`,
+      label: "New quote",
+      hint: "Start a quote",
+      tint: "peach",
+      primary: true,
+    },
+    {
+      href: `/dashboard/${tenantId}/cash-sale`,
+      label: "Cash sale",
+      hint: "Sell and settle now",
+      tint: "mint",
+    },
+    {
+      href: `/dashboard/${tenantId}/agent`,
+      label: "Approvals",
+      hint: awaitingRuns > 0 ? "The agent is waiting on you" : "Nothing waiting",
+      count: awaitingRuns,
+      tint: "yellow",
+    },
+    {
+      href: `/dashboard/${tenantId}/overdue`,
+      label: "Overdue",
+      hint: "Money past its due date",
+      count: overdueCount,
+      tint: "violet",
+    },
+    {
+      href: `/dashboard/${tenantId}/unsent-quotes`,
+      label: "Unsent quotes",
+      hint: "Drafts nobody has seen",
+      count: unsentQuotes,
+      tint: "blue",
+    },
+    {
+      href: `/dashboard/${tenantId}/tasks`,
+      label: "Tasks",
+      hint: "Open on the board",
+      count: openTasks,
+      tint: "mint",
+    },
+  ];
+
   return (
-    <main className="mx-auto max-w-7xl p-8">
+    <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">
       <DailyVoiceBriefing tenantId={tenantId} text={briefingText} />
       <VoiceAssistant tenantId={tenantId} />
-      <PaCommandBox tenantId={tenantId} />
-      <div className="flex flex-wrap items-center justify-between gap-4">
+
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--kb-text)]">
-            Good to see you, {tenant.name} 👋
+          <h1 className="kb-hero-greeting text-xl font-bold text-[var(--kb-text)] sm:text-2xl">
+            Good to see you, {tenant.name}
           </h1>
           <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-            A bird&apos;s-eye view of your business, right now.
+            Tell flow what you need, or look over the numbers below.
           </p>
-        </div>
-        <div className="flex gap-2">
-          <Link href={`/dashboard/${tenantId}/cash-sale`} className="kb-pill text-xs">
-            Cash sale
-          </Link>
-          <Link href={`/dashboard/${tenantId}/quotes/new`} className="kb-pill kb-pill-primary">
-            + New Quote
-          </Link>
         </div>
       </div>
 
-      {showChecklist && (
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {checklist.map((c) => (
-            <Link
-              key={c.label}
-              href={c.href}
-              className="kb-tile kb-tint-violet flex flex-col justify-between transition-transform hover:-translate-y-0.5"
-            >
-              <span className="text-lg">{c.done ? "✓" : "○"}</span>
-              <span className="mt-2 text-xs font-semibold">{c.label}</span>
-            </Link>
-          ))}
-        </div>
-      )}
+      {/* The live layer: what the agent is doing, then the shortcuts that
+          carry today's counts. Numbers come after — this page leads with what
+          needs a decision, not with charts.
 
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="kb-tile kb-tint-mint">
-          <p className="text-xs font-semibold uppercase tracking-wide opacity-70">Owed to you</p>
-          <p className="mt-2 truncate text-xl font-extrabold sm:text-2xl">{moneyCompact(outstandingCents)}</p>
-          <p className="mt-1 text-xs opacity-70">{openInvoices.length} open invoice{openInvoices.length === 1 ? "" : "s"}</p>
+          The command box used to sit here too. It now lives in the dock at
+          the foot of every page (see CommandBar), so keeping a second one
+          here would be two inputs for the same agent, each with its own
+          conversation thread — ask in one, follow up in the other, and the
+          follow-up loses the context. */}
+      <div className="mt-4 space-y-4">
+        <ReadinessStrip readiness={readiness} />
+        <AgentStatusStrip
+          tenantId={tenantId}
+          status={{
+            running: runningRuns,
+            awaitingApproval: awaitingRuns,
+            lastRunAt: lastRun?.createdAt ?? null,
+            lastRunSummary: lastRun?.reply ?? null,
+            proactive: tenant.agentProactiveEnabled,
+            activeAgents,
+          }}
+        />
+        <QuickActions actions={quickActions} />
+      </div>
+
+
+      {/* Bento hero — one tile earns the eye first (revenue collected),
+          instead of every stat competing at the same visual weight. */}
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_0.7fr_1fr]">
+        <div
+          className="kb-tile flex flex-col justify-between lg:row-span-2"
+          // Tokenised rather than hardcoded navy so each skin can answer for
+          // itself: Admina's grid is flat white, and an inline colour here
+          // would win against its stylesheet.
+          style={{ background: "var(--kb-hero-bg)", color: "var(--kb-hero-ink)" }}
+        >
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
+              Revenue collected — 12 weeks
+            </p>
+            <p className="mt-2 text-3xl font-extrabold">{moneyCompact(revenueHeroTotalCents)}</p>
+            {revenueDeltaPercent !== null && (
+              <p className="mt-1 text-xs opacity-80">
+                {revenueDeltaPercent >= 0 ? "↑" : "↓"} {Math.abs(revenueDeltaPercent)}% vs previous 6 weeks
+              </p>
+            )}
+          </div>
+          <div className="mt-4 flex items-end gap-1.5" style={{ height: 60 }}>
+            {(() => {
+              const recent = revenueData.slice(-6);
+              const max = Math.max(...recent.map((w) => w.revenue), 1);
+              return recent.map((w, i) => (
+                <div
+                  key={i}
+                  className="flex-1 rounded-t"
+                  style={{ height: `${Math.max(6, (w.revenue / max) * 100)}%`, background: "var(--kb-accent-mid)" }}
+                />
+              ));
+            })()}
+          </div>
         </div>
+
+        <div className="kb-tile">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--kb-text-dim)]">Owed to you</p>
+          <p className="mt-2 truncate text-xl font-extrabold" style={{ color: "var(--kb-accent-b)" }}>
+            {moneyCompact(outstandingCents)}
+          </p>
+          <p className="mt-1 text-xs text-[var(--kb-text-dim)]">{openInvoices.length} open invoice{openInvoices.length === 1 ? "" : "s"}</p>
+        </div>
+
+        <div className="lg:row-span-2">
+          <QuotePipelineChart data={pipelineData} />
+        </div>
+
+        <div className="kb-tile">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--kb-text-dim)]">Customers</p>
+          <p className="mt-2 text-2xl font-extrabold" style={{ color: "var(--kb-accent-a)" }}>
+            {customerCount}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="kb-tile kb-tint-peach">
           <p className="text-xs font-semibold uppercase tracking-wide opacity-70">Gone quiet</p>
-          <p className="mt-2 truncate text-xl font-extrabold sm:text-2xl">{moneyCompact(staleTotalCents)}</p>
+          <p className="mt-2 truncate text-xl font-extrabold">{moneyCompact(staleTotalCents)}</p>
           <p className="mt-1 text-xs opacity-70">{stale.length} need{stale.length === 1 ? "s" : ""} follow-up</p>
-        </div>
-        <div className="kb-tile kb-tint-blue">
-          <p className="text-xs font-semibold uppercase tracking-wide opacity-70">Customers</p>
-          <p className="mt-2 text-3xl font-extrabold">{customerCount}</p>
-          <p className="mt-1 text-xs opacity-70">on file</p>
         </div>
         <div className="kb-tile kb-tint-yellow">
           <p className="text-xs font-semibold uppercase tracking-wide opacity-70">Low stock</p>
-          <p className="mt-2 text-3xl font-extrabold">{lowStock.length}</p>
+          <p className="mt-2 text-2xl font-extrabold">{lowStock.length}</p>
           <p className="mt-1 text-xs opacity-70">need reordering</p>
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <RevenueTrendChart data={revenueData} />
-        </div>
-        <QuotePipelineChart data={pipelineData} />
+      <div className="mt-6">
+        <RevenueTrendChart data={revenueData} />
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">

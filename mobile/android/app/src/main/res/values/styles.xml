@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:statusBarColor">@color/flow_canvas</item>
+        <item name="android:navigationBarColor">@color/flow_canvas</item>
+        <!-- Light glyphs, because the bars sit on the dark canvas. -->
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar" parent="AppTheme">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@color/flow_canvas</item>
+    </style>
+
+    <!-- The window between tapping the icon and the web view painting. It is
+         the canvas colour and nothing else: a spinner here would be a second
+         loading indicator competing with the app's own. -->
+    <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">
+        <item name="android:background">@color/flow_canvas</item>
+    </style>
+
+</resources>

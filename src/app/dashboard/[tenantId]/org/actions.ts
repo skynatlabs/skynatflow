@@ -13,7 +13,7 @@ export async function setManagerAction(formData: FormData) {
   const membershipId = String(formData.get("membershipId") ?? "");
   const managerId = String(formData.get("managerId") ?? "") || null;
 
-  await setManager(membershipId, managerId);
+  await setManager(membershipId, managerId, tenantId);
   revalidatePath(`/dashboard/${tenantId}/org`);
 }
 
@@ -25,6 +25,6 @@ export async function setDepartmentAction(formData: FormData) {
   const membershipId = String(formData.get("membershipId") ?? "");
   const department = String(formData.get("department") ?? "").trim() || null;
 
-  await setDepartment(membershipId, department);
+  await setDepartment(membershipId, department, tenantId);
   revalidatePath(`/dashboard/${tenantId}/org`);
 }

@@ -49,12 +49,15 @@ export default async function CustomerStatementPage({
 
   let running = priorRows.reduce((sum, t) => sum + ledgerEffect(t.type, t.amountCents), 0);
   const rows = transactions.map((t) => {
+    // Async Server Component: the accumulator builds a running statement
+    // balance within one server render; there is no client re-render.
+    // eslint-disable-next-line react-hooks/immutability
     running += ledgerEffect(t.type, t.amountCents);
     return { ...t, running };
   });
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
+    <main className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
       <Link href={`/dashboard/${tenantId}/statements`} className="text-xs text-[var(--kb-text-dim)] hover:underline">
         &larr; All statements
       </Link>

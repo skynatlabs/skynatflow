@@ -71,7 +71,7 @@ export default async function PipelinePage({
   }));
 
   return (
-    <main className="mx-auto max-w-6xl p-8">
+    <main className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-bold text-[var(--kb-text)]">Pipeline</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Every quote, at a glance — {money(inPlay)} still in play, {money(won)} won.
@@ -89,7 +89,7 @@ export default async function PipelinePage({
             </h2>
             <ul className="mt-3 space-y-2">
               {col.items.map((q) => (
-                <li key={q.id} className="rounded-xl bg-white/70 p-3 text-sm">
+                <li key={q.id} className="rounded-xl bg-[var(--kb-panel)] p-3 text-sm">
                   <Link
                     href={`/dashboard/${tenantId}/quotes/${q.id}`}
                     className="block font-medium text-[var(--kb-text)] hover:underline"

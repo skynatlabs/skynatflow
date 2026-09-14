@@ -1,6 +1,6 @@
 # flow — Handover
 
-**Last updated:** 2026-08-31
+**Last updated:** 2026-09-13
 **Repo:** [github.com/skynatlabs/skynatflow](https://github.com/skynatlabs/skynatflow) (private)
 **Live deploy:** `skynatflow-topaz.vercel.app`, custom domain `skynatflow.com` — connected to production Supabase, all migrations through `20260831135502_add_calendar_integration` applied and verified live as of this update (`prisma migrate status` reports "Database schema is up to date!" against production). Everything described below is pushed, migrated, and confirmed responding in production, not just local.
 
@@ -289,10 +289,326 @@ This is the working handover for **flow** (by Skynat) — the AI-native, multi-v
 
 ## Immediate next action
 
-1. Commit + push the marketing CMS work (see "2026-08-22 update — multi-page marketing site" above) — as of writing it's built, tested, and verified in-browser but **not yet committed**.
-2. Run migration `20260822201311_marketing_cms` against **production** via `prisma migrate deploy` (session-pooler `DATABASE_URL`, same approach as the rest of this session's migrations — see "Production DB — SSL gotcha" below).
-3. Create a free Cloudflare R2 account + bucket, enable public access, and supply `STORAGE_ENDPOINT`/`STORAGE_ACCESS_KEY_ID`/`STORAGE_SECRET_ACCESS_KEY`/`STORAGE_BUCKET`/`STORAGE_PUBLIC_BASE_URL` so CMS image uploads work (currently returns a clear "not configured" error).
-4. Confirm the Vercel deploy builds clean with all of today's code before calling it done.
+**Uncommitted on disk right now** (2026-09-12 audit — see the section directly
+below): 9 cross-tenant write vulnerabilities closed, a double-payment race
+fixed, the dashboard global search made functional, plus the in-progress
+jewel/summer skin work that was already here. Nothing is committed — review
+`git diff` and commit before anything else.
+
+1. Review + commit the 2026-09-12 security work. No migration is needed for
+   any of it (schema unchanged; the `colorSkin` edit is comment-only).
+2. Create a free Cloudflare R2 account + bucket, enable public access, and supply `STORAGE_ENDPOINT`/`STORAGE_ACCESS_KEY_ID`/`STORAGE_SECRET_ACCESS_KEY`/`STORAGE_BUCKET`/`STORAGE_PUBLIC_BASE_URL` so CMS image uploads work (currently returns a clear "not configured" error).
+3. Before taking real money: replace the portal checkout-confirm redirect with
+   each gateway's signed webhook — see "Known production blocker" below.
+
+> Items 1-2 and 4 of the previous list (commit the marketing CMS work, run
+> migration `20260822201311_marketing_cms`, confirm the Vercel build) are
+> **done** — the CMS shipped in commit `a24612d`, which also moved the admin
+> console to `/car`. That list had gone stale.
+
+## 2026-09-13 — full Admina port, mobile pass, and complete agent tool coverage
+
+### Admina, finished
+The chrome is now the template's, not a lookalike:
+- **Navbar** rebuilt to their markup spec — back arrow, `h-11 w-[24.25rem]` pill
+  search with the 32px blue circular submit at `end-1.5`, 44px circular icon
+  buttons that go blue on hover, bell badge, avatar + name + role block.
+- **Panel footer** is their upgrade-card shape carrying account links.
+- **Canvas** reproduces their `body-bg.png` wash as gradients, so it re-tints
+  for dark instead of being hidden the way the template hides its image.
+- **Page header + breadcrumb**, form controls (r8, blue focus), buttons
+  (r8, `0.625rem 1.25rem`), and tables (tinted header band, hairline rows) all
+  restated to their values.
+- Pages are **full width** under this skin — the app centres content in
+  `max-w-3xl`, which left Admina's grid floating with dead space either side.
+
+**Removed, because they were our old look and you said not that:** the tinted
+tile gradients (`::before`), the 3px colour bar on every tile (`::after`), and
+the navy hero tile. The hero was a hardcoded inline style, so it is now a
+token (`--kb-hero-bg`) that each skin answers for.
+
+**Audited, not eyeballed.** A script walked 30 dashboard pages at 1440px and
+31 at 375px checking every `.kb-card`/`.kb-tile` for the right radius and no
+shadow, plus horizontal overflow and the mobile drawer. Two real bugs came out
+of it: `/products` had a `shrink-0` header row that couldn't wrap (a desktop
+*and* mobile overflow), and my own primary-tile ring was an inline style the
+skin couldn't override. Both fixed; all 61 checks now pass.
+
+Dark values verified against their palette and exact by construction, since
+they come from their own remapped dark block: sidebar/card `#273142`, body
+`#1b2431`, border `#323d4e`, accent `#487FFF`.
+
+### The AI can now reach every feature
+Tool coverage went **4 → 84** for an owner (STAFF 79, REP 66, TECHNICIAN 66,
+DRIVER 61). Three registries: `tools.ts` (money/customers), `tools.extra.ts`
+(stock, work, property, people, reporting, tax), `tools.ops.ts` (catalog, till,
+fleet, wholesale, team chat, membership, document templates).
+
+`tests/agent/coverage.test.ts` is what keeps this true: it reads
+`src/lib/core/` and fails if any module is neither imported by a tool registry
+nor listed as exempt **with a reason** — and separately fails if something
+listed as exempt turns out to be wired, so the list can't rot into a lie. It
+already caught two modules I'd mis-named from a truncated listing, and a first
+draft of the test that only checked a list rather than real wiring.
+
+Genuinely exempt, with reasons: `audit`, `notifications`, `reviews`,
+`reminders` (side effects or cron-driven), `pricing`, `whatsappShare` (pure
+functions), `cms` (marketing site, not workspace data).
+
+### It now detects and asks, rather than only reporting
+The tick's prompts changed from "say what you would do" to **attempt the
+action**. Anything irreversible is intercepted by the autonomy gate and stored
+with its exact arguments, so the owner gets a concrete one-click proposal
+instead of a description. Notifications deep-link to the specific run
+(`/agent?run=<id>`) and their title says whether it is news or a decision.
+
+### Still the one blocker
+The Gemini account is out of credit (HTTP 429), so no model response has been
+observed end to end. The loop builds and dispatches correct tool-calling
+requests and degrades with an actionable message. Top up Gemini or add an
+`ANTHROPIC_API_KEY` in the admin console to confirm.
+
+**State:** lint 0, tsc 0, build 0 warnings, **155 tests**, 96 routes sweeping
+identical to the clean baseline.
+
+## 2026-09-12 (later still) — Admina theme port + agentic phases 4-6
+
+### The Admina look, using the template's own CSS
+`admina-tailwind-admin/` (ThemeForest) is now the platform's eighth skin, and
+the default. It is a **port, not a transplant**: the template is Tailwind 3 +
+gulp + 85 static HTML pages + Flowbite; this app is Tailwind 4 + React 19.
+Rewriting 89 pages into its markup would have cost the seven-skin system for
+no gain.
+
+- `src/app/admina.css` is the template's **own stylesheet**, extracted verbatim
+  from `dist/assets/css/style.css` (its "navbar css start" marker to EOF) — not
+  a hand-transcription. Two mechanical changes on extraction: every selector is
+  prefixed with `.kb-shell[data-skin="admina"]` so its generic class names
+  (`.navbar-header`, `.dashboard-main`, `.card`) can't leak into the other
+  skins, and its `.dark`/`:is(.dark *)` selectors are remapped onto this app's
+  `[data-theme="dark"]`. **Remapped, not stripped** — stripping promotes every
+  dark rule into light mode, which is what turned the sidebar dark at midday on
+  the first attempt. The compiled Tailwind 3 utility layer above that marker is
+  deliberately excluded; a second utility layer would collide with Tailwind 4.
+- `TwinSidebar.tsx` + `adminaNav.tsx` — the double-layer menu: a 72px icon rail
+  of seven categories plus a 248px panel. Uses the template's own class names
+  so the vendored CSS drives it; only the behaviour jQuery did in the original
+  (which category is selected, the mobile drawer) is React.
+- flow's 33 pages are grouped by what someone is doing — Overview, Sales &
+  money, Customers, Products & stock, Work, Team, Settings — rather than the
+  template's Dashboards/Components/Forms demo taxonomy.
+
+**Verified against the template's own spec values, not by eye:** rail 72px,
+panel 248px, panel head 78px, rail icons 44x44 at r14, active `#487FFF`, menu
+links `11px 14px` at r10, navbar 72px, main offset 320px, cards r20 flat. All
+exact. Mobile: drawer off-canvas below 1200px behind the template's floating
+toggle, backdrop, no horizontal overflow.
+
+**Gotcha worth knowing:** the template references `--ts-surface` and
+`--ts-accent` but never declares them (it hardcodes `#fff` and calls its blue
+`--ts-purple`). They're declared in `globals.css` alongside the skin palette —
+a `var()` that resolves to nothing invalidates the whole declaration, which
+silently flattened the card radius and the hero tile until it was found.
+
+**Licensing — needs checking before launch:** the bundled LICENSE says the
+Regular License covers end products **not sold to end users**; an **Extended
+License** is required when the end product is sold. flow is a paid SaaS with
+pricing plans, so the Extended tier is very likely required.
+
+### Agentic phases 4-6
+- **Memory** (`agent/memory.ts`) — threads per user, plus durable `TenantFact`
+  rows upserted by key so a changed fact is corrected rather than accumulating
+  contradictions in the prompt.
+- **Autonomy gate** (`agent/autonomy.ts`) — three levels, enforced in code, not
+  the prompt. Money movement and outbound customer contact are held for a
+  person at **every** level including FULL; only a present user can authorise
+  them.
+- **Approvals** (`agent/approvals.ts`) — held tool calls are stored with their
+  exact arguments and replayed verbatim on approval, as the approver: approving
+  cannot execute something the approver couldn't run themselves.
+- **Event bus** (`agent/events.ts`, `agent/sweep.ts`) — the core layer emits
+  domain events; a sweep derives the ones nobody emits (an invoice that went
+  overdue at midnight, stock crossing its reorder point). Claims are atomic, so
+  two overlapping ticks can't both chase the same customer.
+- **Heartbeat** (`agent/tick.ts`, `/api/cron/agent-tick`, every 30 min) — reacts
+  to queued events, and reviews the business every 6h. A run with nothing to say
+  produces no notification.
+- **Named agents** (`agent/named.ts`) — brief + tool subset + autonomy +
+  schedule. Four templates ship (Collections, Quote follow-up, Stock watch,
+  Morning brief). Runs outlive their definition so the audit trail survives.
+- **Console** at `/dashboard/[tenantId]/agent` — approval queue first, autonomy
+  dial, named agents, recent runs, learned facts, what it noticed.
+- **Home page** is now a live agent console: status strip, chat box with thread
+  continuity, and shortcut tiles carrying live counts.
+
+Verified live: the tick swept **7 overdue invoices** into events and processed
+them across 20 tenants. 147 tests, lint/tsc/build all clean.
+
+**Still blocked on the same thing:** the Gemini account is out of credit (HTTP
+429), so no model response has been observed end to end. The loop builds and
+dispatches a correct tool-calling request; provider failures now say which it
+is rather than "something went wrong".
+
+## 2026-09-12 (later) — payment webhooks + the agentic pivot, phases 1-3
+
+### Payment blocker closed
+The portal checkout-confirm page no longer writes to the ledger at all — it is
+display-only. Money now moves in exactly one place:
+`/api/webhooks/payments/[provider]`, and only after the provider's own signed
+callback verifies.
+
+- Real signature verification implemented per gateway: **Stripe** (HMAC-SHA256
+  over `t.body`, 5-min replay window), **Paystack** (HMAC-SHA512),
+  **Yoco** (svix scheme over `id.timestamp.body`), **PayFast** (ITN MD5
+  signature *plus* the mandatory server postback to `/eng/query/validate`).
+  Unimplemented gateways return `ignored` and can never credit a ledger.
+- `PaymentGateway.webhookSecret` added, with the callback URL and a warning
+  shown on the settings page when it isn't set.
+- `PaymentCheckout.webhookEventId` is unique, so a provider redelivering an
+  event cannot double-credit; the claim itself is an atomic conditional
+  `updateMany`.
+- Amount mismatch between what we asked for and what the gateway reports marks
+  the checkout FAILED rather than settling the invoice.
+- Migration `20260912175501_payment_webhook_verification` — applied locally,
+  **not yet applied to production**.
+- 12 tests in `tests/payments/webhooks.test.ts` covering forged signatures,
+  tampered bodies, replay, wrong secret, missing secret, and unpaid sessions.
+
+### Phase 1 of the agentic pivot — the platform is now awake
+The six cron jobs were written but **nothing ever called them** (no
+`vercel.json`), and their guard was fail-OPEN: `if (process.env.CRON_SECRET && …)`
+with `CRON_SECRET` set nowhere, so once reachable they were public.
+
+- `vercel.json` added with real schedules (follow-ups hourly, email every 15m,
+  daily briefing 05:00, recurring invoices 01:30, weekly digest Mondays).
+- `src/lib/cron/auth.ts` — one shared guard that **fails closed**, accepts
+  Vercel Cron's bearer header or a shared secret, constant-time compared.
+- `CRON_SECRET` documented in `.env.example` (hex, not base64 — base64's `+`
+  and `/` get mangled as a query param) and set locally.
+- Verified live: refuses without/with a wrong secret, runs with the right one.
+  First real run drafted **3 follow-ups**, sent 7 briefings and 9 digests.
+
+### Phases 2-3 — the PA is an agent, not a classifier
+The PA was one `generateObject` call whose `intent` was an enum of three
+values; anything else returned "unknown". `src/lib/ai/tools.ts` defined four
+tools that **nothing imported**.
+
+- `src/lib/agent/tools.ts` — the Business Graph as tools. Two invariants:
+  **no tool schema contains a tenantId** (the runtime closes over it, so a
+  prompt injection has nowhere to put another company's id), and every tool
+  calls the same `src/lib/core/*` function the dashboard calls. Write tools
+  declare a capability and are withheld from roles that don't hold it, so a
+  REP is never even offered `recordPayment`.
+- `src/lib/agent/runtime.ts` — a real loop (`stopWhen: stepCountIs(12)`), so
+  the model sees what a tool returned and can take another step. Provider
+  billing/key failures are translated into messages an admin can act on.
+- The PA route and `FloatingPaButton` now carry conversation history, and only
+  navigate when the agent actually changed something.
+- 11 tests in `tests/agent/tools.test.ts`, including that no tool accepts a
+  tenantId and that a foreign customer id is refused.
+
+**Not verified end-to-end:** the loop builds and dispatches a correct
+tool-calling request, but the Google Gemini account is **out of credit**
+(HTTP 429, "prepayment credits are depleted"), so no model response could be
+observed. Top up Gemini or add an `ANTHROPIC_API_KEY` in the admin console to
+confirm, then re-run the live check.
+
+### Still open from the same brief — not started
+Document/PDF infrastructure per industry, proper statements, the legal-doc
+checker, the quote/invoice/job-card form and flow redesign, and the richer
+customer form. Phases 4-6 of the agentic plan (memory, the approval surface,
+the event bus, named agents) are also not started. Full plan and reasoning:
+the "Agentic Gap" assessment artifact.
+
+## 2026-09-12 — production-readiness audit (bug hunt + fixes)
+
+Full sweep for bugs, dead links, and broken pages. Baseline state and every
+fix below is verified: `tsc --noEmit` clean, `eslint` clean (0 errors,
+0 warnings), `next build` clean, 86/86 tests passing, and all 96 routes
+exercised live against the seeded local database.
+
+**Cross-tenant write vulnerabilities closed (9).** Each was the same shape:
+a server action proved the caller's access to its *own* tenant, then passed a
+record id straight off the form post into a core function that looked the row
+up by bare id. Any signed-in owner could act on another company's rows.
+
+- `setManager` / `setDepartment` (`core/org.ts`) — rewrote reporting lines and
+  departments of staff in other companies.
+- `updateGoalProgress` (`core/goals.ts`) — also had no `assertCan` at all, so
+  any role could write goals.
+- `applyLateFee` (`core/collections.ts`) — appended a real fee document to
+  another tenant's customer ledger.
+- `closeTill` (`core/pos.ts`) — closed and reconciled another tenant's till.
+- `sendQuote` (`core/money.ts`) — marked another tenant's quote SENT, which is
+  what the follow-up engine watches.
+- `markNoShowAndRebook` (`core/reminders.ts`) — also WhatsApp'd that other
+  tenant's customer.
+- `returnRental` / `markItemRentable` / `createRental` (`core/rentals.ts`).
+- `createQuote` + `recordCashSale` (`core/money.ts`) — accepted a `partyId` or
+  line `itemId` from another tenant, leaking that customer's name/email into
+  the rendered PDF and portal view. Both now go through one shared
+  `assertPartyAndItemsInTenant` check.
+- `checkoutSale` (`core/pos.ts`) — resolves `partyId` against the tenant
+  *before* a card is charged.
+
+The fix is at the core layer, not in the actions, so future callers (AI tools,
+mobile endpoints, the planned REST API) inherit it. `tenantId` was **appended**
+to these signatures rather than prepended on purpose: both params are strings,
+so a missed call site fails to compile instead of silently swapping arguments —
+which is how all 11 call sites, including `prisma/seed.ts`, got caught.
+
+`tests/core/tenant-isolation.test.ts` is new: 13 tests that stand two tenants
+up side by side and assert each call is refused *and* the victim's row is
+unchanged.
+
+**Other real bugs fixed:**
+- **Double-payment race** in `portal/[token]/invoices/[invoiceId]/pay/confirm`
+  — check-then-act on `checkout.status === "PENDING"`, so a double-click or a
+  refresh of the gateway redirect credited the invoice twice. Now claims the
+  checkout with an atomic conditional `updateMany` before recording anything.
+- **Dashboard global search did nothing** — the top bar submits `?q=` to the
+  customers page, which only read `page` and `add`. Wired through
+  `listCustomersPaginated` (name/email/phone, case-insensitive, always ANDed
+  with `tenantId`), added the visible search box and a real no-match state, and
+  fixed pagination dropping the query on page 2. 6 new tests.
+- **Stale-response races** in `TransactionListPanel` and `TenantListClient` —
+  typing or paging fast let an older fetch resolve last and overwrite newer
+  rows. Both now guard with a cancellation flag, and a failed fetch no longer
+  leaves the panel spinning forever.
+- **Org chart could silently lose people** — `setManager` blocked self-manage
+  but not cycles; A→B plus B→A left neither as a root, so both vanished from
+  the chart. Now rejected at the point the loop is created.
+- **Marketing nav did full page reloads** — raw `<a href>` throughout the
+  shared chrome; converted to `next/link`.
+- **"One engine, seven skins"** on onboarding while offering eight (NONPROFIT
+  is a real niche). Now derived from `NICHE_CONFIGS` so it can't drift again.
+- Dead `amountCents` in `returnRental`; duplicated `any`-typed recharts tooltip
+  in three files, now one typed `components/dashboard/CardTooltip.tsx`.
+
+**Toolchain unblocked.** `automation-saas/` (490MB) and `SassTech/` (11MB) are
+third-party templates sitting untracked in the repo root. `tsconfig.json`'s
+`**/*.ts` include pulled them in — **342 typecheck errors**, and their vendored
+minified JS produced ~1,500 of the repo's 1,698 lint problems, burying every
+real finding. Both are now gitignored and excluded from tsc + eslint. They were
+never committed, so production was unaffected; local `tsc`/`build` were broken.
+
+**Verified live, not just built:** logged in against the seeded database and
+walked all 96 routes. 83×200, 3 redirects, 10×404 — every non-200 confirmed
+correct: `/` and `/dashboard` route logged-in users onward, an ACCEPTED quote's
+`/edit` bounces back to the read view, `/book/:id` 404s because booking is off
+for that tenant, and all `/car/*` 404 for a normal owner but return 200 for
+`admin@platform.demo.local`. Zero server errors, zero console errors on a clean
+page load. A signed-in owner of one tenant gets 404 on every page of another.
+
+### Known production blocker — do not take real money yet
+
+`portal/[token]/invoices/[invoiceId]/pay/confirm/page.tsx` treats the gateway's
+*redirect back* as proof of payment. The double-credit race is fixed, but a
+customer who never pays can still reach that URL directly and mark the invoice
+paid. This is documented in the file's own header and is not a regression — it
+has always been the stub behaviour. Before real payments, move `recordPayment`
+into each provider's signed webhook (Stripe `checkout.session.completed`,
+PayFast ITN, Paystack `charge.success`).
 
 ## Production DB — SSL gotcha (read this before touching prod DATABASE_URL)
 
@@ -539,3 +855,355 @@ partner integration or provider account. Planned shape:
 - Webhook dispatch wired into `quote.created`, `quote.accepted`,
   `invoice.paid`, `dispute.raised`, plus a settings page for endpoint
   management.
+
+## 2026-09-13 — agentic pass 2, and the start of the conversational build
+
+### Answer to "is it agentic-first now?"
+The engine was. The product wasn't. Five spines existed but were not
+connected to anything; each is now wired, with a test that fails if it rots
+back.
+
+1. **Named-agent schedules never ran.** `AgentDefinition.schedule` was stored
+   and printed back to the owner ("Schedule: 0 9 * * 1-5") and nothing ever
+   evaluated it. Added `src/lib/agent/schedule.ts` (cron matcher + `isDue`,
+   evaluated in the business's time zone via Intl, `APP_TIMEZONE`, default
+   Africa/Johannesburg), wired into the tick. The console now shows the
+   schedule in words and offers named slots instead of raw cron.
+   *Proved live: `agentsRun: 1`, run recorded with trigger AGENT.*
+
+2. **The event bus emitted 3 of its 9 declared signals.** Most importantly
+   `acceptQuoteWithSignature` — the path most customers actually take — was
+   silent, so a signed quote never reached the agent. Wired
+   quote.accepted (signature), invoice.paid, customer.created,
+   dispute.raised, payment.failed (both webhook failure paths, guarded by the
+   atomic claim so retries don't re-alert). `quote.accepted` promoted to
+   ACTIONABLE.
+
+3. **The agent could read its memory but never write it.** `rememberFact`
+   had no caller, so "what you already know about this business" was
+   permanently empty. Added rememberFact/forgetFact/recallFacts tools,
+   classified REVERSIBLE, and told the prompt when to use them.
+
+4. **Approval was all-or-nothing.** Added per-action approve/reject
+   (`approveAction`/`rejectAction`), claimed under a row lock so two managers
+   can't double-execute. Claim-then-execute: a crash loses the action rather
+   than running it twice.
+
+5. **It didn't know what page you were on.** `src/lib/agent/pageContext.ts`
+   derives the record from the path server-side (scoped to the caller's own
+   tenant prefix, so a foreign URL resolves to nothing). "Chase this one"
+   now works.
+
+Plus: NDJSON streaming (`/api/dashboard/[id]/pa/stream`) with a live
+checklist of what it's doing — instrumented in our own tool wrapper, not an
+SDK callback, so it can't miss a call. FloatingPaButton became `CommandBar`:
+⌘K, a conversation, and — the real bug — it now tells you when an action is
+waiting for approval instead of silently queueing it.
+
+### Started on the conversational build (2026-09-13 request)
+- **`src/lib/core/quoteComposer.ts`** — paste a customer and a priced list,
+  get a real draft quote. Deterministic, not a model call: it must work with
+  the provider out of credit, and money must never be hallucinated. Handles
+  "R20 000,00", "$1,250.50", "2 x iPhone 16 @ 20000", trailing quantities,
+  explicit totals. 23 tests.
+- Wired as the agent tool `draftQuoteFromText`, and as the **first** reader in
+  the existing paste-to-form box, which until now returned "No AI provider
+  configured — fill in the form manually" and did nothing.
+- **`findDocuments`** tool — resolves "the quote for Mr Isaac", "365",
+  "yesterday". Refuses to pick when several match.
+- **`whatsappLink`** tool — click-to-chat from the agent.
+- **Fixed:** the new-quote action created a new Party on every quote, so
+  quoting someone twice split their history in half. Now uses the shared
+  `findOrCreateCustomer`. Added email + company fields to the form.
+
+### Still to build from that request
+- Conversational follow-up negotiation ("I'll be ready in June" → "which date
+  in June?" → check the operator's availability → create the calendar event).
+  Foundations exist: classifier gives `scheduleFollowUpInDays`,
+  `Transaction.nextFollowUpAt/followUpNote/calendarEventId`, Google Calendar
+  OAuth in `src/lib/calendar/google.ts`.
+- Microsoft Graph and Zoom calendar providers (Google exists).
+- Routing payment-proof/statement alerts to finance specifically rather than
+  the workspace generally.
+- Meta WhatsApp Cloud API direct (current client is 360dialog, a Meta BSP).
+- `sendInvoice` — there is `sendQuote` but no invoice equivalent.
+
+### Unchanged blocker
+No AI provider with credit, so no model response has been observed end to
+end. Every failure path is correct and actionable; the agent's reasoning is
+still unverified.
+
+## 2026-09-13 (later) — dark mode, and the command dock
+
+### Dark mode was broken by hardcoded colour, not by the theme system
+The tokens and the `[data-theme="dark"]` wiring were correct. Three things
+defeated them:
+
+1. **63 hardcoded `bg-white`** across 39 files, almost all form controls,
+   each paired with `text-[var(--kb-text)]` — which is near-white in dark.
+   White text on a white input: invisible. Replaced with
+   `bg-[var(--kb-panel)]`. Every skin defines `--kb-panel: #ffffff` in light,
+   so light mode is pixel-identical; dark now follows the theme.
+   (`bg-white/NN` alpha variants were left alone — those sit on the always-dark
+   sidebar and marketing hero, where they are correct.)
+
+2. **`<body>` stayed white**, and a body background propagates to the browser
+   canvas — so overscroll on a phone flashed white under a dark dashboard.
+   Fixed with `body:has(.kb-shell[data-theme="dark"])` per skin, plus
+   `color-scheme: dark` so scrollbars and native date pickers stop rendering
+   light. Scoped with `:has()` rather than stamping the theme on `<html>`,
+   because the theme is a dashboard setting and the marketing site must stay
+   light regardless.
+
+3. **`STATUS_PILL.OVERDUE` was the one hardcoded entry** in an otherwise fully
+   tokenised map (`#fee2e2`/`#dc2626`), copied again by the agent page's
+   FAILED pill. Gave it a real `--kb-status-danger` token with a dark value.
+
+Also: Admina styles inputs by explicit `type`, so a bare `<input>` (type
+defaults to text but the attribute is absent) matched none of its selectors
+and kept whatever utility class it had — added `input:not([type])`.
+
+**Verified**, not eyeballed: a script walks 34 dashboard pages in a
+same-origin iframe and reports any element with a light background. It found
+the offenders above and now returns zero. Mobile re-checked at 375px: no
+horizontal overflow on any page.
+
+### The command box is now a dock
+Moved from a circular button in the corner to a bar pinned to the bottom of
+every page — always visible, always typeable, the way a composer is in a chat
+app. Focusing it opens the transcript above it; Escape closes the transcript
+and leaves the bar. Cmd/Ctrl-K focuses rather than toggles, since there is
+nothing to summon any more.
+
+- `.kb-dock` is inset from the left by `--kb-dock-left`, mirroring each
+  shell's own content offset at the same breakpoints, so on a desktop it sits
+  centred over the content rather than running under the sidebar.
+- `.kb-dock-host` reserves 6rem at the foot of every page so the bar never
+  covers the last row.
+- The dock input needed a four-class selector to beat Admina's own bare-input
+  rule, which otherwise drew a boxed field inside the pill.
+- **Removed `AgentConsole`** from the home page. With the dock on every page
+  it was a second input for the same agent, each with its own thread — ask in
+  one, follow up in the other, and the follow-up loses the context.
+
+```
+lint 0 · tsc 0 · build clean · 224 tests · 34 pages dark-clean · 375px overflow-free
+```
+
+## 2026-09-13 (later still) — the document template builder
+
+### What was actually there
+The "PDF templates" page offered a name, a style dropdown and an accent
+colour. Three things it promised were not connected to anything:
+
+- **The logo could never be set.** The page copy said "each with your own
+  accent color and logo", `logoDataUrl` was in the schema and honoured by the
+  renderer — and no UI anywhere wrote it.
+- **Terms rendered empty, always.** The builder let you reorder and hide a
+  "Terms" block whose text had no field anywhere in the app.
+- **`tenantAddress` was declared and never populated**, so every invoice this
+  app has produced went out with no business address and no VAT number —
+  which a valid ZA tax invoice legally requires.
+
+The twelve "styles" varied colour, font and header position only; the page
+*structure* was identical in all of them, which is why choosing one never
+felt like choosing a design.
+
+### What it is now
+Modelled on how Zoho does it, per the screenshots:
+
+- **Gallery** of templates, each card a real rendered thumbnail of its own
+  design (the preview route in a scaled, inert iframe — a card can never show
+  a design the renderer no longer makes). DEFAULT badge, hover actions.
+- **New template starts from a design**: Classic, Statement, Proposal,
+  Compact, Delivery slip. A preset carries a full section layout *and* its
+  style settings, so you begin with a document that works.
+- **Editor** with a left rail — General, Header & Footer, Transaction Details,
+  Table, Total, Other Details — the live PDF beside it, and one Save.
+- **16 sections**, each openable: rename its heading, write its body text,
+  reorder it, hide it, and switch its individual fields on and off. Header
+  parts stay in the header (a logo reordered below the totals is not a layout
+  anyone wants); order is yours within each zone.
+- **Page setup**: A5/A4/Letter, portrait/landscape, per-edge margins in
+  inches, page background, font family and size, three colour tokens.
+- New renderer capabilities to match real invoices: large logos, row numbers,
+  per-line descriptions and units, payments-received and a banded balance due,
+  terms, signature block, footer alignment.
+- `Item.description` and `Item.unit` added — the columns those switches need.
+- Templates can be scoped per document kind (`appliesTo`), so a delivery slip
+  no longer renders with the invoice design. Cap raised 3 → 12.
+
+### Two bugs worth remembering
+- **Save silently did nothing.** The margin inputs had `step="0.05"` while
+  their defaults came from the point-based presets (40pt = 0.56in). HTML
+  constraint validation rejected the form, so the browser refused to submit
+  and showed nothing. Fixed with `step="any"`, plus an `onInvalid` handler
+  that now says what is wrong — an invalid field on another panel is
+  otherwise invisible.
+- Chasing that, I twice hit a **stale Prisma client in the running dev
+  server** after a migration: the action throws `Unknown argument`, the page
+  500s, and nothing explains it. Restart `next dev` after every migration.
+
+```
+lint 0 · tsc 0 · build clean · 239 tests
+save verified end to end: orientation round-trips and the PDF MediaBox
+follows it (595x842 portrait / 842x595 landscape)
+```
+
+## 2026-09-14 — the 100-phase plan, and phases 02, 03, 47 built
+
+Plan published: https://claude.ai/code/artifact/dd8c93a1-ba43-43b8-ab7e-22c09475a8fc
+
+### What the research changed
+Competitor weaknesses are specific and quotable, not vague: ClickUp's top
+2026 complaints are speed, learning curve and a weak mobile app; Monday bills
+a 3-seat minimum then rounds seats up in blocks of five; Zoho's is the
+interface and the tier walls; GoHighLevel's is email deliverability. The
+lesson from ClickUp's ~1,000 integrations is that almost none are native —
+it's a public API plus Zapier. **The API is the integration strategy.**
+
+### Phase 02 — public API (built)
+`/api/v1` over the same core functions the dashboard calls.
+
+- **Keys carry a Role**, not their own permission list. The app already has
+  one permission model (Role → Capability) and every core function is written
+  against it; a second scheme for API callers would be two things to keep in
+  step, and the one that drifts is the one nobody watches.
+- Secret half never stored — SHA-256 + a visible prefix, constant-time
+  compare. Lookup is by prefix so a harvested prefix alone is worthless.
+- `readOnly` keys, expiry, revocation, `lastUsedAt`.
+- Rate limit counted **on the row**, not in memory: in-process counters are
+  per-instance and therefore meaningless on serverless.
+- Routes: `/v1/me`, customers (+detail), products, quotes, invoices,
+  invoice payments, tasks. `POST /v1/quotes` accepts either structured lines
+  **or prose** — verified live: it matched an existing customer by email,
+  created two products and totalled R16,200.
+- 13 tests. Verified over HTTP: 401 no key, 401 wrong secret with a real
+  prefix, 403 read-only writing, 403 driver creating a quote.
+
+### Phase 03 — outbound webhooks (built)
+- Fan-out rides the **existing domain event bus**, so the agent's view of the
+  business and an integrator's can't drift.
+- HMAC-SHA256 over `timestamp.body`, `X-Flow-Signature`. Queue-then-send:
+  a dead endpoint must never slow or fail the operation that produced it.
+- 5 attempts over ~2 hours, then visibly FAILED — never silently dropped.
+- Atomic claim per delivery, so overlapping crons can't double-post.
+- New cron `/api/cron/webhook-dispatch` every 5 min. 11 tests.
+
+### Phase 47 — Android app (scaffolded)
+`mobile/` — Capacitor 7, `co.skynat.flow`.
+
+- A **shell over the live app**, deliberately. A parallel native client would
+  be behind from day one, which is exactly the complaint about mobile apps in
+  this category.
+- `androidScheme: https` — a custom scheme is the first thing that breaks
+  auth. `allowNavigation` allowlist so a link in a customer note can't hijack
+  the window.
+- Dark canvas end to end (#0B1120) — splash, status bar, nav bar — so there's
+  no white flash before first paint.
+- Offline page that reloads itself when connectivity returns, wired via
+  `errorPath` so nobody sees Chrome's dinosaur inside our app.
+- App Links intent-filter + `/.well-known/assetlinks.json` (fingerprint from
+  `ANDROID_CERT_FINGERPRINTS`, env not constant — it changes per signing key).
+- PWA manifest + generated icons, so it's installable from the browser too.
+- **Not compiled here**: no JDK/Android SDK on this machine. Generated and
+  synced; first build is `npm run open` in Android Studio. README covers
+  signing, App Links and push.
+
+### Two dead spines found and made real
+`ApiKey`, `WebhookEndpoint` and `WebhookDelivery` were already in the schema
+and **nothing in the code used them**. Same pattern as the event bus and the
+memory layer earlier this week: designed, tabled, never wired.
+
+```
+lint 0 · tsc 0 · build clean · 264 tests
+API verified live · manifest + assetlinks served · dispatch cron ok:true
+```
+
+### Next
+Phase 79 (MCP server) is cheap now the API exists and nobody in this category
+has one. Phase 01 (production) needs your Vercel + provider credentials.
+
+## 2026-09-14 (later) — release APK, MCP server, cash forecast, readiness
+
+### Release APK — built and signed
+`mobile/android/app/build/outputs/apk/release/flow-release-1.0.apk` (3.0 MB).
+
+Buildable here after all: no system JDK, but **Android Studio bundles one**
+(`/Applications/Android Studio.app/Contents/jbr/Contents/Home`, JDK 21) and
+the SDK was already at `~/Library/Android/sdk`.
+
+- Signing config reads `android/keystore.properties` (gitignored). Absent, a
+  release build comes out unsigned — the right failure for a fresh clone: a
+  missing key should be obvious, not silently swapped for a debug one.
+- `flow-testing.keystore` is a **testing key only**. A Play listing is bound
+  forever to the key that signs it; creating and safeguarding that key is a
+  person's decision, not mine.
+- Its SHA-256 is in `.env` as `ANDROID_CERT_FINGERPRINTS`, so App Links
+  verify against this build.
+- Verified: `apksigner` confirms the cert, `aapt2` confirms package
+  `co.skynat.flow`, targetSdk 35, label "flow", and the four permissions.
+
+### Phase 79 — MCP server (built)
+`/api/mcp`. Nothing else in this category has one.
+
+- A **protocol adapter, not a second tool surface**. The agent's 84 tools are
+  already tenant-scoped and capability-gated; a parallel implementation would
+  be the thing that drifts.
+- Three filters, in order: role → read-only → **workspace autonomy**. An MCP
+  client is not a person watching, so `userPresent: false` — which means
+  recordPayment, recordRefund, sendQuote and convertQuoteToInvoice are never
+  offered at any autonomy level. Verified live: 77 tools, none of those four.
+- Distinguishes "no such tool" (-32601) from "withheld" (-32000) so an
+  assistant can explain the real reason rather than telling someone flow
+  can't do it.
+- Same API keys as `/api/v1`, so revoking a key revokes both.
+- 15 tests. Live: initialize, tools/list, and a real `businessSnapshot` call
+  returning actual ledger data.
+
+### Phase 21 — 13-week cash forecast (built)
+`src/lib/core/cashForecast.ts`, a page, an agent tool and `/api/v1/cash-forecast`.
+
+- Built from committed rows, not a growth assumption. Every line carries a
+  `basis` and a `confidence`.
+- **Reads each customer's own payment habit** (median lateness from settled
+  invoices) and moves the money to the week it will actually arrive — a
+  forecast that books every invoice at face value on its due date is a wish
+  list.
+- Nets off part-payments; treats overdue as owed *now*, not in the past.
+- Says what it cannot see — missing running costs, no bank balance — rather
+  than silently assuming zero and looking healthier than the business is.
+- 11 tests. **Bug caught by them**: `toISOString()` shifted every week label
+  back a day for anyone east of UTC. Fixed with a local-date formatter.
+
+### Phase 08 — self-completing readiness (built)
+`src/lib/core/readiness.ts` + the home strip, replacing a four-item checklist.
+
+- Ten steps, each checked against real rows, so it ticks itself off as normal
+  work happens. Nobody is asked to "complete onboarding".
+- Leads with the **single next step** and its reason; the rest is one click
+  away. A wall of ten is what makes people close it.
+- **Retires on the core steps only** — a business that is invoicing and being
+  paid is operational whether or not it invited a teammate. A checklist that
+  stays up after you're done with it stops being read, and so does everything
+  next to it.
+- Also an agent tool (`setupReadiness`), so "what should I do next?" works in
+  chat and over MCP.
+- 8 tests.
+
+### Housekeeping
+- `mobile/**` added to the eslint ignores: Capacitor's generated
+  `native-bridge.js` in the Gradle output was producing every warning in the
+  repo and none of them real. Same class as the earlier template pollution.
+- The coverage test caught `readiness` having no agent tool. Wired it rather
+  than exempting it — the better answer.
+
+```
+lint 0 · tsc 0 · build clean · 298 tests · APK signed and verified
+```
+
+### Parked
+**Phase 101 — Shopify and the wider ecommerce set** (user's request, for
+later). WooCommerce exists; `EcommercePlatform` is a one-value enum, so
+Shopify is a new enum value plus one client file, mirroring how the payment
+gateway registry works.

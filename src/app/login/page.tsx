@@ -6,7 +6,7 @@ import { googleLoginEnabled } from "@/auth";
 import { loginAction } from "./actions";
 
 const inputClass =
-  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
+  "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
 
 export default async function LoginPage() {
   const cookieStore = await cookies();
@@ -45,7 +45,7 @@ export default async function LoginPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-[var(--kb-text)]">
-              2FA code <span className="text-[var(--kb-text-dim)]">(only if you've enabled it)</span>
+              2FA code <span className="text-[var(--kb-text-dim)]">(only if you&apos;ve enabled it)</span>
             </label>
             <input
               name="totpToken"
