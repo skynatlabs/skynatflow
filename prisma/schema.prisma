@@ -977,6 +977,15 @@ model Expense {
   amountCents     Int
   receiptDataUrl  String? // optional attached slip — same base64 pattern as e-signatures
   status          ExpenseStatus @default(PENDING)
+  // Money the owner took out of the business for themselves, rather than a
+  // cost of running it. They come off the same card and look identical on a
+  // statement, which is why most small businesses cannot say what their real
+  // costs are — and why drawings booked as expenses make a profitable
+  // business look like it is barely breaking even.
+  //
+  // Null is a real third state: nobody has said yet. It is what the agent
+  // asks about, and collapsing it into false would hide every unreviewed row.
+  isOwnerDrawing  Boolean?
   approvedById    String?
   createdAt       DateTime      @default(now())
 

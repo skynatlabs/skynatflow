@@ -57,6 +57,7 @@ import {
 import { researchJurisdiction, readObligationFromDocument } from "@/lib/ai/jurisdiction";
 import { findCostRises, applySuggestedPrice } from "@/lib/core/repricing";
 import { supplierPerformance } from "@/lib/core/supplierPerformance";
+import { spendSplit, unclassifiedExpenses, classifyExpense } from "@/lib/core/expenses";
 
 export interface OpsToolDef {
   capability?: Capability;
@@ -173,6 +174,52 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
               totalSpent: s.totalSpentCents / 100,
               priceDriftPercent: s.priceDriftPercent,
               flags: s.flags,
+            })),
+          };
+        },
+      }),
+  },
+
+  spendSplit: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What the business spent, split into real business costs, money the owner took out for " +
+          "themselves, and payments nobody has classified yet. Use when asked what it costs to " +
+          "run the business, about profitability, or where the money goes — the unreviewed " +
+          "figure is important context and should be mentioned, not hidden.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const split = await spendSplit(ctx.tenantId);
+          return {
+            summary: split.summary,
+            businessCosts: split.businessCents / 100,
+            ownerDrawings: split.drawingsCents / 100,
+            notYetSplit: split.unreviewedCents / 100,
+            notYetSplitCount: split.unreviewedCount,
+          };
+        },
+      }),
+  },
+
+  unclassifiedSpending: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Payments not yet marked as a business cost or as the owner's own money. Read these, " +
+          "classify the obvious ones with classifySpending, and ask about only the ones that are " +
+          "genuinely ambiguous.",
+        inputSchema: z.object({ limit: z.number().int().positive().max(50).optional() }),
+        execute: async ({ limit }) => {
+          const rows = await unclassifiedExpenses(ctx.tenantId, limit ?? 20);
+          return {
+            count: rows.length,
+            payments: rows.map((r) => ({
+              expenseId: r.id,
+              description: r.descriptionText,
+              amount: r.amountCents / 100,
+              category: r.category,
+              on: r.createdAt.toISOString().slice(0, 10),
             })),
           };
         },
@@ -1017,6 +1064,27 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
         inputSchema: z.object({ obligationId: z.string(), reason: z.string() }),
         execute: async ({ obligationId, reason }) => {
           await waiveObligation({ tenantId: ctx.tenantId, obligationId, reason });
+          return { ok: true };
+        },
+      }),
+  },
+
+  classifySpending: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Mark a payment as a business cost or as the owner taking money out for themselves. " +
+          "Only classify what you are actually confident about — a wrong split is worse than an " +
+          "unanswered one, because it silently distorts what the business appears to cost.",
+        inputSchema: z.object({
+          expenseId: z.string(),
+          isOwnerDrawing: z
+            .boolean()
+            .describe("True when this was personal spending, false when it was a real business cost."),
+        }),
+        execute: async ({ expenseId, isOwnerDrawing }) => {
+          await classifyExpense({ tenantId: ctx.tenantId, expenseId, isOwnerDrawing });
           return { ok: true };
         },
       }),

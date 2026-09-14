@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { assertCan } from "@/lib/core/access";
-import { submitExpense, approveExpense, rejectExpense } from "@/lib/core/expenses";
+import { submitExpense, approveExpense, rejectExpense, classifyExpense } from "@/lib/core/expenses";
 
 export async function submitExpenseAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
@@ -45,5 +45,27 @@ export async function rejectExpenseAction(formData: FormData) {
   if (!access.membershipId) throw new Error("No staff account on this workspace.");
 
   await rejectExpense(tenantId, String(formData.get("expenseId") ?? ""), access.membershipId);
+  revalidatePath(`/dashboard/${tenantId}/expenses`);
+}
+
+/**
+ * Split a payment: a real cost of running the business, or the owner taking
+ * money out of it.
+ *
+ * Owner-level, because misclassifying drawings as costs is what makes a
+ * profitable business look like it is barely surviving — and the person who
+ * submitted the expense is rarely the person who knows which it was.
+ */
+export async function classifyExpenseAction(formData: FormData) {
+  const tenantId = String(formData.get("tenantId") ?? "");
+  const access = await requireTenantAccess(tenantId);
+  assertCan(access.role, "staff:manage");
+
+  await classifyExpense({
+    tenantId,
+    expenseId: String(formData.get("expenseId") ?? ""),
+    isOwnerDrawing: formData.get("isOwnerDrawing") === "true",
+  });
+
   revalidatePath(`/dashboard/${tenantId}/expenses`);
 }
