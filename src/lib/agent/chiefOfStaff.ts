@@ -26,6 +26,7 @@ import { Officer, ObservationStatus, type Observation } from "@prisma/client";
 import { may } from "./ladder";
 import { expireStale, markRaised } from "./observations";
 import type { EvidenceItem } from "./observations";
+import { weightFor } from "@/lib/core/industryPacks";
 
 /** How many things may be put in front of a person in a day. */
 export const DAILY_ATTENTION_BUDGET = 4;
@@ -121,11 +122,18 @@ async function rank(
   statuses: ObservationStatus[],
   now: Date
 ): Promise<RankedItem[]> {
-  const open = await prisma.observation.findMany({
-    where: { tenantId, status: { in: statuses } },
-    orderBy: { createdAt: "desc" },
-    take: 300,
-  });
+  const [open, tenant] = await Promise.all([
+    prisma.observation.findMany({
+      where: { tenantId, status: { in: statuses } },
+      orderBy: { createdAt: "desc" },
+      take: 300,
+    }),
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { niche: true, turnaroundMode: true } }),
+  ]);
+  // The trade pack lifts what matters in this trade; turnaround mode puts
+  // cash first. Both multiply the score, so they reorder without hiding.
+  const weigh = (o: Observation) =>
+    tenant ? weightFor(o.dedupeKey, { niche: tenant.niche, turnaround: tenant.turnaroundMode }) : 1;
 
   // An officer below SUGGEST watches quietly: it may write, and nothing it
   // writes reaches anybody. That is a real setting somebody might choose.
@@ -149,7 +157,7 @@ async function rank(
   const ranked: RankedItem[] = [];
   for (const bucket of groups.values()) {
     const scored = bucket
-      .map((o) => ({ o, s: score(o, now) }))
+      .map((o) => ({ o, s: score(o, now) * weigh(o) }))
       .sort((a, b) => b.s - a.s);
     const lead = scored[0];
     const others = scored.slice(1);

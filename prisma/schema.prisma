@@ -437,6 +437,7 @@ model Party {
 
   expensesAsSupplier Expense[]  @relation("ExpenseSupplier")
   tripStops          TripStop[]
+  tripsSubcontracted Trip[]      @relation("TripSubcontractor")
 
   // The language this customer's documents and messages go out in. Null means
   // the workspace default. An ISO 639-1 code rather than an enum, because a
@@ -1209,6 +1210,11 @@ model Expense {
   // captured without anybody being asked to.
   odometerKm Int?
 
+  // A cost the customer should pay back — a toll, a permit, materials bought
+  // for their job. Set at capture; cleared onto an invoice line once billed.
+  recoverable   Boolean      @default(false)
+  recoveredOnId String?
+
   // Same supplier, same amount, same day — the shape a second arrival takes.
   fingerprint   String?
   // Set when this looks like, or is, the same spend as another row.
@@ -1348,6 +1354,9 @@ model Trip {
   asset    Asset?      @relation(fields: [assetId], references: [id])
   driverId String?
   driver   Membership? @relation("TripDriver", fields: [driverId], references: [id])
+  // An owner-driver doing the run instead of an employee.
+  subcontractorId String?
+  subcontractor   Party?  @relation("TripSubcontractor", fields: [subcontractorId], references: [id])
 
   originText      String?
   originLat       Float?
@@ -1415,8 +1424,10 @@ model TripStop {
   plannedAt  DateTime?
   arrivedAt  DateTime?
   departedAt DateTime?
-  // Weight on or off at this stop, for load planning.
+  // Weight on or off at this stop, for load planning. Positive loads, negative drops.
   loadKg     Int?
+  // The invoice line detention at this stop was billed on, once it was.
+  detentionBilledOnId String?
 
   // The delivery, site visit or install this stop produced, with its proof.
   eventId String? @unique

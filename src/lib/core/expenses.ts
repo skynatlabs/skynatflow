@@ -56,6 +56,8 @@ export interface SubmitExpenseParams {
   unit?: string | null;
   odometerKm?: number | null;
   isOwnerDrawing?: boolean | null;
+  /** The customer should pay this back — a toll, a permit, materials for their job. */
+  recoverable?: boolean;
   branchId?: string | null;
   lines?: ExpenseLineInput[];
   receiptReading?: unknown;
@@ -261,6 +263,7 @@ export async function submitExpense(params: SubmitExpenseParams) {
       unit: params.unit?.trim() || null,
       odometerKm: params.odometerKm ?? null,
       isOwnerDrawing: params.isOwnerDrawing ?? null,
+      recoverable: params.recoverable ?? false,
       branchId: params.branchId ?? null,
       fingerprint,
       duplicateOfId,

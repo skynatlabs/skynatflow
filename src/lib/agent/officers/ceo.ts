@@ -20,7 +20,7 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getAiModel } from "@/lib/ai/model";
-import { observe, type ObserveParams } from "../observations";
+import { observe, handOff, type ObserveParams } from "../observations";
 import { assetCosts, customerMargins, laneMargins, lastDays } from "@/lib/core/costing";
 import { valueSummary } from "@/lib/core/valueLedger";
 import { formatMoney, tenantCurrency } from "@/lib/core/currency";
@@ -268,7 +268,13 @@ export async function runCEO(
       if (!fact) continue;
       const finding = await phrase(fact, currency, opts.phrase ?? true);
       const written = await observe({ ...finding, tenantId, officer: "CEO" });
-      if (written) observed++;
+      if (written) {
+        observed++;
+        // Repricing a customer is the sales consultant's conversation to have.
+        if (finding.dedupeKey.startsWith("ceo:customer-loss:")) {
+          await handOff({ tenantId, observationId: written.id, to: "SALES", note: "Handed to sales: the repricing conversation is theirs." }).catch(() => undefined);
+        }
+      }
     } catch (err) {
       failed.push(check.name);
       console.error(`[ceo] ${check.name} failed for ${tenantId}:`, err instanceof Error ? err.message : err);

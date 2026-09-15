@@ -44,6 +44,16 @@ import { runMonthlyDepreciation, bookValues } from "@/lib/core/depreciation";
 import { setDocumentCurrency, foreignDocuments } from "@/lib/core/documentCurrency";
 import { taxProvisions, vatSetAside } from "@/lib/core/taxProvisions";
 import { monthEndPack, nextMonthToClose } from "@/lib/core/bookkeeper";
+import {
+  detentionOwed, billDetention, unbilledRecoverables, billRecoverables, setRecoverable,
+  emptyRunning, fuelConsumption, maintenanceDue, recordService, setServicePlan,
+  consumablesByAsset, checkLoad, setStopLoad, subcontractorsAtRisk,
+  reportIncident, addToIncident, incidentPack, listIncidents, routeDeviations,
+} from "@/lib/core/fleetOps";
+import { winRate, readingNotAnswering, quietCustomers, discountLeak } from "@/lib/core/salesHealth";
+import { packFor, setTurnaroundMode } from "@/lib/core/industryPacks";
+import { tenderReadiness } from "@/lib/agent/officers/legal";
+import { sharedMemory } from "@/lib/agent/observations";
 import { listConnectionsForTenant } from "@/lib/core/connections";
 import { listThreadsForMember, sendMessage, listMessages } from "@/lib/core/messaging";
 import {
@@ -1489,6 +1499,89 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
         },
       }),
   },
+
+  // ------------------------------------------------------------ fleet, sales, legal
+
+  fleetOperations: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The fleet in one read: standing time owed at customers' gates, recoverable costs not yet invoiced, " +
+          "runs that ended away from base with nothing to bring back, fuel per 100 km by vehicle, services due by " +
+          "the odometer, consumables per kilometre, owner-drivers whose cover has lapsed, and routes unusually long " +
+          "for their lane. Use for 'how is the fleet', 'what are we losing on the road'.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [detention, recoverables, empty, fuel, service, consumables, subcontractors, deviations] = await Promise.all([
+            detentionOwed(ctx.tenantId), unbilledRecoverables(ctx.tenantId), emptyRunning(ctx.tenantId), fuelConsumption(ctx.tenantId),
+            maintenanceDue(ctx.tenantId), consumablesByAsset(ctx.tenantId), subcontractorsAtRisk(ctx.tenantId), routeDeviations(ctx.tenantId),
+          ]);
+          return { detention, recoverables, emptyRunning: empty, fuel, serviceDue: service, consumables, subcontractorsAtRisk: subcontractors, routeDeviations: deviations };
+        },
+      }),
+  },
+  loadCheck: {
+    build: (ctx) =>
+      tool({
+        description: "Check a planned trip's peak gross weight against what the vehicle may carry, walking the stops in order.",
+        inputSchema: z.object({ tripId: z.string() }),
+        execute: async ({ tripId }) => (await checkLoad(ctx.tenantId, tripId)) ?? { note: "The vehicle has no tare or permissible weight recorded." },
+      }),
+  },
+  incidents: {
+    build: (ctx) =>
+      tool({
+        description: "Recent incidents on the road, and the insurer's pack for one — with what it still lacks.",
+        inputSchema: z.object({ incidentId: z.string().optional() }),
+        execute: async ({ incidentId }) => (incidentId ? incidentPack(ctx.tenantId, incidentId) : listIncidents(ctx.tenantId)),
+      }),
+  },
+  salesHealth: {
+    build: (ctx) =>
+      tool({
+        description: "Win rate this quarter against last, quotes being read and not answered, customers whose ordering has gone quiet, and money given away in discounts.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const now = new Date();
+          const q = 90 * 86_400_000;
+          return {
+            winRateNow: await winRate(ctx.tenantId, new Date(now.getTime() - q), now),
+            winRateBefore: await winRate(ctx.tenantId, new Date(now.getTime() - 2 * q), new Date(now.getTime() - q)),
+            readingNotAnswering: await readingNotAnswering(ctx.tenantId),
+            quietCustomers: await quietCustomers(ctx.tenantId, now),
+            discounts: await discountLeak(ctx.tenantId, new Date(now.getTime() - q), now),
+          };
+        },
+      }),
+  },
+  tenderReadiness: {
+    build: (ctx) =>
+      tool({
+        description: "What a tender desk or main contractor will ask to see — certificates, filings, licences, cover — and which are lapsed, expiring, or have no copy on file.",
+        inputSchema: z.object({}),
+        execute: async () => tenderReadiness(ctx.tenantId),
+      }),
+  },
+  sharedMemory: {
+    build: (ctx) =>
+      tool({
+        description: "What the business has already decided about the officers' findings — accepted and set aside, with reasons. Read this before suggesting something that may already have been settled.",
+        inputSchema: z.object({}),
+        execute: async () => sharedMemory(ctx.tenantId),
+      }),
+  },
+  industryPack: {
+    build: (ctx) =>
+      tool({
+        description: "What each officer watches for in this business's trade, and which findings the trade ranks first.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const { prisma } = await import("@/lib/db");
+          const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId }, select: { niche: true, turnaroundMode: true } });
+          return tenant ? { ...packFor(tenant.niche), turnaroundMode: tenant.turnaroundMode } : null;
+        },
+      }),
+  },
 };
 
 // ------------------------------------------------------------------ writing
@@ -2686,6 +2779,128 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
         execute: async ({ transactionId, currency, rateToBase }) => {
           await setDocumentCurrency({ tenantId: ctx.tenantId, transactionId, currency, rateToBase });
           return { ok: true };
+        },
+      }),
+  },
+
+  billDetention: {
+    capability: "invoice:create",
+    build: (ctx) =>
+      tool({
+        description: "Put a stop's billable standing time onto a DRAFT invoice for that customer, with the arrival and departure times on it.",
+        inputSchema: z.object({ stopId: z.string() }),
+        execute: async ({ stopId }) => {
+          const inv = await billDetention(ctx.tenantId, stopId);
+          return { invoiceId: inv.id, amountCents: inv.amountCents, status: inv.status };
+        },
+      }),
+  },
+  billRecoverables: {
+    capability: "invoice:create",
+    build: (ctx) =>
+      tool({
+        description: "Put a customer's recoverable costs (tolls, permits, materials for their job) onto one DRAFT invoice.",
+        inputSchema: z.object({ customerId: z.string() }),
+        execute: async ({ customerId }) => {
+          const r = await billRecoverables(ctx.tenantId, customerId);
+          return { invoiceId: r.invoice.id, lines: r.lines, totalCents: r.totalCents };
+        },
+      }),
+  },
+  markRecoverable: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description: "Mark a recorded cost as one the customer should pay back, or not.",
+        inputSchema: z.object({ expenseId: z.string(), recoverable: z.boolean() }),
+        execute: async ({ expenseId, recoverable }) => {
+          await setRecoverable(ctx.tenantId, expenseId, recoverable);
+          return { ok: true };
+        },
+      }),
+  },
+  recordVehicleService: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description: "Record that a vehicle was serviced at an odometer reading, so the next service is due from there.",
+        inputSchema: z.object({ assetId: z.string(), odometerKm: z.number().int() }),
+        execute: async ({ assetId, odometerKm }) => {
+          await recordService(ctx.tenantId, assetId, odometerKm);
+          return { ok: true };
+        },
+      }),
+  },
+  setVehicleSpec: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description: "Set a vehicle's service interval in km, last service reading, empty weight and permissible gross weight.",
+        inputSchema: z.object({
+          assetId: z.string(),
+          serviceIntervalKm: z.number().int().nullable(),
+          lastServiceKm: z.number().int().nullable().optional(),
+          tareKg: z.number().int().nullable().optional(),
+          maxGrossKg: z.number().int().nullable().optional(),
+        }),
+        execute: async ({ assetId, ...rest }) => {
+          await setServicePlan(ctx.tenantId, assetId, rest);
+          return { ok: true };
+        },
+      }),
+  },
+  setStopLoad: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description: "Set the weight loaded (positive) or dropped (negative) at a trip stop, in kg.",
+        inputSchema: z.object({ stopId: z.string(), loadKg: z.number().int().nullable() }),
+        execute: async ({ stopId, loadKg }) => {
+          await setStopLoad(ctx.tenantId, stopId, loadKg);
+          return { ok: true };
+        },
+      }),
+  },
+  reportIncident: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description: "Start an incident report at the scene: what happened, the other party, where. Says what the insurer will still need.",
+        inputSchema: z.object({
+          description: z.string(),
+          tripId: z.string().optional(),
+          assetId: z.string().optional(),
+          otherParty: z.string().optional(),
+          lat: z.number().optional(),
+          lng: z.number().optional(),
+        }),
+        execute: async (input) => {
+          const inc = await reportIncident({ tenantId: ctx.tenantId, driverId: ctx.membershipId ?? null, ...input });
+          return { incidentId: inc.id, stillNeeded: inc.missing };
+        },
+      }),
+  },
+  addToIncident: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description: "Add the other party's details or a fuller description to an incident.",
+        inputSchema: z.object({ incidentId: z.string(), otherParty: z.string().optional(), description: z.string().optional() }),
+        execute: async ({ incidentId, ...rest }) => {
+          const inc = await addToIncident(ctx.tenantId, incidentId, rest);
+          return { stillNeeded: inc.missing };
+        },
+      }),
+  },
+  setTurnaroundMode: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description: "Switch turnaround mode on or off. On, every officer's findings are reordered around cash and survival; optimisation waits.",
+        inputSchema: z.object({ on: z.boolean() }),
+        execute: async ({ on }) => {
+          await setTurnaroundMode(ctx.tenantId, on);
+          return { turnaroundMode: on };
         },
       }),
   },

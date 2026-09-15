@@ -25,6 +25,9 @@ import { runComplianceWatch } from "@/lib/agent/complianceWatch";
 import { buildBrief } from "@/lib/agent/chiefOfStaff";
 import { runEfficiency } from "@/lib/agent/officers/efficiency";
 import { runCEO } from "@/lib/agent/officers/ceo";
+import { runCOO } from "@/lib/agent/officers/coo";
+import { runSales } from "@/lib/agent/officers/sales";
+import { runLegal } from "@/lib/agent/officers/legal";
 import { realiseValue, recordPlatformCost } from "@/lib/core/valueLedger";
 import { runCFO } from "@/lib/agent/officers/cfo";
 
@@ -47,6 +50,10 @@ export interface TickOutcome {
   efficiencyObserved: number;
   /** Findings the CEO wrote — zero on every tick but its monthly one. */
   ceoObserved: number;
+  /** Findings from the COO, the sales consultant and the legal consultant. */
+  cooObserved: number;
+  salesObserved: number;
+  legalObserved: number;
   /** Accepted findings whose outcome the data could now verify. */
   valueRealised: number;
   raised: number;
@@ -98,6 +105,9 @@ export async function tickTenant(tenantId: string, now = new Date()): Promise<Ti
     efficiencyObserved: 0,
     ceoObserved: 0,
     valueRealised: 0,
+    cooObserved: 0,
+    salesObserved: 0,
+    legalObserved: 0,
     raised: 0,
   };
 
@@ -265,6 +275,19 @@ export async function tickTenant(tenantId: string, now = new Date()): Promise<Ti
   } catch (err) {
     console.error(`[agent:tick] ${tenantId} efficiency failed:`, err);
   }
+  for (const [key, run] of [
+    ["cooObserved", () => runCOO(tenantId)],
+    ["salesObserved", () => runSales(tenantId, now)],
+    ["legalObserved", () => runLegal(tenantId, now)],
+  ] as const) {
+    try {
+      const r = await run();
+      base[key] = r.observed;
+      if (r.failed.length > 0) console.error(`[agent:tick] ${tenantId} ${key} checks failed: ${r.failed.join(", ")}`);
+    } catch (err) {
+      console.error(`[agent:tick] ${tenantId} ${key} failed:`, err);
+    }
+  }
   try {
     const ceo = await runCEO(tenantId, { now });
     base.ceoObserved = ceo.observed;
@@ -328,6 +351,9 @@ export async function tickAllTenants(now = new Date()): Promise<TickOutcome[]> {
     efficiencyObserved: 0,
     ceoObserved: 0,
     valueRealised: 0,
+    cooObserved: 0,
+    salesObserved: 0,
+    legalObserved: 0,
         raised: 0,
         skipped: err instanceof Error ? err.message : "failed",
       });

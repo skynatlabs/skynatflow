@@ -14,7 +14,7 @@
 // others, and runEfficiency() says which ones failed.
 
 import { prisma } from "@/lib/db";
-import { observe, type ObserveParams } from "../observations";
+import { observe, handOff, type ObserveParams } from "../observations";
 import { consolidationReport, EFFORT_LABEL } from "@/lib/core/consolidation";
 import { routeWaste, siteTimeOverruns } from "@/lib/core/travelEfficiency";
 import { costRates, fleetCost, lastDays } from "@/lib/core/costing";
@@ -138,7 +138,46 @@ async function vehicleGaps(tenantId: string): Promise<Finding[]> {
     }));
 }
 
+/**
+ * Phase 163: a job done by hand, the same way, every month. Invoices typed
+ * for the same customer at the same amount three months running, with no
+ * recurring invoice set up — work the platform could be doing.
+ */
+async function manualRepeats(tenantId: string): Promise<Finding[]> {
+  const since = new Date(Date.now() - 120 * 86_400_000);
+  const invoices = await prisma.transaction.findMany({
+    where: { tenantId, type: "INVOICE", status: { notIn: ["DRAFT", "CANCELLED"] }, createdAt: { gte: since } },
+    select: { partyId: true, amountCents: true, createdAt: true, party: { select: { name: true } } },
+  });
+  const recurring = new Set((await prisma.recurringInvoice.findMany({ where: { tenantId, isActive: true }, select: { partyId: true } })).map((r) => r.partyId));
+  const by = new Map<string, typeof invoices>();
+  for (const i of invoices) {
+    const key = `${i.partyId}|${Math.round(i.amountCents / 100)}`;
+    by.set(key, [...(by.get(key) ?? []), i]);
+  }
+  const out: Finding[] = [];
+  for (const [key, list] of by) {
+    const partyId = key.split("|")[0];
+    if (recurring.has(partyId)) continue;
+    const months = new Set(list.map((i) => i.createdAt.toISOString().slice(0, 7)));
+    if (months.size < 3) continue;
+    out.push({
+      headline: `${list[0].party.name} has been invoiced the same amount by hand ${months.size} months running.`,
+      detail: "Somebody types this invoice every month. A recurring invoice would raise it on the day, every month, and nobody would have to remember.",
+      dedupeKey: `eff:manual-repeat:${partyId}`,
+      subjectType: "customer",
+      subjectId: partyId,
+      moneyCents: null,
+      confidence: 85,
+      evidence: [{ label: "Months", value: [...months].sort().join(", ") }],
+      proposedAction: "Turn it into a recurring invoice.",
+    });
+  }
+  return out.slice(0, 3);
+}
+
 const CHECKS: Array<{ name: string; run: (t: string) => Promise<Finding[] | Finding | null> }> = [
+  { name: "manualRepeats", run: manualRepeats },
   { name: "consolidation", run: consolidation },
   { name: "routeOrder", run: routeOrder },
   { name: "siteTime", run: siteTime },
@@ -161,7 +200,12 @@ export async function runEfficiency(tenantId: string): Promise<EfficiencyRun> {
       const findings = result === null ? [] : Array.isArray(result) ? result : [result];
       for (const f of findings) {
         const written = await observe({ ...f, tenantId, officer: "EFFICIENCY" });
-        if (written) observed++;
+        if (written) {
+          observed++;
+          if (f.dedupeKey.startsWith("eff:site-time:")) {
+            await handOff({ tenantId, observationId: written.id, to: "SALES", note: "Handed to sales: the next quote should carry the real hours." }).catch(() => undefined);
+          }
+        }
       }
     } catch (err) {
       failed.push(check.name);

@@ -95,7 +95,31 @@ export async function observe(params: ObserveParams): Promise<Observation | null
   });
   if (dismissed) return null;
 
-  const confidence = Math.max(0, Math.min(100, Math.round(params.confidence ?? 50)));
+  let confidence = Math.max(0, Math.min(100, Math.round(params.confidence ?? 50)));
+  let detail = params.detail ?? null;
+
+  // Shared memory: every officer reads what the owner decided about this
+  // subject, whoever raised it. A different officer arriving at a subject the
+  // owner set aside last month is not forbidden — it may be right — but it
+  // starts at half its confidence and says what was decided before.
+  if (params.subjectId) {
+    const setAside = await prisma.observation.findFirst({
+      where: {
+        tenantId: params.tenantId,
+        subjectId: params.subjectId,
+        status: ObservationStatus.DISMISSED,
+        decidedAt: { gte: new Date(Date.now() - 30 * 86_400_000) },
+        dedupeKey: { not: params.dedupeKey },
+      },
+      orderBy: { decidedAt: "desc" },
+      select: { officer: true, headline: true, decidedAt: true, decisionNote: true },
+    });
+    if (setAside) {
+      confidence = Math.round(confidence / 2);
+      const note = `You set aside a related point from the ${setAside.officer} on ${setAside.decidedAt!.toISOString().slice(0, 10)}: "${setAside.headline}"${setAside.decisionNote ? ` — ${setAside.decisionNote}` : ""}.`;
+      detail = detail ? `${detail}\n\n${note}` : note;
+    }
+  }
 
   return prisma.$transaction(async (tx) => {
     const superseded = await tx.observation.findFirst({
@@ -120,7 +144,7 @@ export async function observe(params: ObserveParams): Promise<Observation | null
         tenantId: params.tenantId,
         officer: params.officer,
         headline: params.headline.trim(),
-        detail: params.detail ?? null,
+        detail,
         moneyCents: params.moneyCents ?? null,
         confidence,
         urgentBy: params.urgentBy ?? null,
@@ -253,6 +277,29 @@ export async function expireStale(tenantId: string, now = new Date()): Promise<n
  * accepted and rejected, and stop proposing the kind of thing they keep
  * turning down.
  */
+/**
+ * The shared memory: everything decided, by every officer, newest first.
+ * What any officer — and the person asking the agent — can read before
+ * suggesting something the business has already settled.
+ */
+export async function sharedMemory(tenantId: string, take = 50) {
+  const rows = await prisma.observation.findMany({
+    where: { tenantId, status: { in: [ObservationStatus.ACTIONED, ObservationStatus.DISMISSED] } },
+    orderBy: { decidedAt: "desc" },
+    take,
+    select: { officer: true, handedTo: true, headline: true, status: true, decisionNote: true, decidedAt: true, subjectType: true, subjectId: true, moneyCents: true },
+  });
+  return rows.map((r) => ({
+    officer: r.handedTo ?? r.officer,
+    headline: r.headline,
+    outcome: r.status === ObservationStatus.ACTIONED ? ("accepted" as const) : ("set aside" as const),
+    why: r.decisionNote,
+    on: r.decidedAt,
+    about: r.subjectType && r.subjectId ? `${r.subjectType}:${r.subjectId}` : null,
+    moneyCents: r.moneyCents,
+  }));
+}
+
 export async function officerHistory(tenantId: string, officer: Officer, take = 20) {
   const rows = await prisma.observation.findMany({
     where: {

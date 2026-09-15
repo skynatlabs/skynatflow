@@ -21,6 +21,8 @@ import {
   type Prisma,
 } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { assertNotBlocked } from "./obligations";
+import { assertSubcontractorClear } from "./fleetOps";
 
 // ----------------------------------------------------------------- helpers
 
@@ -121,6 +123,10 @@ export interface StartTripParams {
   tenantId: string;
   assetId?: string | null;
   driverId?: string | null;
+  /** An owner-driver doing the run instead of an employee. */
+  subcontractorId?: string | null;
+  /** What the run is expected to be, for plan-versus-actual. */
+  plannedKm?: number | null;
   purpose?: TripPurpose;
   originText?: string | null;
   originLat?: number | null;
@@ -160,6 +166,14 @@ export async function startTrip(params: StartTripParams) {
   const { tenantId } = params;
   await requireOwnedIds(tenantId, { assetId: params.assetId, driverId: params.driverId });
 
+  // A lapsed PDP, licence or cover on the driver, the subcontractor or the
+  // vehicle is not a warning here — the run is refused. Planning ahead is
+  // allowed; the refusal is at the moment work would start.
+  if (!params.planOnly) {
+    if (params.driverId) await assertNotBlocked(tenantId, { membershipId: params.driverId });
+    if (params.subcontractorId) await assertSubcontractorClear(tenantId, params.subcontractorId);
+  }
+
   // A vehicle already underway cannot start a second run; the first one has
   // to end. Otherwise the same kilometres get counted twice.
   if (params.assetId && !params.planOnly) {
@@ -177,6 +191,8 @@ export async function startTrip(params: StartTripParams) {
       tenantId,
       assetId: params.assetId ?? null,
       driverId: params.driverId ?? null,
+      subcontractorId: params.subcontractorId ?? null,
+      plannedKm: params.plannedKm ?? null,
       purpose: params.purpose ?? TripPurpose.OTHER,
       status: params.planOnly ? TripStatus.PLANNED : TripStatus.UNDERWAY,
       originText: params.originText?.trim() || null,
@@ -257,6 +273,8 @@ export async function addStop(tenantId: string, tripId: string, stop: AddStopPar
 export async function beginTrip(tenantId: string, tripId: string, opts: { odometerStartKm?: number | null; at?: Date } = {}) {
   const trip = await requireTrip(tenantId, tripId);
   if (trip.status !== TripStatus.PLANNED) throw new Error("Only a planned trip can be started.");
+  if (trip.driverId) await assertNotBlocked(tenantId, { membershipId: trip.driverId });
+  if (trip.subcontractorId) await assertSubcontractorClear(tenantId, trip.subcontractorId);
   return prisma.trip.update({
     where: { id: tripId },
     data: {

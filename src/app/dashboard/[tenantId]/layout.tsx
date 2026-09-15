@@ -94,6 +94,7 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}/savings`, label: "Savings", icon: SparkleIcon },
     { href: `/dashboard/${tenantId}/value`, label: "Value", icon: SparkleIcon },
     { href: `/dashboard/${tenantId}/trips`, label: "Trips", icon: BoxIcon },
+    { href: `/dashboard/${tenantId}/fleet`, label: "Fleet", icon: BoxIcon },
     { href: `/dashboard/${tenantId}/this-week`, label: "This Week", icon: SignatureIcon },
     ...(niche.skin === "MEDICAL" || niche.skin === "SERVICES" ? [{ href: `/dashboard/${tenantId}/appointments`, label: "Appointments", icon: SignatureIcon }] : []),
     ...(niche.skin === "SERVICES" || niche.skin === "LOGISTICS" ? [{ href: `/dashboard/${tenantId}/job-cards`, label: "Job Cards", icon: CheckSquareIcon }] : []),
