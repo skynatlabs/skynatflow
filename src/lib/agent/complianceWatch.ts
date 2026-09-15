@@ -138,7 +138,13 @@ export async function runComplianceWatch(
       moneyCents: line.severity === "CRITICAL" ? 50_000_00 : line.severity === "HIGH" ? 15_000_00 : null,
       confidence: 100, // a date is a date
       urgentBy: line.actionByAt,
-      proposedAction: line.consequence,
+      // Not the consequence — describe() already put that in the headline, and
+      // repeating it under "Proposed" reads as the officer having nothing to
+      // suggest. What a person can actually do is deal with it and say so.
+      proposedAction:
+        line.recurrence !== "NONE"
+          ? "Deal with it, then mark it done on the compliance page — the next due date is set automatically."
+          : "Deal with it, then mark it done on the compliance page.",
       evidence: [
         { label: "Due", value: line.dueAt.toISOString().slice(0, 10) },
         ...(line.authority ? [{ label: "Required by", value: line.authority }] : []),

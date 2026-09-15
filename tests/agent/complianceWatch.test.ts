@@ -155,4 +155,24 @@ describe("runComplianceWatch", () => {
     expect(observed!.headline).toContain("2026-07-01");
     expect(observed!.headline).toContain("Notice has to be given");
   });
+
+  it("proposes something to do rather than repeating the consequence", async () => {
+    const consequence = "The company gets deregistered and the bank account freezes.";
+    await addObligation({
+      tenantId,
+      kind: "COMPLIANCE_FILING",
+      title: "Annual return",
+      dueAt: new Date("2026-05-20T12:00:00Z"),
+      consequence,
+    });
+
+    await runComplianceWatch(tenantId, JUNE);
+    const observed = await prisma.observation.findFirst({ where: { tenantId } });
+
+    // The consequence belongs in the headline, once. Under "Proposed" on the
+    // Brief it read as the officer having nothing to suggest.
+    expect(observed!.headline).toContain(consequence);
+    expect(observed!.proposedAction).not.toContain(consequence);
+    expect(observed!.proposedAction).toContain("mark it done");
+  });
 });

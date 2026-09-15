@@ -28,6 +28,7 @@ export function buildAdminaNav(params: {
       icon: <HouseIcon />,
       items: [
         { href: d, label: "Home" },
+        { href: `${d}/brief`, label: "The Brief" },
         { href: `${d}/agent`, label: "Agent" },
         { href: `${d}/today`, label: "Today" },
         { href: `${d}/this-week`, label: "This Week" },
@@ -120,6 +121,7 @@ export function buildAdminaNav(params: {
       items: [
         { href: `${d}/settings`, label: "All settings" },
         { href: `${d}/settings/appearance`, label: "Appearance" },
+        { href: `${d}/settings/officers`, label: "Officers" },
         { href: `${d}/settings/pdf-templates`, label: "PDF templates" },
         { href: `${d}/settings/payment-gateways`, label: "Payment gateways" },
         { href: `${d}/settings/automation`, label: "Follow-ups" },

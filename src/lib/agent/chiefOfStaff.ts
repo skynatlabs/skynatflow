@@ -108,22 +108,21 @@ function readEvidence(value: unknown): EvidenceItem[] {
 }
 
 /**
- * Build today's brief.
+ * Rank everything in the given states into one list, worst first.
  *
- * Does not send anything. It decides, marks what it raised, and returns it —
- * so the caller can render it, notify on it, or in a test simply read it.
+ * Shared by the two callers because they want the same judgement and
+ * different side effects: the tick wants what is NEW enough to interrupt
+ * somebody, the screen wants what is CURRENTLY on the table. Ranking them
+ * differently would mean the page disagreed with the notification about what
+ * matters most, which is the one thing a coordination layer cannot do.
  */
-export async function buildBrief(
+async function rank(
   tenantId: string,
-  opts: { now?: Date; budget?: number } = {}
-): Promise<Brief> {
-  const now = opts.now ?? new Date();
-  const budget = opts.budget ?? DAILY_ATTENTION_BUDGET;
-
-  await expireStale(tenantId, now);
-
+  statuses: ObservationStatus[],
+  now: Date
+): Promise<RankedItem[]> {
   const open = await prisma.observation.findMany({
-    where: { tenantId, status: ObservationStatus.OPEN },
+    where: { tenantId, status: { in: statuses } },
     orderBy: { createdAt: "desc" },
     take: 300,
   });
@@ -177,13 +176,62 @@ export async function buildBrief(
   }
 
   ranked.sort((a, b) => b.score - a.score);
+  return ranked;
+}
 
+function briefOf(ranked: RankedItem[], budget: number, now: Date): Brief {
   const items = ranked.slice(0, budget);
   const heldBack = ranked.length - items.length;
-
-  await markRaised(items.flatMap((i) => [i.observationId, ...i.mergedIds]), now);
-
   return { items, heldBack, headline: headlineFor(items, heldBack), generatedAt: now };
+}
+
+/**
+ * Build today's brief.
+ *
+ * Does not send anything. It decides, marks what it raised, and returns it —
+ * so the caller can render it, notify on it, or in a test simply read it.
+ *
+ * Deliberately reads only OPEN, so a second call the same day returns nothing
+ * new. This is the interrupting path: raising the same finding twice is how a
+ * proactive feature gets muted. To RENDER the brief, use currentBrief().
+ */
+export async function buildBrief(
+  tenantId: string,
+  opts: { now?: Date; budget?: number } = {}
+): Promise<Brief> {
+  const now = opts.now ?? new Date();
+  const budget = opts.budget ?? DAILY_ATTENTION_BUDGET;
+
+  await expireStale(tenantId, now);
+
+  const ranked = await rank(tenantId, [ObservationStatus.OPEN], now);
+  const brief = briefOf(ranked, budget, now);
+
+  await markRaised(brief.items.flatMap((i) => [i.observationId, ...i.mergedIds]), now);
+  return brief;
+}
+
+/**
+ * What is on the table right now, for a screen rather than a notification.
+ *
+ * Reads raised and unraised together and changes nothing. A page that called
+ * buildBrief() would consume its own contents — the first render would mark
+ * everything raised and the second would show an empty desk, which is a
+ * memorable way to lose a CFO's findings — and a page that read only RAISED
+ * would be blank until the next tick, so a business that signed up an hour
+ * ago would meet its new executives with nothing to say.
+ */
+export async function currentBrief(
+  tenantId: string,
+  opts: { now?: Date; budget?: number } = {}
+): Promise<Brief> {
+  const now = opts.now ?? new Date();
+  const ranked = await rank(
+    tenantId,
+    [ObservationStatus.OPEN, ObservationStatus.RAISED],
+    now
+  );
+  return briefOf(ranked, opts.budget ?? DAILY_ATTENTION_BUDGET, now);
 }
 
 function headlineFor(items: RankedItem[], heldBack: number): string {

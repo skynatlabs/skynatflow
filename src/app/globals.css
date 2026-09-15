@@ -672,6 +672,15 @@ body:has(.kb-shell[data-skin="admina"]:not([data-theme="dark"])) { background: #
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
+/* Same surface as .kb-card without the lift — for a box that sits inside a
+   page rather than being one of its tiles. It was already in use on the
+   dashboard's command box while undefined, so that box rendered flat. */
+.kb-panel {
+  background: var(--kb-panel);
+  border: 1px solid var(--kb-panel-border);
+  border-radius: 10px;
+}
+
 /* Kept as an alias so existing markup using .kb-glass doesn't need touching
    everywhere at once — same look as .kb-card now. */
 .kb-glass {
@@ -716,6 +725,27 @@ body:has(.kb-shell[data-skin="admina"]:not([data-theme="dark"])) { background: #
   background: var(--kb-panel);
   border: 1px solid var(--kb-panel-border);
   color: var(--kb-text);
+}
+
+/* Form controls.
+   kb-input was in use on ten pages before it was ever defined, so every
+   select and text field on them fell back to raw browser chrome inside an
+   otherwise themed panel. The values here match what the untyped inputs
+   elsewhere already spell out inline. */
+.kb-input {
+  border-radius: 6px;
+  border: 1px solid var(--kb-panel-border);
+  background: var(--kb-bg);
+  color: var(--kb-text);
+  padding: 8px;
+}
+.kb-input:focus-visible {
+  outline: 2px solid var(--kb-accent-a);
+  outline-offset: 1px;
+}
+.kb-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* Glossy gradient panel — richer, saturated depth for hero/feature

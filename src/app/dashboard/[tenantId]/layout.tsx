@@ -76,6 +76,7 @@ export default async function TenantShellLayout({
 
   const nav = [
     { href: `/dashboard/${tenantId}`, label: "Home", icon: HomeIcon },
+    { href: `/dashboard/${tenantId}/brief`, label: "The Brief", icon: SparkleIcon },
     { href: `/dashboard/${tenantId}/agent`, label: "Agent", icon: AgentIcon },
     { href: `/dashboard/${tenantId}/today`, label: "Today", icon: SignatureIcon },
     { href: `/dashboard/${tenantId}/inbox`, label: "Inbox", icon: SignatureIcon, badge: unread || undefined },
@@ -120,6 +121,7 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}/staff`, label: "Staff & Roles", icon: UserCogIcon },
     { href: `/dashboard/${tenantId}/settings`, label: "Settings", icon: UserCogIcon },
     { href: `/dashboard/${tenantId}/settings/appearance`, label: "Appearance", icon: UserCogIcon },
+    { href: `/dashboard/${tenantId}/settings/officers`, label: "Officers", icon: UserCogIcon },
   ];
 
   const sidebarContent = (

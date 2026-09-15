@@ -20,6 +20,7 @@ import {
 } from "../../src/lib/agent/observations";
 import {
   buildBrief,
+  currentBrief,
   approvalQueue,
   DAILY_ATTENTION_BUDGET,
 } from "../../src/lib/agent/chiefOfStaff";
@@ -333,6 +334,82 @@ describe("the chief of staff", () => {
 
     const second = await buildBrief(tenantId);
     expect(second.items).toHaveLength(0);
+  });
+});
+
+// --------------------------------------------------------- the same brief
+//
+// Two callers, one judgement. buildBrief() is the interrupting path and must
+// not raise the same thing twice; currentBrief() is the screen and must not
+// consume what it renders. A page built on buildBrief() would show its
+// findings once and then an empty desk forever, which is a memorable way to
+// lose a CFO's work.
+
+describe("the brief on a screen", () => {
+  const base = {
+    headline: "Something is wrong.",
+    dedupeKey: "cfo:thing",
+    confidence: 90,
+  };
+
+  it("does not consume itself when rendered twice", async () => {
+    await observe({ tenantId, officer: "CFO", ...base, moneyCents: 10_000_00 });
+
+    const first = await currentBrief(tenantId);
+    const second = await currentBrief(tenantId);
+
+    expect(first.items).toHaveLength(1);
+    expect(second.items).toHaveLength(1);
+    expect(second.items[0].observationId).toBe(first.items[0].observationId);
+  });
+
+  it("still shows what the tick already raised", async () => {
+    await observe({ tenantId, officer: "CFO", ...base, moneyCents: 10_000_00 });
+    await buildBrief(tenantId); // the tick gets there first and marks it raised
+
+    // Reading only RAISED would leave a workspace blank until its first tick;
+    // reading only OPEN would blank it the moment the tick ran. Both.
+    const screen = await currentBrief(tenantId);
+    expect(screen.items).toHaveLength(1);
+  });
+
+  it("drops a finding the owner has decided on", async () => {
+    await observe({ tenantId, officer: "CFO", ...base, moneyCents: 10_000_00 });
+    const shown = await currentBrief(tenantId);
+
+    await decide({ tenantId, observationId: shown.items[0].observationId, actioned: true });
+
+    expect((await currentBrief(tenantId)).items).toHaveLength(0);
+  });
+
+  it("ranks identically to the notification path", async () => {
+    await observe({
+      tenantId, officer: "CFO", headline: "Small.", dedupeKey: "a",
+      moneyCents: 500_00, confidence: 90,
+    });
+    await observe({
+      tenantId, officer: "COO", headline: "Large.", dedupeKey: "b",
+      moneyCents: 400_000_00, confidence: 90,
+    });
+
+    // The screen disagreeing with the notification about what matters most is
+    // the one thing a coordination layer cannot do.
+    const screen = await currentBrief(tenantId);
+    const tick = await buildBrief(tenantId);
+    expect(screen.items.map((i) => i.headline)).toEqual(tick.items.map((i) => i.headline));
+  });
+
+  it("holds the same number back as the tick would", async () => {
+    for (let i = 0; i < DAILY_ATTENTION_BUDGET + 3; i++) {
+      await observe({
+        tenantId, officer: "CFO", headline: `Thing ${i}.`,
+        dedupeKey: `k${i}`, moneyCents: (i + 1) * 1_000_00, confidence: 80,
+      });
+    }
+
+    const screen = await currentBrief(tenantId);
+    expect(screen.items).toHaveLength(DAILY_ATTENTION_BUDGET);
+    expect(screen.heldBack).toBe(3);
   });
 });
 
