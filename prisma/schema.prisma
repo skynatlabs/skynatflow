@@ -216,6 +216,9 @@ model Tenant {
   journalEntries    JournalEntry[]
   accountingPeriods AccountingPeriod[]
 
+  bankAccounts        BankAccount[]
+  reconciliationRules ReconciliationRule[]
+
   @@map("tenants")
 }
 
@@ -1530,6 +1533,9 @@ model Account {
   lines     JournalLine[]
   createdAt DateTime      @default(now())
 
+  bankAccounts        BankAccount[]
+  reconciliationRules ReconciliationRule[]
+
   @@unique([tenantId, code])
   @@index([tenantId, type])
   @@map("accounts")
@@ -1576,6 +1582,8 @@ model JournalEntry {
   byAgent     Boolean  @default(false)
   createdAt   DateTime @default(now())
 
+  bankLines BankTransaction[]
+
   @@index([tenantId, entryDate])
   @@index([tenantId, sourceType, sourceId])
   @@map("journal_entries")
@@ -1615,6 +1623,112 @@ model AccountingPeriod {
   @@unique([tenantId, year, month])
   @@index([tenantId])
   @@map("accounting_periods")
+}
+
+// ---------------------------------------------------------------------
+// Bank accounts, statement lines, and the matching between them.
+//
+// Reconciliation is the most-loved feature in this category and the one
+// place an agent genuinely does the job better than a person — not because
+// it is cleverer, but because it is willing to consider four hundred
+// candidate matches for one statement line and a person is not.
+//
+// The design point: a proposed match is never applied on its own. Each one
+// carries a confidence and a stated reason, the owner approves a screenful
+// at a time, and what they overrule becomes a rule. An agent that silently
+// reconciled would be faster and completely untrustworthy; the value is in
+// doing the looking, not in taking the decision.
+// ---------------------------------------------------------------------
+
+model BankAccount {
+  id                        String    @id @default(cuid())
+  tenantId                  String
+  tenant                    Tenant    @relation(fields: [tenantId], references: [id])
+  name                      String
+  // Last four digits only. There is no reason this app needs the rest, and
+  // every reason not to hold it.
+  last4                     String?
+  // The ledger account this bank account posts through. Without the link a
+  // reconciled statement would balance against nothing.
+  accountId                 String
+  account                   Account   @relation(fields: [accountId], references: [id])
+  currency                  String    @default("ZAR")
+  isActive                  Boolean   @default(true)
+  // What the statement said the balance was at the last import, so a
+  // divergence between the bank and the books is visible rather than
+  // inferred.
+  lastStatementBalanceCents Int?
+  lastStatementAt           DateTime?
+  createdAt                 DateTime  @default(now())
+
+  transactions BankTransaction[]
+
+  @@index([tenantId])
+  @@map("bank_accounts")
+}
+
+enum BankLineStatus {
+  UNMATCHED
+  MATCHED
+  // Deliberately set aside — an internal transfer, a duplicate the bank
+  // reversed. Kept rather than deleted so it does not reappear on the next
+  // import looking new.
+  IGNORED
+}
+
+model BankTransaction {
+  id             String         @id @default(cuid())
+  bankAccountId  String
+  bankAccount    BankAccount    @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  tenantId       String
+  postedOn       DateTime
+  description    String
+  reference      String?
+  // Signed the way a statement reads: positive is money in, negative is
+  // money out. Storing it unsigned with a separate direction flag reads
+  // worse at every call site and invites the sign to be lost.
+  amountCents    Int
+  balanceCents   Int?
+  // Stable identity for a line, so re-importing an overlapping statement
+  // does not duplicate it. Either the bank's own id or a hash of the line.
+  fingerprint    String
+  status         BankLineStatus @default(UNMATCHED)
+  // What this line was matched to, once approved.
+  matchedEntryId String?
+  matchedEntry   JournalEntry?  @relation(fields: [matchedEntryId], references: [id])
+  matchedAt      DateTime?
+  matchedByAgent Boolean        @default(false)
+  note           String?
+  importedAt     DateTime       @default(now())
+
+  @@unique([bankAccountId, fingerprint])
+  @@index([tenantId, status])
+  @@index([bankAccountId, postedOn])
+  @@map("bank_transactions")
+}
+
+// What the business taught us by correcting a match.
+//
+// The whole reason an agent improves at this rather than being equally
+// wrong every month: "anything from SASOL is vehicle and fuel" is learned
+// once from a correction and applied forever after.
+model ReconciliationRule {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  // Case-insensitive substring of the statement description.
+  matchText      String
+  accountId      String
+  account        Account  @relation(fields: [accountId], references: [id])
+  // How many times this rule has been applied without being overruled. A
+  // rule that keeps getting corrected should stop being trusted.
+  timesApplied   Int      @default(0)
+  timesOverruled Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  @@unique([tenantId, matchText])
+  @@index([tenantId])
+  @@map("reconciliation_rules")
 }
 
 // ---------------------------------------------------------------------
