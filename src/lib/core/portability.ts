@@ -95,6 +95,13 @@ const EXPORTS: Array<{
   { key: "domain_events", label: "Business event log", direct: true, fetch: (t) => prisma.domainEvent.findMany({ where: { tenantId: t } }) },
   { key: "observations", label: "What the officers noticed", direct: true, fetch: (t) => prisma.observation.findMany({ where: { tenantId: t } }) },
   { key: "officer_autonomy", label: "What each officer is allowed to do", direct: true, fetch: (t) => prisma.officerAutonomy.findMany({ where: { tenantId: t } }) },
+  { key: "trips", label: "Trips", direct: true, fetch: (t) => prisma.trip.findMany({ where: { tenantId: t } }) },
+  { key: "trip_stops", label: "Trip stops", direct: true, fetch: (t) => prisma.tripStop.findMany({ where: { tenantId: t } }) },
+  // A person's movement, exported to the business that employs them and
+  // reported on by nothing.
+  { key: "trip_points", label: "Trip positions", direct: false, fetch: (t) => prisma.tripPoint.findMany({ where: { trip: { tenantId: t } } }) },
+  { key: "expense_lines", label: "Slip line items", direct: false, fetch: (t) => prisma.expenseLine.findMany({ where: { expense: { tenantId: t } } }) },
+  { key: "value_entries", label: "The value ledger", direct: true, fetch: (t) => prisma.valueEntry.findMany({ where: { tenantId: t } }) },
   { key: "wholesale_connections", label: "Trading connections", direct: false, fetch: (t) => prisma.wholesaleConnection.findMany({ where: { OR: [{ supplierTenantId: t }, { buyerTenantId: t }] } }) },
 ];
 

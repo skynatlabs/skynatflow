@@ -271,11 +271,12 @@ export async function backfillLedger(
   const expenses = await prisma.expense.findMany({
     where: {
       tenantId,
-      // A rejected expense was never paid, so it never hit the books.
-      status: { not: "REJECTED" },
-      ...(dateFilter ? { createdAt: dateFilter } : {}),
+      // A rejected expense was never paid, and a duplicate was paid once and
+      // is already here under its first arrival. Neither touches the books.
+      status: { notIn: ["REJECTED", "DUPLICATE"] },
+      ...(dateFilter ? { spentOn: dateFilter } : {}),
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: { spentOn: "asc" },
   });
 
   for (const exp of expenses) {
@@ -283,7 +284,9 @@ export async function backfillLedger(
       result.skippedAlreadyPosted++;
       continue;
     }
-    if (await isPeriodClosed(tenantId, exp.createdAt)) {
+    // The day the money left, not the day the slip was typed in. A January
+    // fuel bill photographed in March belongs in January.
+    if (await isPeriodClosed(tenantId, exp.spentOn)) {
       result.skippedClosedPeriod++;
       continue;
     }
@@ -293,20 +296,34 @@ export async function backfillLedger(
     // stake. Booking drawings as an expense is the single most common reason
     // a profitable business appears to make nothing, and this is the one
     // place the distinction can actually be enforced.
-    const debitAccount = exp.isOwnerDrawing
-      ? SYSTEM_ACCOUNTS.drawings
-      : accountForCategory(exp.category, exp.descriptionText);
+    //
+    // Otherwise: the account somebody coded it to, if anybody did, and a
+    // guess from the words on it if not.
+    const debitLine = exp.isOwnerDrawing
+      ? { accountCode: SYSTEM_ACCOUNTS.drawings }
+      : exp.accountId
+        ? { accountId: exp.accountId }
+        : { accountCode: accountForCategory(exp.category, exp.descriptionText) };
+
+    // Tax shown on a slip is money the business gets back, so it goes to the
+    // tax control account rather than being buried in the cost. Drawings
+    // carry no reclaimable tax, whatever the slip says.
+    const tax =
+      !exp.isOwnerDrawing && exp.taxCents && exp.taxCents > 0 && exp.taxCents < exp.amountCents
+        ? exp.taxCents
+        : 0;
 
     try {
       await postEntry({
         tenantId,
-        entryDate: exp.createdAt,
+        entryDate: exp.spentOn,
         memo: exp.descriptionText,
         source: JournalSource.EXPENSE,
         sourceType: "expense",
         sourceId: exp.id,
         lines: [
-          { accountCode: debitAccount, debitCents: exp.amountCents },
+          { ...debitLine, debitCents: exp.amountCents - tax },
+          ...(tax > 0 ? [{ accountCode: SYSTEM_ACCOUNTS.salesTax, debitCents: tax }] : []),
           { accountCode: SYSTEM_ACCOUNTS.bank, creditCents: exp.amountCents },
         ],
       });
@@ -349,7 +366,7 @@ export async function ledgerCoverage(tenantId: string): Promise<LedgerCoverage> 
       select: { id: true },
     }),
     prisma.expense.findMany({
-      where: { tenantId, status: { not: "REJECTED" } },
+      where: { tenantId, status: { notIn: ["REJECTED", "DUPLICATE"] } },
       select: { id: true },
     }),
     prisma.journalEntry.findMany({

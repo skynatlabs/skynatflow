@@ -29,6 +29,8 @@ import { spendSplit } from "@/lib/core/expenses";
 import { retentionHeld } from "@/lib/core/progressBilling";
 import { profitAndLoss } from "@/lib/core/financialReports";
 import { supplierPerformance } from "@/lib/core/supplierPerformance";
+import { captureLedger } from "@/lib/core/captureLedger";
+import { possibleDuplicates } from "@/lib/core/expenses";
 
 type Finding = Omit<ObserveParams, "tenantId" | "officer">;
 
@@ -323,6 +325,60 @@ export interface CfoRun {
   failed: string[];
 }
 
+/**
+ * Phase 184: how much of what left the bank is actually recorded.
+ *
+ * Every figure the CFO quotes is built on recorded costs, so the first thing
+ * to say about them is what fraction of the costs that is. A cost figure on
+ * two thirds of the costs is confidently wrong, and this is the check that
+ * says so before anything else does.
+ */
+async function captureGap(tenantId: string): Promise<Finding | null> {
+  const ledger = await captureLedger(tenantId);
+  if (!ledger.hasBankFeed || ledger.coveragePercent === null) return null;
+  if (ledger.coveragePercent >= 85 || ledger.unexplainedCents < 2_000_00) return null;
+  return {
+    headline: `${rands(ledger.unexplainedCents)} left the bank last month that nobody recorded — only ${ledger.coveragePercent}% of spending is in the books.`,
+    detail:
+      `${ledger.unexplainedCount} bank lines going out match no expense, slip or bill. Every margin and cost-per-kilometre figure I give you is built on the ${ledger.coveragePercent}% that is recorded, so treat them as floors, not facts, until this closes.`,
+    dedupeKey: "cfo:capture-gap",
+    moneyCents: ledger.unexplainedCents,
+    confidence: 95,
+    urgentBy: null,
+    evidence: [
+      { label: "Recorded", value: rands(ledger.recordedCents) },
+      { label: "Unexplained", value: `${rands(ledger.unexplainedCents)} across ${ledger.unexplainedCount} lines` },
+      ...ledger.gaps.slice(0, 3).map((g) => ({ label: "Gap", value: g.label })),
+    ],
+    proposedAction:
+      "Work through the unmatched bank lines on the banking page — most are a slip somebody still has. Then have staff photograph slips at the till; it takes less time than the reconciliation does.",
+  };
+}
+
+/** Phase 177: the same spend, arrived twice, waiting for someone to say so. */
+async function duplicateSpend(tenantId: string): Promise<Finding | null> {
+  const pairs = await possibleDuplicates(tenantId, 10);
+  if (pairs.length === 0) return null;
+  const total = pairs.reduce((s, p) => s + p.expense.amountCents, 0);
+  if (total < 500_00) return null;
+  const top = pairs[0];
+  return {
+    headline: `${pairs.length} cost${pairs.length === 1 ? "" : "s"} worth ${rands(total)} look like second copies of something already recorded.`,
+    detail: `Same supplier, same amount, same day — the shape a slip takes when it is photographed and then arrives again on the statement. ${top.expense.descriptionText} (${rands(top.expense.amountCents)}) is the largest. Counting them twice overstates costs by ${rands(total)}.`,
+    dedupeKey: `cfo:duplicate:${top.expense.id}`,
+    subjectType: "expense",
+    subjectId: top.expense.id,
+    moneyCents: total,
+    confidence: 70,
+    urgentBy: null,
+    evidence: pairs.slice(0, 4).map((p) => ({
+      label: p.expense.descriptionText,
+      value: `${rands(p.expense.amountCents)} on ${p.expense.spentOn.toISOString().slice(0, 10)}${p.lookalike ? `, like ${p.lookalike.descriptionText}` : ""}`,
+    })),
+    proposedAction: "Confirm each pair on the expenses page — one click marks the copy, one click keeps both.",
+  };
+}
+
 const CHECKS: Array<{ name: string; run: (t: string) => Promise<Finding | null> }> = [
   { name: "booksBehind", run: booksBehind },
   { name: "bankUnexplained", run: bankUnexplained },
@@ -333,6 +389,8 @@ const CHECKS: Array<{ name: string; run: (t: string) => Promise<Finding | null> 
   { name: "retentionOutstanding", run: retentionOutstanding },
   { name: "unclassifiedSpend", run: unclassifiedSpend },
   { name: "supplierDrift", run: supplierDrift },
+  { name: "captureGap", run: captureGap },
+  { name: "duplicateSpend", run: duplicateSpend },
 ];
 
 /**

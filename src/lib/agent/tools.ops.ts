@@ -21,6 +21,23 @@ import {
 } from "@/lib/core/catalog";
 import { openTill, findItemByBarcode } from "@/lib/core/pos";
 import { logFuel, getFuelAnomalies } from "@/lib/core/fuel";
+import { TripPurpose, TripStatus } from "@prisma/client";
+import { startTrip, endTrip, addStop, listTrips, getTrip } from "@/lib/core/trips";
+import {
+  assetCosts,
+  fleetCost,
+  jobMargins,
+  customerMargins,
+  laneMargins,
+  lastDays,
+  setCostRate,
+  setAssetCapacity,
+} from "@/lib/core/costing";
+import { captureLedger } from "@/lib/core/captureLedger";
+import { travelSummary } from "@/lib/core/travelEfficiency";
+import { consolidationReport, EFFORT_LABEL } from "@/lib/core/consolidation";
+import { valueSummary } from "@/lib/core/valueLedger";
+import { submitExpense, markDuplicate, keepBoth, possibleDuplicates } from "@/lib/core/expenses";
 import { listConnectionsForTenant } from "@/lib/core/connections";
 import { listThreadsForMember, sendMessage, listMessages } from "@/lib/core/messaging";
 import {
@@ -1188,6 +1205,228 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
         }),
       }),
   },
+
+  // ------------------------------------------------------------ the cost spine
+  //
+  // Everything below reads the machinery that makes "what does this actually
+  // cost" answerable: trips, cost per unit of capacity, margin per job and per
+  // lane, how much spend is captured at all, and what the officers have found
+  // and been worth. The agent gets these as tools so a person can ask in
+  // their own words what the pages show.
+
+  tripLog: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Recent trips: who drove what where, how far, and what each stopped for. Use for " +
+          "'where was the bakkie this week', 'how many runs to Durban', or before costing a job.",
+        inputSchema: z.object({
+          status: z.enum(["PLANNED", "UNDERWAY", "DONE", "CANCELLED"]).optional(),
+          days: z.number().int().min(1).max(365).optional().describe("how far back, default 30"),
+        }),
+        execute: async ({ status, days }) => {
+          const trips = await listTrips(ctx.tenantId, {
+            status: status as TripStatus | undefined,
+            since: new Date(Date.now() - (days ?? 30) * 86_400_000),
+          });
+          return trips.map((t) => ({
+            id: t.id,
+            status: t.status,
+            purpose: t.purpose,
+            vehicle: t.asset?.name ?? null,
+            driver: t.driver?.user.name ?? t.driver?.user.email ?? null,
+            from: t.originText,
+            to: t.destinationText,
+            lane: t.laneKey,
+            startedAt: t.startedAt?.toISOString() ?? null,
+            endedAt: t.endedAt?.toISOString() ?? null,
+            distanceKm: t.distanceKm,
+            distanceFrom: t.distanceSource,
+            stops: t.stops.map((s) => s.party?.name ?? s.label ?? s.addressText ?? `stop ${s.sequence + 1}`),
+            costsRecorded: t._count.expenses,
+          }));
+        },
+      }),
+  },
+
+  tripDetail: {
+    build: (ctx) =>
+      tool({
+        description: "One trip in full: stops with arrival and departure times, proof, and the costs tagged to it.",
+        inputSchema: z.object({ tripId: z.string() }),
+        execute: async ({ tripId }) => {
+          const t = await getTrip(ctx.tenantId, tripId);
+          if (!t) return { error: "No such trip." };
+          return {
+            ...t,
+            expenses: t.expenses.map((e) => ({ id: e.id, what: e.descriptionText, amountCents: e.amountCents, on: e.spentOn.toISOString().slice(0, 10) })),
+          };
+        },
+      }),
+  },
+
+  costPerUnit: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What each vehicle or machine costs per kilometre, hour or day, all in — fuel, upkeep, " +
+          "insurance and licences, depreciation, the driver's hours — with how sure the figure is. " +
+          "Also the fleet as a whole and what share of revenue it is. Use for 'what does the truck " +
+          "cost per km', 'is the second van worth it', 'how much do we spend on vehicles'.",
+        inputSchema: z.object({
+          days: z.number().int().min(7).max(365).optional().describe("period, default 30"),
+        }),
+        execute: async ({ days }) => {
+          const period = lastDays(days ?? 30);
+          const [assets, fleet] = await Promise.all([assetCosts(ctx.tenantId, period), fleetCost(ctx.tenantId, period)]);
+          return {
+            fleet: {
+              vehicles: fleet.vehicles,
+              totalCents: fleet.totalCents,
+              km: fleet.km,
+              perKmCents: fleet.perKmCents,
+              percentOfRevenue: fleet.percentOfRevenue,
+            },
+            assets: assets.map((a) => ({
+              assetId: a.assetId,
+              name: a.name,
+              unit: a.capacityUnit,
+              totalCents: a.totalCents,
+              breakdown: { direct: a.directCents, cover: a.obligationCents, depreciation: a.depreciationCents, labour: a.labourCents },
+              units: a.units,
+              unitsFrom: a.unitsSource,
+              costPerUnitCents: a.costPerUnitCents,
+              confidence: a.confidence,
+              trips: a.tripCount,
+            })),
+          };
+        },
+      }),
+  },
+
+  marginReport: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What work actually earned after the goods on it, the costs tagged to it and its share of " +
+          "the trips that served it — per job, per customer or per lane. Worst first. Use for 'which " +
+          "customers lose us money', 'is the Durban run worth it', 'what did that job make'.",
+        inputSchema: z.object({
+          by: z.enum(["job", "customer", "lane"]),
+          days: z.number().int().min(7).max(365).optional().describe("period, default 90"),
+        }),
+        execute: async ({ by, days }) => {
+          const period = lastDays(days ?? 90);
+          if (by === "job") return (await jobMargins(ctx.tenantId, period)).slice(0, 40);
+          if (by === "customer") return (await customerMargins(ctx.tenantId, period)).slice(0, 40);
+          return (await laneMargins(ctx.tenantId, period)).slice(0, 40);
+        },
+      }),
+  },
+
+  captureCoverage: {
+    build: (ctx) =>
+      tool({
+        description:
+          "How much of the money that left the bank is actually recorded, and where the gaps are: " +
+          "vehicles that moved with no fuel recorded, trips with no distance, spend tagged to nothing. " +
+          "Read this before trusting any cost figure. Use for 'are we recording everything', " +
+          "'what's missing from the books'.",
+        inputSchema: z.object({
+          days: z.number().int().min(7).max(365).optional().describe("period, default 30"),
+        }),
+        execute: async ({ days }) => {
+          const to = new Date();
+          return captureLedger(ctx.tenantId, { from: new Date(to.getTime() - (days ?? 30) * 86_400_000), to });
+        },
+      }),
+  },
+
+  travelEfficiencyReport: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Time between jobs, time on site against time quoted, and days whose stops would have been " +
+          "shorter in another order. Use for 'are we wasting time driving', 'which jobs overrun'.",
+        inputSchema: z.object({
+          days: z.number().int().min(7).max(365).optional().describe("period, default 30"),
+        }),
+        execute: async ({ days }) => {
+          const to = new Date();
+          return travelSummary(ctx.tenantId, { from: new Date(to.getTime() - (days ?? 30) * 86_400_000), to });
+        },
+      }),
+  },
+
+  consolidationSavings: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What the consolidation engine found: the same goods bought from several suppliers at " +
+          "several prices, runs to one area that should have been one, overlapping subscriptions, " +
+          "frequent small buys that would be cheaper monthly, scattered insurance. Each with a rand " +
+          "figure a year, the effort it would take, and how sure it is. Also every recurring payment " +
+          "with its annual cost. Use for 'where can we save', 'what are we paying twice for', " +
+          "'list our subscriptions'.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const r = await consolidationReport(ctx.tenantId);
+          return {
+            weightedAnnualCents: r.weightedAnnualCents,
+            totalAnnualCents: r.totalAnnualCents,
+            savings: r.savings.map((s) => ({
+              kind: s.kind,
+              headline: s.headline,
+              detail: s.detail,
+              annualCents: s.annualCents,
+              effort: EFFORT_LABEL[s.effort],
+              confidence: s.confidence,
+              evidence: s.evidence,
+              proposedAction: s.proposedAction,
+            })),
+            recurring: r.recurring,
+            sourcesThatFailed: r.failed,
+          };
+        },
+      }),
+  },
+
+  valueLedgerReport: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The value ledger: what the officers found and put in front of the owner, what the owner " +
+          "accepted, what has since been verified in the data, and what the platform cost — by month " +
+          "and by officer. Use for 'what has this actually saved us', 'is it paying for itself'.",
+        inputSchema: z.object({
+          months: z.number().int().min(1).max(12).optional().describe("default 3"),
+        }),
+        execute: async ({ months }) => valueSummary(ctx.tenantId, { months: months ?? 3 }),
+      }),
+  },
+
+  possibleDuplicateCosts: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Costs that look like a second arrival of something already recorded — same supplier, " +
+          "amount and day — waiting for someone to confirm or keep both.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const pairs = await possibleDuplicates(ctx.tenantId);
+          return pairs.map((p) => ({
+            expenseId: p.expense.id,
+            what: p.expense.descriptionText,
+            amountCents: p.expense.amountCents,
+            on: p.expense.spentOn.toISOString().slice(0, 10),
+            status: p.expense.status,
+            looksLike: p.lookalike
+              ? { expenseId: p.lookalike.id, what: p.lookalike.descriptionText, on: p.lookalike.spentOn.toISOString().slice(0, 10) }
+              : null,
+          }));
+        },
+      }),
+  },
 };
 
 // ------------------------------------------------------------------ writing
@@ -2108,6 +2347,237 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
           if (Number.isNaN(dueAt.getTime())) throw new Error("Couldn't read that date.");
           await rescheduleObligation({ tenantId: ctx.tenantId, obligationId, dueAt });
           return { ok: true, dueOn };
+        },
+      }),
+  },
+
+  // ------------------------------------------------------------ the cost spine
+
+  startTrip: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description:
+          "Start a trip now, or plan one. Names the vehicle, the driver (defaults to whoever is " +
+          "asking), where from and to, the odometer at the start, and what it stops for. A stop " +
+          "can name a customer, an invoice or a job card — whichever is given, the rest is filled in.",
+        inputSchema: z.object({
+          assetId: z.string().optional().describe("the vehicle"),
+          driverId: z.string().optional().describe("membership id; defaults to the caller"),
+          purpose: z.enum(["DELIVERY", "COLLECTION", "SITE_VISIT", "APPOINTMENT", "TRANSFER", "OTHER"]).optional(),
+          from: z.string().optional(),
+          to: z.string().optional(),
+          odometerStartKm: z.number().int().optional(),
+          planOnly: z.boolean().optional().describe("true to plan it rather than start it now"),
+          stops: z
+            .array(
+              z.object({
+                customerId: z.string().optional(),
+                transactionId: z.string().optional(),
+                jobCardId: z.string().optional(),
+                label: z.string().optional(),
+                address: z.string().optional(),
+              })
+            )
+            .optional(),
+        }),
+        execute: async ({ assetId, driverId, purpose, from, to, odometerStartKm, planOnly, stops }) => {
+          const trip = await startTrip({
+            tenantId: ctx.tenantId,
+            assetId: assetId ?? null,
+            driverId: driverId ?? ctx.membershipId ?? null,
+            purpose: purpose as TripPurpose | undefined,
+            originText: from ?? null,
+            destinationText: to ?? null,
+            odometerStartKm: odometerStartKm ?? null,
+            planOnly,
+            stops: (stops ?? []).map((s) => ({
+              partyId: s.customerId ?? null,
+              transactionId: s.transactionId ?? null,
+              jobCardId: s.jobCardId ?? null,
+              label: s.label ?? null,
+              addressText: s.address ?? null,
+            })),
+          });
+          return { tripId: trip.id, status: trip.status, stops: trip.stops.length };
+        },
+      }),
+  },
+
+  addTripStop: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description: "Add a stop to a trip that is planned or underway.",
+        inputSchema: z.object({
+          tripId: z.string(),
+          customerId: z.string().optional(),
+          transactionId: z.string().optional(),
+          jobCardId: z.string().optional(),
+          label: z.string().optional(),
+          address: z.string().optional(),
+        }),
+        execute: async ({ tripId, customerId, transactionId, jobCardId, label, address }) => {
+          const stop = await addStop(ctx.tenantId, tripId, {
+            partyId: customerId ?? null,
+            transactionId: transactionId ?? null,
+            jobCardId: jobCardId ?? null,
+            label: label ?? null,
+            addressText: address ?? null,
+          });
+          return { stopId: stop.id, sequence: stop.sequence };
+        },
+      }),
+  },
+
+  endTrip: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description:
+          "End a trip. Give the odometer at the end if there is one — that beats any other distance. " +
+          "A typed distance is used only when there is no odometer and no phone track.",
+        inputSchema: z.object({
+          tripId: z.string(),
+          odometerEndKm: z.number().int().optional(),
+          distanceKm: z.number().optional(),
+          notes: z.string().optional(),
+        }),
+        execute: async ({ tripId, odometerEndKm, distanceKm, notes }) => {
+          const t = await endTrip(ctx.tenantId, tripId, {
+            odometerEndKm: odometerEndKm ?? null,
+            distanceKm: distanceKm ?? null,
+            notes: notes ?? null,
+          });
+          return { tripId: t.id, distanceKm: t.distanceKm, distanceFrom: t.distanceSource, endedAt: t.endedAt?.toISOString() };
+        },
+      }),
+  },
+
+  recordCost: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Record a cost with everything known about it: what, how much, when the money left, who " +
+          "was paid, the slip number, tax shown, and what it was for — a vehicle, a trip, a job card " +
+          "or an invoice. Tags given now are the only tags it will ever have; ask for the vehicle or " +
+          "job if it is obviously for one. Says if it looks like a second copy of something recorded.",
+        inputSchema: z.object({
+          description: z.string(),
+          amountRand: z.number().positive(),
+          spentOn: z.string().optional().describe("YYYY-MM-DD; default today"),
+          supplierName: z.string().optional(),
+          reference: z.string().optional().describe("slip or invoice number"),
+          taxRand: z.number().optional(),
+          accountCode: z.string().optional().describe("chart code, e.g. 5300 for vehicle and fuel"),
+          assetId: z.string().optional(),
+          tripId: z.string().optional(),
+          jobCardId: z.string().optional(),
+          transactionId: z.string().optional(),
+          quantity: z.number().optional(),
+          unit: z.string().optional(),
+          odometerKm: z.number().int().optional(),
+          isOwnerDrawing: z.boolean().optional().describe("true if this was the owner's own money going out, not a business cost"),
+        }),
+        execute: async (input) => {
+          if (!ctx.membershipId) throw new Error("No staff account on this workspace.");
+          const spentOn = input.spentOn ? new Date(`${input.spentOn}T12:00:00.000Z`) : undefined;
+          if (spentOn && Number.isNaN(spentOn.getTime())) throw new Error("Couldn't read that date.");
+          const e = await submitExpense({
+            tenantId: ctx.tenantId,
+            submittedById: ctx.membershipId,
+            descriptionText: input.description,
+            amountCents: Math.round(input.amountRand * 100),
+            spentOn,
+            source: "AGENT",
+            supplierName: input.supplierName ?? null,
+            reference: input.reference ?? null,
+            taxCents: input.taxRand !== undefined ? Math.round(input.taxRand * 100) : null,
+            accountCode: input.accountCode ?? null,
+            assetId: input.assetId ?? null,
+            tripId: input.tripId ?? null,
+            jobCardId: input.jobCardId ?? null,
+            transactionId: input.transactionId ?? null,
+            quantity: input.quantity ?? null,
+            unit: input.unit ?? null,
+            odometerKm: input.odometerKm ?? null,
+            isOwnerDrawing: input.isOwnerDrawing ?? null,
+          });
+          return {
+            expenseId: e.id,
+            status: e.status,
+            looksLikeDuplicateOf: e.duplicateOfId,
+            note:
+              e.status === "DUPLICATE"
+                ? "Same slip number and amount as a cost already recorded — kept as a duplicate, not counted."
+                : e.duplicateOfId
+                  ? "Same supplier, amount and day as a cost already recorded. Ask whether it is the same one."
+                  : "Recorded.",
+          };
+        },
+      }),
+  },
+
+  markDuplicateCost: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description: "Confirm a cost is a second copy of another. It stays visible, and stops counting.",
+        inputSchema: z.object({ expenseId: z.string(), ofExpenseId: z.string() }),
+        execute: async ({ expenseId, ofExpenseId }) => {
+          await markDuplicate(ctx.tenantId, expenseId, ofExpenseId);
+          return { ok: true };
+        },
+      }),
+  },
+
+  keepBothCosts: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description: "Two costs that looked the same are genuinely two. Clears the duplicate flag.",
+        inputSchema: z.object({ expenseId: z.string() }),
+        execute: async ({ expenseId }) => {
+          await keepBoth(ctx.tenantId, expenseId);
+          return { ok: true };
+        },
+      }),
+  },
+
+  setStaffCostRate: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Set what an hour of a team member costs the business, including on-costs — what labour " +
+          "apportionment multiplies their trip hours by. Not their pay: their cost.",
+        inputSchema: z.object({
+          membershipId: z.string(),
+          ratePerHourRand: z.number().min(0).nullable().describe("null to clear"),
+        }),
+        execute: async ({ membershipId, ratePerHourRand }) => {
+          await setCostRate(ctx.tenantId, membershipId, ratePerHourRand === null ? null : Math.round(ratePerHourRand * 100));
+          return { ok: true };
+        },
+      }),
+  },
+
+  setAssetCapacity: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Say what one unit of an asset's capacity is — KM for a vehicle, HOUR for a machine, DAY " +
+          "for a crew — and its registration or plate. Without a unit no cost-per figure is produced for it.",
+        inputSchema: z.object({
+          assetId: z.string(),
+          capacityUnit: z.enum(["KM", "HOUR", "DAY"]).nullable(),
+          registration: z.string().optional(),
+        }),
+        execute: async ({ assetId, capacityUnit, registration }) => {
+          await setAssetCapacity(ctx.tenantId, assetId, { capacityUnit, registration });
+          return { ok: true };
         },
       }),
   },

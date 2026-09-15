@@ -17,6 +17,7 @@
 import { prisma } from "@/lib/db";
 import { Officer, ObservationStatus, type Observation } from "@prisma/client";
 import { assertMay } from "./ladder";
+import { recordAccepted, recordIdentified } from "@/lib/core/valueLedger";
 
 export interface EvidenceItem {
   label: string;
@@ -186,6 +187,9 @@ export async function markRaised(ids: string[], at = new Date()): Promise<void> 
     where: { id: { in: ids } },
     data: { status: ObservationStatus.RAISED, raisedAt: at },
   });
+  // Reaching a person is the moment a finding counts as found. The value
+  // ledger records it here, once, whatever happens to it afterwards.
+  await recordIdentified(ids, at);
 }
 
 export async function decide(params: {
@@ -198,7 +202,7 @@ export async function decide(params: {
   const row = await prisma.observation.findUnique({ where: { id: params.observationId } });
   if (!row || row.tenantId !== params.tenantId) throw new Error("Observation not found.");
 
-  return prisma.observation.update({
+  const decided = await prisma.observation.update({
     where: { id: row.id },
     data: {
       status: params.actioned ? ObservationStatus.ACTIONED : ObservationStatus.DISMISSED,
@@ -207,6 +211,8 @@ export async function decide(params: {
       decisionNote: params.note ?? null,
     },
   });
+  if (params.actioned) await recordAccepted(decided.id, decided.decidedAt ?? new Date());
+  return decided;
 }
 
 /**

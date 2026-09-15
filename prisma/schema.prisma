@@ -130,6 +130,16 @@ model Tenant {
   // obligations out of the shared library, and a workspace in Texas gets Texas
   // rows by the same code path that gives a Johannesburg one CIPC.
   countryCode                  String? // ISO 3166-1 alpha-2: "ZA", "US", "GB"
+  // The currency every figure in this workspace is in. ISO 4217. Set from the
+  // country at signup; the column default only covers workspaces that predate
+  // the field, all of which were South African. Nothing downstream may assume
+  // rands — it reads this.
+  currency                     String          @default("ZAR")
+  // What this business pays for the platform each month, so the value ledger
+  // can put what the officers found next to what they cost. Null means it has
+  // not been set, which the ledger says rather than showing a saving with no
+  // cost beside it.
+  monthlyFeeCents              Int?
   regionCode                   String? // state or province, where it changes what you owe: "CA", "TX", "GP"
   // The entity type in the owner's own words — "Pty Ltd", "LLC", "Sole Trader".
   // Deliberately free text: an enum of company types is a geo-lock wearing a
@@ -231,6 +241,10 @@ model Tenant {
   observations    Observation[]
   officerAutonomy OfficerAutonomy[]
 
+  trips        Trip[]
+  tripStops    TripStop[]
+  valueEntries ValueEntry[]
+
   @@map("tenants")
 }
 
@@ -296,6 +310,17 @@ model Membership {
   branchId String?
   branch   Branch? @relation(fields: [branchId], references: [id])
 
+  // What an hour of this person costs the business, including on-costs — the
+  // number labour apportionment needs and the one nobody can reconstruct
+  // later. Not their pay: their cost. Owner-visible only.
+  costRateCents Int?
+  // When this person agreed to have their movement recorded from the phone.
+  // No trip points are accepted for a membership without it. Consent is a
+  // dated fact, not a checkbox that defaults on.
+  locationConsentAt DateTime?
+
+  tripsDriven Trip[] @relation("TripDriver")
+
   @@unique([userId, tenantId])
   @@index([tenantId])
   @@index([userId])
@@ -334,7 +359,9 @@ model JobCard {
   createdAt          DateTime      @default(now())
   completedAt        DateTime?
 
-  tasks JobCardTask[]
+  tasks     JobCardTask[]
+  expenses  Expense[]
+  tripStops TripStop[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -392,6 +419,9 @@ model Party {
 
   progressAgreements ProgressAgreement[]
 
+  expensesAsSupplier Expense[]  @relation("ExpenseSupplier")
+  tripStops          TripStop[]
+
   // The language this customer's documents and messages go out in. Null means
   // the workspace default. An ISO 639-1 code rather than an enum, because a
   // fixed list of languages is the same mistake as a fixed list of countries.
@@ -438,6 +468,7 @@ model Item {
   purchaseOrderLines PurchaseOrderLine[]
   stocktakes         Stocktake[]
   rentals            Rental[]
+  expenseLines       ExpenseLine[]
 
   obligations Obligation[]
 
@@ -593,6 +624,8 @@ model Transaction {
   jobCards         JobCard[]
 
   obligations Obligation[]
+  expenses    Expense[]
+  tripStops   TripStop[]
 
   // Which branch this was sold from. Null on a single-site business.
   branchId String?
@@ -643,6 +676,9 @@ model Event {
   // triggers the automatic rebooking nudge (src/lib/core/reminders.ts).
   noShow        Boolean   @default(false)
   createdAt     DateTime  @default(now())
+
+  // The stop on a trip this was the proof for, when it was.
+  tripStop TripStop?
 
   @@index([tenantId])
   @@index([transactionId])
@@ -1010,7 +1046,74 @@ enum ExpenseStatus {
   PENDING
   APPROVED
   REJECTED
+  /// Recognised as the same spend as another row that arrived by a different
+  /// route — the slip photographed on Monday and the bank line on Wednesday.
+  /// Kept rather than deleted so the second arrival is visible, and never
+  /// counted anywhere.
+  DUPLICATE
 }
+
+/// How a cost reached the system. Every route is a first-class citizen
+/// because the alternative is a business whose books hold the desktop-entered
+/// two thirds and nothing else.
+enum ExpenseSource {
+  DESKTOP
+  CAMERA
+  UPLOAD
+  EMAIL
+  BANK_FEED
+  CARD_STATEMENT
+  STAFF_APP
+  IMPORT
+  AGENT
+}
+
+/// What one unit of an asset's capacity is: a kilometre for a vehicle, an
+/// hour for a machine, a day for a crew. The denominator of every "cost per"
+/// figure, chosen once per asset rather than guessed per report.
+enum CapacityUnit {
+  KM
+  HOUR
+  DAY
+}
+
+enum TripStatus {
+  PLANNED
+  UNDERWAY
+  DONE
+  CANCELLED
+}
+
+enum TripPurpose {
+  DELIVERY
+  COLLECTION
+  SITE_VISIT
+  APPOINTMENT
+  TRANSFER
+  OTHER
+}
+
+/// Where a distance figure came from, kept next to the figure. An odometer
+/// pair and a typed guess are not the same kind of number, and a cost per
+/// kilometre built on the second should say so.
+enum DistanceSource {
+  ODOMETER
+  GPS
+  TYPED
+  ESTIMATED
+}
+
+/// The value ledger's four kinds of line. IDENTIFIED is what an officer found
+/// and put in front of somebody; ACCEPTED is what the owner said yes to;
+/// REALISED is what can be verified afterwards in the data; COST is what the
+/// platform charged. The gap between the first three is the honesty.
+enum ValueKind {
+  IDENTIFIED
+  ACCEPTED
+  REALISED
+  COST
+}
+
 
 model Expense {
   id              String        @id @default(cuid())
@@ -1037,8 +1140,97 @@ model Expense {
   branchId String?
   branch   Branch? @relation(fields: [branchId], references: [id])
 
+  // ---- where, how and what for ---------------------------------------
+  //
+  // Every cost is tagged the moment it is recorded, because the moment it is
+  // recorded is the only time anybody knows. Cost per kilometre, margin per
+  // job and the consolidation engine all divide by these; a slip that arrives
+  // without them is a rand that can never be apportioned.
+
+  // The day the money left, which is not the day the slip was photographed.
+  spentOn DateTime @default(now())
+  source  ExpenseSource @default(DESKTOP)
+
+  // Who was paid. A linked supplier when there is one; the name off the slip
+  // when there is not, so consolidation can still group by it.
+  supplierId   String?
+  supplier     Party?  @relation("ExpenseSupplier", fields: [supplierId], references: [id])
+  supplierName String?
+  // Tax included in amountCents, when the slip shows it.
+  taxCents     Int?
+  // The slip or invoice number. The strongest duplicate signal there is.
+  reference    String?
+
+  // The ledger account this codes to, once somebody or something has said.
+  // Free-text category stays for what it always was: a hint.
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id])
+
+  // What the cost was for. Any, all or none — a fuel slip is for a vehicle
+  // and a trip; a bag of cement is for a job; a coffee is for nobody.
+  assetId       String?
+  asset         Asset?       @relation(fields: [assetId], references: [id])
+  tripId        String?
+  trip          Trip?        @relation(fields: [tripId], references: [id])
+  jobCardId     String?
+  jobCard       JobCard?     @relation(fields: [jobCardId], references: [id])
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+  // Who actually spent it, when that is not who typed it in. Membership.id.
+  incurredById  String?
+
+  // How much of what, for anything bought by the litre, the metre or the
+  // hour. Unit price is what supplier consolidation compares.
+  quantity Float?
+  unit     String?
+  // The reading on the dash when this was a fuel stop. Odometer readings are
+  // the backbone of every distance figure, and a fuel slip is where they get
+  // captured without anybody being asked to.
+  odometerKm Int?
+
+  // Same supplier, same amount, same day — the shape a second arrival takes.
+  fingerprint   String?
+  // Set when this looks like, or is, the same spend as another row.
+  duplicateOfId String?
+
+  // What the machine read off the slip, kept apart from the fields a person
+  // may have corrected, so a correction never loses what was seen.
+  receiptReading Json?
+  receiptReadAt  DateTime?
+
+  lines   ExpenseLine[]
+  fuelLog FuelLog?
+
   @@index([tenantId, status])
+  @@index([tenantId, spentOn])
+  @@index([tenantId, fingerprint])
+  @@index([tenantId, assetId])
+  @@index([tenantId, supplierId])
+  @@index([tenantId, transactionId])
   @@map("expenses")
+}
+
+/// A line off a slip. What was bought, how many, at what. This is the row
+/// supplier consolidation reads — "the same goods from four suppliers at four
+/// prices" is a comparison of these, and nothing coarser can make it.
+model ExpenseLine {
+  id          String  @id @default(cuid())
+  expenseId   String
+  expense     Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Float   @default(1)
+  unit        String?
+  unitCents   Int
+  totalCents  Int
+  // Matched to the catalogue when it can be — the same goods should be the
+  // same item, whoever sold them.
+  itemId      String?
+  item        Item?   @relation(fields: [itemId], references: [id])
+  sortOrder   Int     @default(0)
+
+  @@index([expenseId])
+  @@index([itemId])
+  @@map("expense_lines")
 }
 
 // A Thread is either a DM (two participantIds), a named group, or scoped
@@ -1096,8 +1288,164 @@ model FuelLog {
   loggedAt   DateTime @default(now())
   notes      String?
 
+  // Which vehicle was filled. A fuel log with no vehicle is a litre count
+  // that cannot become a cost per kilometre.
+  assetId String?
+  asset   Asset?  @relation(fields: [assetId], references: [id])
+  // The expense this fill-up is. Fuel logged here used to be money the books
+  // never saw; now one capture writes both, and this is the link.
+  expenseId String?  @unique
+  expense   Expense? @relation(fields: [expenseId], references: [id])
+
   @@index([tenantId, driverId])
+  @@index([tenantId, assetId])
   @@map("fuel_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Trips
+//
+// The object every logistics calculation hangs from, and the one that was
+// genuinely absent. A trip is a vehicle (or a person, or a machine) doing a
+// run: where from, where to, how far, how long, who drove, what it stopped
+// for. Fuel and tolls hang off it; the invoices it delivered hang off its
+// stops; cost per kilometre divides by its distance. For a business that is
+// not a logistics company it is still the truth about an electrician driving
+// to four jobs — which is a fleet cost they do not know they have.
+// ---------------------------------------------------------------------------
+
+model Trip {
+  id       String      @id @default(cuid())
+  tenantId String
+  tenant   Tenant      @relation(fields: [tenantId], references: [id])
+  status   TripStatus  @default(PLANNED)
+  purpose  TripPurpose @default(OTHER)
+
+  // Which asset made the run. Null for a run on foot or in a private car,
+  // which is still a run with a cost.
+  assetId  String?
+  asset    Asset?      @relation(fields: [assetId], references: [id])
+  driverId String?
+  driver   Membership? @relation("TripDriver", fields: [driverId], references: [id])
+
+  originText      String?
+  originLat       Float?
+  originLng       Float?
+  destinationText String?
+  destinationLat  Float?
+  destinationLng  Float?
+  // Origin and destination normalised into one key, so "Johannesburg to
+  // Durban" and "JHB → DBN" are the same lane in every report.
+  laneKey         String?
+
+  plannedAt DateTime?
+  startedAt DateTime?
+  endedAt   DateTime?
+
+  odometerStartKm Int?
+  odometerEndKm   Int?
+  // The distance figure everything divides by, and where it came from.
+  distanceKm     Float?
+  distanceSource DistanceSource?
+
+  notes     String?
+  createdAt DateTime @default(now())
+
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id])
+
+  stops    TripStop[]
+  points   TripPoint[]
+  expenses Expense[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, assetId, startedAt])
+  @@index([tenantId, driverId, startedAt])
+  @@index([tenantId, laneKey])
+  @@map("trips")
+}
+
+/// Somewhere a trip went. A load, in the logistics sense, is a stop with an
+/// invoice on it. Arrival and departure are the proof-of-work times; the
+/// event is the photograph or signature.
+model TripStop {
+  id       String @id @default(cuid())
+  tripId   String
+  trip     Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  sequence Int
+
+  partyId       String?
+  party         Party?       @relation(fields: [partyId], references: [id])
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+  jobCardId     String?
+  jobCard       JobCard?     @relation(fields: [jobCardId], references: [id])
+
+  label       String?
+  addressText String?
+  lat         Float?
+  lng         Float?
+
+  plannedAt  DateTime?
+  arrivedAt  DateTime?
+  departedAt DateTime?
+
+  // The delivery, site visit or install this stop produced, with its proof.
+  eventId String? @unique
+  event   Event?  @relation(fields: [eventId], references: [id])
+
+  @@index([tripId, sequence])
+  @@index([tenantId, transactionId])
+  @@index([tenantId, partyId])
+  @@map("trip_stops")
+}
+
+/// A position along a trip, from the phone, with the person's consent. Only
+/// the distance is ever derived from these; the points themselves are the
+/// person's business and are exported to them, not reported on.
+model TripPoint {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  at        DateTime
+  lat       Float
+  lng       Float
+  accuracyM Float?
+
+  @@index([tripId, at])
+  @@map("trip_points")
+}
+
+// ---------------------------------------------------------------------------
+// The value ledger
+//
+// A product that claims to save money has to show its own arithmetic. Every
+// line here is append-only and dated: what an officer found, what the owner
+// accepted, what could later be verified in the data, and what the platform
+// charged. Nothing is edited; a wrong line is answered by another line.
+// ---------------------------------------------------------------------------
+
+model ValueEntry {
+  id       String    @id @default(cuid())
+  tenantId String
+  // Written as a side effect of raising and deciding, never on request — so
+  // it goes with its workspace rather than holding one open.
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  officer  Officer
+  kind     ValueKind
+  cents    Int
+  at       DateTime  @default(now())
+
+  observationId String?
+  // How a REALISED figure was verified, in words a person can check.
+  method        String?
+  note          String?
+
+  @@index([tenantId, at])
+  @@index([tenantId, observationId, kind])
+  @@map("value_entries")
 }
 
 // Expected vs counted stock, per count — the retail shrinkage-variance
@@ -1495,6 +1843,16 @@ model Obligation {
   item          Item?        @relation(fields: [itemId], references: [id])
   transactionId String?
   transaction   Transaction? @relation(fields: [transactionId], references: [id])
+  // The vehicle or machine this is about: its licence disc, its insurance,
+  // its roadworthy. Lets "everything on this truck" be a query, and lets the
+  // insurance book be read per vehicle.
+  assetId       String?
+  asset         Asset?       @relation(fields: [assetId], references: [id])
+
+  // What it costs each time it falls due — the premium, the licence fee. Per
+  // recurrence period. Null when nobody has said; the watch then ranks it by
+  // severity alone rather than inventing a figure.
+  amountCents Int?
 
   completedAt       DateTime?
   documentDataUrl   String? // proof, same base64 pattern as e-signatures and receipts
@@ -1576,6 +1934,7 @@ model Account {
 
   bankAccounts        BankAccount[]
   reconciliationRules ReconciliationRule[]
+  expenses            Expense[]
 
   @@unique([tenantId, code])
   @@index([tenantId, type])
@@ -1804,6 +2163,7 @@ model Branch {
   memberships    Membership[]
   assets         Asset[]
   journalEntries JournalEntry[]
+  trips          Trip[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -1955,6 +2315,19 @@ model Asset {
 
   branchId String?
   branch   Branch? @relation(fields: [branchId], references: [id])
+
+  // What one unit of this asset's capacity is. Null means nobody has said and
+  // no "cost per" figure is produced for it — a made-up denominator is worse
+  // than none.
+  capacityUnit CapacityUnit?
+  // Number plate, serial on the side of the machine — whatever a slip, a
+  // licence disc or an insurance schedule will name it by.
+  registration String?
+
+  expenses    Expense[]
+  trips       Trip[]
+  obligations Obligation[]
+  fuelLogs    FuelLog[]
 
   @@index([tenantId, status])
   @@index([tenantId, holderId])

@@ -2,8 +2,18 @@
 // inventory.ts: flag a fuel entry whose cost-per-litre deviates sharply
 // from that same driver's own trailing average, rather than trying to
 // guess a "normal" price globally.
+//
+// A fill-up is also money leaving, and for a long time this was the one place
+// in the product where money left without the books hearing about it. One
+// capture now writes both: the expense, tagged to the vehicle and carrying the
+// odometer reading, and the fuel log that the anomaly check reads.
 
+import { ExpenseSource } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { submitExpense } from "./expenses";
+
+/** The chart's vehicle-and-fuel account. */
+export const FUEL_ACCOUNT_CODE = "5300";
 
 export async function logFuel(params: {
   tenantId: string;
@@ -12,8 +22,60 @@ export async function logFuel(params: {
   costCents: number;
   odometerKm?: number;
   notes?: string;
+  /** Which vehicle. Without it the litres can never become a cost per kilometre. */
+  assetId?: string | null;
+  tripId?: string | null;
+  supplierName?: string | null;
+  reference?: string | null;
+  receiptDataUrl?: string;
+  source?: ExpenseSource;
+  loggedAt?: Date;
+  /** Who typed it, when that is not the driver. Defaults to the driver. */
+  submittedById?: string;
 }) {
-  return prisma.fuelLog.create({ data: params });
+  if (!(params.litres > 0)) throw new Error("How many litres?");
+  if (!(params.costCents > 0)) throw new Error("What did it cost?");
+
+  const loggedAt = params.loggedAt ?? new Date();
+
+  const expense = await submitExpense({
+    tenantId: params.tenantId,
+    submittedById: params.submittedById ?? params.driverId,
+    incurredById: params.driverId,
+    descriptionText: `Fuel — ${params.litres.toLocaleString("en-US", { maximumFractionDigits: 1 })} L`,
+    amountCents: params.costCents,
+    category: "Fuel",
+    accountCode: FUEL_ACCOUNT_CODE,
+    spentOn: loggedAt,
+    source: params.source ?? ExpenseSource.STAFF_APP,
+    assetId: params.assetId ?? null,
+    tripId: params.tripId ?? null,
+    supplierName: params.supplierName ?? null,
+    reference: params.reference ?? null,
+    receiptDataUrl: params.receiptDataUrl,
+    quantity: params.litres,
+    unit: "L",
+    odometerKm: params.odometerKm ?? null,
+    // Fuel for a business vehicle is a business cost. Saying so here spares
+    // the owner a question the answer to which is always the same.
+    isOwnerDrawing: params.assetId ? false : null,
+  });
+
+  const log = await prisma.fuelLog.create({
+    data: {
+      tenantId: params.tenantId,
+      driverId: params.driverId,
+      litres: params.litres,
+      costCents: params.costCents,
+      odometerKm: params.odometerKm,
+      notes: params.notes,
+      loggedAt,
+      assetId: expense.assetId,
+      expenseId: expense.id,
+    },
+  });
+
+  return { ...log, expense };
 }
 
 export interface FuelAnomaly {

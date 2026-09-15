@@ -29,6 +29,7 @@ export function buildAdminaNav(params: {
       items: [
         { href: d, label: "Home" },
         { href: `${d}/brief`, label: "The Brief" },
+        { href: `${d}/value`, label: "Value" },
         { href: `${d}/agent`, label: "Agent" },
         { href: `${d}/today`, label: "Today" },
         { href: `${d}/this-week`, label: "This Week" },
@@ -52,6 +53,8 @@ export function buildAdminaNav(params: {
         { href: `${d}/books`, label: "The books" },
         { href: `${d}/banking`, label: "Bank & reconciliation" },
         { href: `${d}/margins`, label: "Margins & suppliers" },
+        { href: `${d}/costs`, label: "Costs" },
+        { href: `${d}/savings`, label: "Savings" },
         { href: `${d}/disputes`, label: "Reports" },
       ],
     },
@@ -92,6 +95,7 @@ export function buildAdminaNav(params: {
       items: [
         { href: `${d}/tasks`, label: "Tasks" },
         ...(is("SERVICES", "LOGISTICS") ? [{ href: `${d}/job-cards`, label: "Job Cards" }] : []),
+        { href: `${d}/trips`, label: "Trips" },
         ...(is("MEDICAL", "SERVICES")
           ? [{ href: `${d}/appointments`, label: "Appointments" }]
           : []),

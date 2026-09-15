@@ -32,6 +32,9 @@ const NOT_TOOL_SURFACE = new Set([
   // to it through document intake; bulk-seeding it is not a request anyone
   // should be able to make in conversation.
   "obligationLibrarySeed",
+  // Formats money in the workspace's currency. A pure function over a code
+  // and a number; nothing to drive.
+  "currency",
 ]);
 
 describe("agent tool coverage", () => {

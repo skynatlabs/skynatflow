@@ -23,6 +23,9 @@ import { runNamedAgent } from "@/lib/agent/named";
 import { isDue } from "@/lib/agent/schedule";
 import { runComplianceWatch } from "@/lib/agent/complianceWatch";
 import { buildBrief } from "@/lib/agent/chiefOfStaff";
+import { runEfficiency } from "@/lib/agent/officers/efficiency";
+import { runCEO } from "@/lib/agent/officers/ceo";
+import { realiseValue, recordPlatformCost } from "@/lib/core/valueLedger";
 import { runCFO } from "@/lib/agent/officers/cfo";
 
 /** How long between open-ended reviews of one workspace. */
@@ -40,6 +43,12 @@ export interface TickOutcome {
   briefed: number;
   /** Findings the CFO wrote to the bus this tick. */
   cfoObserved: number;
+  /** Findings the efficiency consultant wrote to the bus this tick. */
+  efficiencyObserved: number;
+  /** Findings the CEO wrote — zero on every tick but its monthly one. */
+  ceoObserved: number;
+  /** Accepted findings whose outcome the data could now verify. */
+  valueRealised: number;
   raised: number;
   skipped?: string;
 }
@@ -86,6 +95,9 @@ export async function tickTenant(tenantId: string, now = new Date()): Promise<Ti
     complianceRaised: 0,
     briefed: 0,
     cfoObserved: 0,
+    efficiencyObserved: 0,
+    ceoObserved: 0,
+    valueRealised: 0,
     raised: 0,
   };
 
@@ -240,6 +252,39 @@ export async function tickTenant(tenantId: string, now = new Date()): Promise<Ti
     console.error(`[agent:tick] ${tenantId} CFO failed:`, err);
   }
 
+  // The efficiency consultant carries the consolidation engine's findings —
+  // a saving is arithmetic over slips, trips and policies, so no model here
+  // either. The CEO speaks once a month; runCEO() keeps its own cadence and
+  // returns quietly on every other day.
+  try {
+    const eff = await runEfficiency(tenantId);
+    base.efficiencyObserved = eff.observed;
+    if (eff.failed.length > 0) {
+      console.error(`[agent:tick] ${tenantId} efficiency checks failed: ${eff.failed.join(", ")}`);
+    }
+  } catch (err) {
+    console.error(`[agent:tick] ${tenantId} efficiency failed:`, err);
+  }
+  try {
+    const ceo = await runCEO(tenantId, { now });
+    base.ceoObserved = ceo.observed;
+    if (ceo.failed.length > 0) {
+      console.error(`[agent:tick] ${tenantId} CEO checks failed: ${ceo.failed.join(", ")}`);
+    }
+  } catch (err) {
+    console.error(`[agent:tick] ${tenantId} CEO failed:`, err);
+  }
+
+  // The value ledger: what was accepted and can now be seen in the data, and
+  // what the platform charged this month. Both idempotent, so a tick that
+  // runs twice writes once.
+  try {
+    base.valueRealised = await realiseValue(tenantId, now);
+    await recordPlatformCost(tenantId, now);
+  } catch (err) {
+    console.error(`[agent:tick] ${tenantId} value ledger failed:`, err);
+  }
+
   // --- 4. Let the coordinator decide what any of that was worth ------------
   //
   // Last, deliberately: every arc above may have written observations, and the
@@ -280,6 +325,9 @@ export async function tickAllTenants(now = new Date()): Promise<TickOutcome[]> {
         complianceRaised: 0,
         briefed: 0,
         cfoObserved: 0,
+    efficiencyObserved: 0,
+    ceoObserved: 0,
+    valueRealised: 0,
         raised: 0,
         skipped: err instanceof Error ? err.message : "failed",
       });

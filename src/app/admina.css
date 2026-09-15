@@ -704,6 +704,16 @@
   margin-inline-start: 5.375rem;
 }
 
+/* The chat dock is fixed to the bottom of the viewport. The template's own
+   body padding above outranks .kb-dock-host in the cascade, so without this
+   the page's last rows sit underneath the bar on every screen — and on a
+   phone that is the Approve button. Content ends above the dock, always. */
+.kb-shell[data-skin="admina"] .dashboard-main-body.kb-dock-host {
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  width: 100%;
+  min-width: 0;
+}
+
 /* === dashboard body css end === */
 /* === footer css start === */
 .kb-shell[data-skin="admina"] .d-footer {
