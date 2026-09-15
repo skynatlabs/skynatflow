@@ -3,19 +3,19 @@
   "crons": [
     {
       "path": "/api/cron/agent-tick",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/follow-ups",
-      "schedule": "0 * * * *"
+      "schedule": "0 7 * * *"
     },
     {
       "path": "/api/cron/appointment-reminders",
-      "schedule": "15 * * * *"
+      "schedule": "0 8 * * *"
     },
     {
       "path": "/api/cron/fetch-emails",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 9 * * *"
     },
     {
       "path": "/api/cron/daily-briefing",
@@ -31,7 +31,7 @@
     },
     {
       "path": "/api/cron/webhook-dispatch",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 10 * * *"
     }
   ],
   "functions": {

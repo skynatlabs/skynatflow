@@ -152,3 +152,26 @@ with `openssl rand -base64 32` and set it per environment.
 - Legal/compliance/tax-filing features discussed are not started.
 - No migration off local/Hostinger hosting — correctly so, no real scaling
   trigger has been hit yet.
+
+## Cron schedules and the Vercel plan
+
+`vercel.json` currently carries **Hobby-plan schedules**: at most one run per
+day per job, which is all a Hobby account permits. A deploy is rejected
+outright — not degraded — if any schedule would run more than daily.
+
+This is a real reduction in how the product behaves, not a formality:
+
+| Job | Hobby (now) | Intended (Pro) | What the reduction costs |
+|---|---|---|---|
+| `agent-tick` | `0 6 * * *` | `*/30 * * * *` | The agent reacts to events once a day instead of within half an hour. Proactive work is effectively a morning digest. |
+| `follow-ups` | `0 7 * * *` | `0 * * * *` | A quote going quiet is chased the next morning rather than the same hour. |
+| `appointment-reminders` | `0 8 * * *` | `15 * * * *` | Reminders only go out in the morning, so an afternoon booking made today gets no reminder. |
+| `fetch-emails` | `0 9 * * *` | `*/15 * * * *` | Inbound mail is ingested once a day, so replies and proofs of payment sit unseen. |
+| `webhook-dispatch` | `0 10 * * *` | `*/5 * * * *` | Outbound webhooks are delivered up to 24 hours late, and a retry costs another day. |
+
+`daily-briefing`, `recurring-invoices` and `weekly-digest` are unaffected —
+they were already daily or weekly.
+
+**To restore on Pro:** edit the eight `schedule` values in `vercel.json` to the
+"Intended" column above. Nothing else changes; the handlers are
+schedule-agnostic.
