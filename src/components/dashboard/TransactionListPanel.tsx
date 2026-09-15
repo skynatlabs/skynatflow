@@ -17,6 +17,9 @@ interface Row {
   amountCents: number;
   status: string;
   createdAt: string;
+  subject: string | null;
+  /** Items on this document that matched the search. Empty when not searching. */
+  matchedItems: string[];
 }
 
 function money(cents: number) {
@@ -90,7 +93,7 @@ export function TransactionListPanel({
             setQ(e.target.value);
             setPage(1);
           }}
-          placeholder="Search by customer…"
+          placeholder="Search by customer, item, subject or PO…"
           className="w-full rounded-lg border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-1.5 text-sm text-[var(--kb-text)]"
         />
         <p className="mt-1.5 text-xs text-[var(--kb-text-dim)]">{total} total</p>
@@ -116,6 +119,17 @@ export function TransactionListPanel({
                 <span className="truncate font-medium text-[var(--kb-text)]">{row.partyName}</span>
                 <span className="shrink-0 text-[var(--kb-text)]">{money(row.amountCents)}</span>
               </div>
+              {/* Why this row is in the results. Without it, searching for an
+                  item returns a list of customer names and leaves somebody to
+                  open each one to find out which is the right document. */}
+              {row.matchedItems.length > 0 && (
+                <p className="mt-0.5 truncate text-xs text-[var(--kb-text-dim)]">
+                  {row.matchedItems.join(", ")}
+                </p>
+              )}
+              {row.matchedItems.length === 0 && row.subject && (
+                <p className="mt-0.5 truncate text-xs text-[var(--kb-text-dim)]">{row.subject}</p>
+              )}
               <div className="mt-1 flex items-center justify-between text-xs">
                 <StatusPill status={row.status} />
                 <span className="text-[var(--kb-text-dim)]">

@@ -68,6 +68,14 @@ import {
 } from "@/lib/core/ledger";
 import { balanceSheet, profitAndLoss, trialBalance } from "@/lib/core/financialReports";
 import { backfillLedger, ledgerCoverage } from "@/lib/core/ledgerBackfill";
+import { listBankAccounts, importStatement, reconciliationGap } from "@/lib/core/banking";
+import {
+  proposeMatches,
+  acceptMatch,
+  ignoreLine,
+  recordOverrule,
+  listRules,
+} from "@/lib/core/reconciliation";
 
 export interface OpsToolDef {
   capability?: Capability;
@@ -321,6 +329,104 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
           return {
             ...coverage,
             closedMonths: closed.map((p) => `${p.year}-${String(p.month).padStart(2, "0")}`),
+          };
+        },
+      }),
+  },
+
+  // The read this whole arc exists for. An agent is better at this than a
+  // person for one unglamorous reason: it will consider four hundred
+  // candidates for one line, and nobody reconciling on a Friday afternoon
+  // will.
+  proposeBankMatches: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Go through unreconciled bank statement lines and say what each one looks like, with a " +
+          "confidence and a plain-language reason. Proposals only — never apply them without " +
+          "showing the owner and getting a yes. Use when asked to reconcile, to explain the bank " +
+          "account, or what a payment was.",
+        inputSchema: z.object({
+          bankAccountId: z.string().optional(),
+          limit: z.number().int().positive().max(100).optional(),
+        }),
+        execute: async ({ bankAccountId, limit }) => {
+          const result = await proposeMatches(ctx.tenantId, { bankAccountId, limit });
+          return {
+            summary: result.summary,
+            nothingMatches: result.unexplained,
+            lines: result.proposals.map((p) => ({
+              bankTransactionId: p.bankTransactionId,
+              on: p.postedOn.toISOString().slice(0, 10),
+              description: p.description,
+              amount: p.amountCents / 100,
+              bestMatch: p.best
+                ? {
+                    kind: p.best.kind,
+                    targetId: p.best.id,
+                    label: p.best.label,
+                    confidence: p.best.confidence,
+                    // Quoted to the owner as-is: a percentage is not
+                    // checkable, a reason is.
+                    why: p.best.reasons,
+                  }
+                : null,
+              otherOptions: p.alternatives.map((a) => ({
+                kind: a.kind,
+                targetId: a.id,
+                label: a.label,
+                confidence: a.confidence,
+              })),
+            })),
+          };
+        },
+      }),
+  },
+
+  bankAccounts: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The bank accounts on this workspace and how far each one is from the books — how many " +
+          "statement lines are still unexplained and what they add up to.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const accounts = await listBankAccounts(ctx.tenantId);
+          return {
+            accounts: await Promise.all(
+              accounts.map(async (a) => ({
+                bankAccountId: a.id,
+                name: a.name,
+                last4: a.last4,
+                postsTo: a.account.name,
+                ...(await reconciliationGap(ctx.tenantId, a.id).then((g) => ({
+                  unmatched: g.unmatched,
+                  matched: g.matched,
+                  unexplained: g.unexplainedCents / 100,
+                }))),
+              }))
+            ),
+          };
+        },
+      }),
+  },
+
+  reconciliationRules: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What this business has taught the matcher by correcting it — which descriptions go to " +
+          "which account. Read before proposing, so a known answer is used rather than guessed at.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const rules = await listRules(ctx.tenantId);
+          return {
+            rules: rules.map((r) => ({
+              matches: r.matchText,
+              account: r.account.name,
+              usedTimes: r.timesApplied,
+              overruledTimes: r.timesOverruled,
+            })),
           };
         },
       }),
@@ -1316,6 +1422,75 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
           await closePeriod({ tenantId: ctx.tenantId, year, month, closedBy: ctx.userId, note });
           return { ok: true, closed: `${year}-${String(month).padStart(2, "0")}` };
         },
+      }),
+  },
+
+  acceptBankMatch: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Apply a match the owner has approved: post it to the books and mark the statement " +
+          "line done. Pass rememberFor with the recurring part of the description — 'SASOL', a " +
+          "supplier's name — to make the next one automatic. Only call this after the owner has " +
+          "actually said yes to this specific line.",
+        inputSchema: z.object({
+          bankTransactionId: z.string(),
+          kind: z.enum(["invoice", "expense", "account"]),
+          targetId: z.string().describe("The invoice, expense or account id from the proposal."),
+          rememberFor: z
+            .string()
+            .optional()
+            .describe("Substring of the description worth remembering, for an account match."),
+        }),
+        execute: async (input) =>
+          acceptMatch({ ...input, tenantId: ctx.tenantId, byAgent: true, userId: ctx.userId }),
+      }),
+  },
+
+  ignoreBankLine: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Set a statement line aside without posting it — an internal transfer between the " +
+          "business's own accounts, or something the bank later reversed. Kept rather than " +
+          "deleted so it does not come back as new on the next import.",
+        inputSchema: z.object({ bankTransactionId: z.string(), note: z.string().optional() }),
+        execute: async ({ bankTransactionId, note }) => {
+          await ignoreLine({ tenantId: ctx.tenantId, bankTransactionId, note });
+          return { ok: true };
+        },
+      }),
+  },
+
+  recordMatchOverruled: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Record that a proposed match was wrong, so the rule that produced it stops being " +
+          "trusted. Call this when the owner rejects a suggestion — being overruled once about a " +
+          "supplier should mean never being wrong about that supplier again.",
+        inputSchema: z.object({ description: z.string() }),
+        execute: async ({ description }) => {
+          const weakened = await recordOverrule({ tenantId: ctx.tenantId, description });
+          return { rulesWeakened: weakened };
+        },
+      }),
+  },
+
+  importBankStatement: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Import a bank statement CSV. Lines already imported are skipped rather than " +
+          "duplicated, so an overlapping export is safe. Rows that cannot be read are reported " +
+          "rather than dropped.",
+        inputSchema: z.object({ bankAccountId: z.string(), csv: z.string() }),
+        execute: async ({ bankAccountId, csv }) =>
+          importStatement({ tenantId: ctx.tenantId, bankAccountId, csv }),
       }),
   },
 

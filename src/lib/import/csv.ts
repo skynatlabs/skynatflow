@@ -84,6 +84,10 @@ export const IMPORT_PRESETS: Record<
       status: ["Estimate Status", "Status"],
       date: ["Estimate Date", "Date"],
       reference: ["Estimate Number", "Estimate#"],
+      itemName: ["Item Name", "Item", "Product Name"],
+      itemDescription: ["Item Desc", "Item Description", "Description"],
+      itemQuantity: ["Quantity", "Qty"],
+      itemRate: ["Item Price", "Rate", "Item Rate"],
     },
     invoices: {
       customerName: ["Customer Name", "Display Name"],
@@ -92,6 +96,10 @@ export const IMPORT_PRESETS: Record<
       date: ["Invoice Date", "Date"],
       dueDate: ["Due Date"],
       reference: ["Invoice Number", "Invoice#"],
+      itemName: ["Item Name", "Item", "Product Name"],
+      itemDescription: ["Item Desc", "Item Description", "Description"],
+      itemQuantity: ["Quantity", "Qty"],
+      itemRate: ["Item Price", "Rate", "Item Rate"],
     },
   },
   quickbooks: {
@@ -113,6 +121,10 @@ export const IMPORT_PRESETS: Record<
       status: ["Status"],
       date: ["Estimate Date", "Date"],
       reference: ["Estimate No.", "Num"],
+      itemName: ["Product/Service", "Item", "Product/Service Name"],
+      itemDescription: ["Memo/Description", "Description"],
+      itemQuantity: ["Qty", "Quantity"],
+      itemRate: ["Rate", "Unit Price", "Sales Price"],
     },
     invoices: {
       customerName: ["Customer", "Name"],
@@ -199,12 +211,21 @@ export const TARGET_FIELDS = {
     { key: "unitPriceCents", label: "Price", required: true },
     { key: "category", label: "Category", required: false },
   ],
+  // Exports from Zoho, QuickBooks and the rest put ONE ROW PER LINE ITEM and
+  // repeat the document header on every row. Mapping the item columns is what
+  // turns those rows back into one document with its lines, instead of one
+  // empty document per line — which is what happens when only the header
+  // fields are mapped.
   quotes: [
     { key: "customerName", label: "Customer name", required: true },
     { key: "amountCents", label: "Amount", required: true },
     { key: "status", label: "Status (sent/accepted/declined)", required: false },
     { key: "date", label: "Date created", required: false },
     { key: "reference", label: "Reference / quote number", required: false },
+    { key: "itemName", label: "Line item name", required: false },
+    { key: "itemDescription", label: "Line item description", required: false },
+    { key: "itemQuantity", label: "Line item quantity", required: false },
+    { key: "itemRate", label: "Line item price each", required: false },
   ],
   invoices: [
     { key: "customerName", label: "Customer name", required: true },
@@ -213,6 +234,10 @@ export const TARGET_FIELDS = {
     { key: "date", label: "Date created", required: false },
     { key: "dueDate", label: "Due date", required: false },
     { key: "reference", label: "Reference / invoice number", required: false },
+    { key: "itemName", label: "Line item name", required: false },
+    { key: "itemDescription", label: "Line item description", required: false },
+    { key: "itemQuantity", label: "Line item quantity", required: false },
+    { key: "itemRate", label: "Line item price each", required: false },
   ],
 } as const;
 
