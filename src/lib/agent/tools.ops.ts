@@ -1497,7 +1497,7 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
         execute: async ({ year, month }) => {
           const target = year && month ? { year, month } : await nextMonthToClose(ctx.tenantId);
           if (!target) return { note: "Every finished month is already closed." };
-          return monthEndPack(ctx.tenantId, target.year, target.month);
+          return monthEndPack(ctx.tenantId, target.year, target.month, { post: true });
         },
       }),
   },

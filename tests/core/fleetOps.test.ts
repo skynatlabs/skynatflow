@@ -193,3 +193,14 @@ describe("152 plan versus actual", () => {
     expect(devs[0].deviationPercent).toBe(58);
   });
 });
+
+describe("145 empty running, for a business that does not sell transport", () => {
+  it("ignores a local run that comes home", async () => {
+    await prisma.tenant.update({ where: { id: tenantId }, data: { niche: "SERVICES" } });
+    const t = await startTrip({ tenantId, assetId: truckId, originText: "Depot", destinationText: "Sandton", startedAt: new Date(Date.now() - 3 * DAY) });
+    await endTrip(tenantId, t.id, { at: new Date(Date.now() - 3 * DAY + 4 * H), distanceKm: 40 });
+    const t2 = await startTrip({ tenantId, assetId: truckId, originText: "Depot", destinationText: "Rosebank", startedAt: new Date(Date.now() - 2 * DAY) });
+    await endTrip(tenantId, t2.id, { at: new Date(Date.now() - 2 * DAY + 4 * H), distanceKm: 30 });
+    expect(await emptyRunning(tenantId)).toEqual([]);
+  });
+});

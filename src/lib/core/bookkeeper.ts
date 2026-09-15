@@ -37,14 +37,29 @@ export interface MonthEndPack {
   generatedAt: Date;
 }
 
-export async function monthEndPack(tenantId: string, year: number, month: number): Promise<MonthEndPack> {
+/**
+ * The month-end pack. With `post`, the bookkeeper does the month's work first
+ * — posts outstanding documents and charges depreciation, both idempotent.
+ * Without it, it only reads and reports, so looking at a month never writes
+ * to the books.
+ */
+export async function monthEndPack(
+  tenantId: string,
+  year: number,
+  month: number,
+  opts: { post?: boolean } = {}
+): Promise<MonthEndPack> {
   const from = new Date(Date.UTC(year, month - 1, 1));
   const to = new Date(Date.UTC(year, month, 0, 23, 59, 59));
   const currency = await tenantCurrency(tenantId);
   const money = (c: number) => formatMoney(c, currency);
 
-  const backfill = await backfillLedger(tenantId, { from });
-  const dep = await runMonthlyDepreciation(tenantId, year, month);
+  const backfill = opts.post
+    ? await backfillLedger(tenantId, { from })
+    : { invoices: 0, payments: 0, expenses: 0 };
+  const dep = opts.post
+    ? await runMonthlyDepreciation(tenantId, year, month)
+    : { posted: 0, totalCents: 0 };
 
   let proposed = 0;
   let unmatched = 0;
@@ -78,7 +93,10 @@ export async function monthEndPack(tenantId: string, year: number, month: number
 
   const summary =
     `${money(pl.netProfitCents)} ${pl.netProfitCents >= 0 ? "profit" : "loss"} for the month; cash ${cf.netChangeCents >= 0 ? "up" : "down"} ${money(Math.abs(cf.netChangeCents))}. ` +
-    `${backfill.invoices + backfill.payments + backfill.expenses} documents posted, ${dep.posted} depreciation charges (${money(dep.totalCents)}), ${proposed} bank matches proposed. ` +
+    (opts.post
+      ? `${backfill.invoices + backfill.payments + backfill.expenses} document${backfill.invoices + backfill.payments + backfill.expenses === 1 ? "" : "s"} posted, ${dep.posted} depreciation charge${dep.posted === 1 ? "" : "s"} (${money(dep.totalCents)}), `
+      : "") +
+    `${proposed} bank match${proposed === 1 ? "" : "es"} proposed. ` +
     (blockers.length === 0 ? "Nothing stands in the way of closing." : `Before closing: ${blockers.join(" ")}`);
 
   return {

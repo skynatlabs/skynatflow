@@ -189,6 +189,12 @@ export interface EmptyLeg {
  */
 export async function emptyRunning(tenantId: string, opts: { since?: Date } = {}): Promise<EmptyLeg[]> {
   const since = opts.since ?? new Date(Date.now() - 30 * DAY);
+  // A local run that comes home is not a positioning problem. For a business
+  // that does not sell transport, only a run that ended far out counts; a
+  // haulier's every one-way leg does.
+  const tenantRow = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { niche: true } });
+  const haulier = tenantRow?.niche === "LOGISTICS" || tenantRow?.niche === "WHOLESALE";
+  const FAR_KM = 80;
   const trips = await prisma.trip.findMany({
     where: { tenantId, assetId: { not: null }, status: { in: ["DONE", "PLANNED", "UNDERWAY"] }, OR: [{ startedAt: { gte: since } }, { plannedAt: { gte: since } }] },
     select: {
@@ -230,6 +236,7 @@ export async function emptyRunning(tenantId: string, opts: { since?: Date } = {}
         base[1].lat !== null && base[1].lng !== null && t.destinationLat !== null && t.destinationLng !== null
           ? Math.round(haversineKm(base[1].lat, base[1].lng, t.destinationLat, t.destinationLng))
           : null;
+      if (!haulier && (kmFromBase === null || kmFromBase < FAR_KM)) continue;
       out.push({ tripId: t.id, assetId, assetName: t.asset?.name ?? "Vehicle", endedAt: t.endedAt, destination: t.destinationText ?? "", kmFromBase, returnLoaded: false });
     }
   }

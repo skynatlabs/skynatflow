@@ -111,7 +111,11 @@ describe("tax", () => {
 describe("the month-end pack", () => {
   it("says what stands between the month and being closed", async () => {
     await prisma.asset.create({ data: { tenantId, name: "Drill", purchaseCents: 6_000_00, usefulLifeMonths: 12, purchasedOn: new Date("2026-01-01T00:00:00Z") } });
-    const pack = await monthEndPack(tenantId, 2026, 3);
+    // Reading the pack writes nothing.
+    const look = await monthEndPack(tenantId, 2026, 3);
+    expect(look.depreciation.posted).toBe(0);
+    expect(await prisma.journalEntry.count({ where: { tenantId } })).toBe(0);
+    const pack = await monthEndPack(tenantId, 2026, 3, { post: true });
     expect(pack.depreciation.posted).toBe(1);
     expect(pack.depreciation.totalCents).toBe(500_00);
     expect(pack.readyToClose).toBe(true);

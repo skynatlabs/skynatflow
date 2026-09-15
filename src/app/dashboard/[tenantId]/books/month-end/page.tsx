@@ -20,7 +20,7 @@ import { bookValues } from "@/lib/core/depreciation";
 import { listAccruals } from "@/lib/core/accruals";
 import { PageHeader } from "../../PageHeader";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
-import { accrueAction, deferAction, runDepreciationAction } from "./actions";
+import { accrueAction, deferAction, runDepreciationAction, runMonthEndAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -102,9 +102,16 @@ export default async function MonthEndPage({
             {pack.blockers.map((b) => <li key={b}>{b}</li>)}
           </ul>
         )}
-        <p className="mt-3 text-xs text-[var(--kb-text-dim)]">
-          Closing stays your click, on <Link href={`/dashboard/${tenantId}/books`} className="underline">the books page</Link>.
-        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <form action={runMonthEndAction.bind(null, tenantId)}>
+            <input type="hidden" name="year" value={year} />
+            <input type="hidden" name="month" value={month} />
+            <SubmitButton pendingText="Working…">Do the month&apos;s bookkeeping</SubmitButton>
+          </form>
+          <p className="text-xs text-[var(--kb-text-dim)]">
+            Posts what has not reached the books and charges depreciation — safe to repeat. Closing stays your click, on <Link href={`/dashboard/${tenantId}/books`} className="underline">the books page</Link>.
+          </p>
+        </div>
       </section>
 
       <section className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -5,6 +5,7 @@ import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { assertCan } from "@/lib/core/access";
 import { runMonthlyDepreciation } from "@/lib/core/depreciation";
 import { accrueExpense, deferRevenue } from "@/lib/core/accruals";
+import { monthEndPack } from "@/lib/core/bookkeeper";
 
 async function guard(tenantId: string) {
   const access = await requireTenantAccess(tenantId);
@@ -23,6 +24,13 @@ export async function runDepreciationAction(tenantId: string, formData: FormData
   const month = Number(formData.get("month"));
   if (!year || !month) throw new Error("Which month?");
   await runMonthlyDepreciation(tenantId, year, month);
+  refresh(tenantId);
+}
+
+/** Do the month's bookkeeping: post what has not reached the books and charge depreciation. */
+export async function runMonthEndAction(tenantId: string, formData: FormData) {
+  await guard(tenantId);
+  await monthEndPack(tenantId, Number(formData.get("year")), Number(formData.get("month")), { post: true });
   refresh(tenantId);
 }
 
