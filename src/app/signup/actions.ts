@@ -36,5 +36,7 @@ export async function signupAction(formData: FormData) {
   }
 
   await signIn("credentials", { email, password, redirect: false });
-  redirect("/dashboard");
+  // Straight into setting up: a new account has no workspace to land in, and
+  // the dashboard would only bounce them here anyway.
+  redirect("/onboarding");
 }

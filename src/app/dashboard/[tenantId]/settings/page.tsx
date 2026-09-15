@@ -31,9 +31,8 @@ const GROUPS: {
   {
     heading: "Data",
     items: [
+      { href: "../setup", label: "Bring things in", description: "Documents, spreadsheets and photographs, read into your workspace." },
       { href: "import", label: "Import", description: "Bring in customers, products, quotes, or invoices from a CSV." },
-      { href: "export", label: "Export", description: "Download your data." },
-      { href: "backup", label: "Document backup", description: "Back up generated documents to Google Drive." },
       { href: "developer", label: "API & webhooks", description: "Keys for reading and writing your data, and event notifications for other systems." },
     ],
   },
@@ -42,6 +41,7 @@ const GROUPS: {
     items: [
       { href: "banking", label: "Banking & verification", description: "EFT details and your WhatsApp verify number — owner-only." },
       { href: "audit-log", label: "Audit log", description: "Every sensitive action taken on this workspace, by who and when." },
+      { href: "close-account", label: "Close this account", description: "Take a copy of your records and remove the business — owner-only, and it cannot be undone." },
     ],
   },
 ];

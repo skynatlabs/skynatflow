@@ -45,7 +45,7 @@ export const PRICING_PLANS: PricingPlan[] = [
       "AI PA — plain-language command box",
       "20,000 AI characters per seat, per month",
       "Customer self-service portal",
-      "E-signatures & CSV import/export",
+      "E-signatures & spreadsheet import",
       "Staff accounts & role permissions",
       "Industry-specific pipeline & vocabulary",
       "3 staff seats included",

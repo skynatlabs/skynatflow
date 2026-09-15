@@ -21,7 +21,7 @@ import {
 } from "@/lib/core/catalog";
 import { openTill, findItemByBarcode } from "@/lib/core/pos";
 import { logFuel, getFuelAnomalies } from "@/lib/core/fuel";
-import { TripPurpose, TripStatus } from "@prisma/client";
+import { PartyRole, TripPurpose, TripStatus } from "@prisma/client";
 import { startTrip, endTrip, addStop, listTrips, getTrip } from "@/lib/core/trips";
 import {
   assetCosts,
@@ -131,7 +131,8 @@ import {
 } from "@/lib/core/progressBilling";
 import { compareBranches, listBranches, createBranch } from "@/lib/core/branches";
 import { DOCUMENT_LANGUAGES } from "@/lib/core/documentLanguage";
-import { exportTenant } from "@/lib/core/portability";
+import { applyProposal, upsertParties, upsertProducts } from "@/lib/onboarding/apply";
+import { listIntakeDocuments, onboardingState } from "@/lib/onboarding/progress";
 import {
   proposeMatches,
   acceptMatch,
@@ -1601,6 +1602,29 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
         execute: async () => firstAudit(ctx.tenantId),
       }),
   },
+
+  setupProgress: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What is still missing from this workspace's setup — details, stock, customers, branding — and what has been " +
+          "read in from documents so far. Use it when someone asks what else you need from them.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [state, documents] = await Promise.all([
+            onboardingState(ctx.tenantId),
+            listIntakeDocuments(ctx.tenantId, 10),
+          ]);
+          return {
+            finished: state.finished,
+            stillToDo: state.remaining.map((r) => r.label),
+            products: state.counts.products,
+            customers: state.counts.customers,
+            read: documents.map((d) => ({ file: d.fileName, kind: d.kind, summary: d.summary })),
+          };
+        },
+      }),
+  },
 };
 
 // ------------------------------------------------------------------ writing
@@ -2272,30 +2296,6 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
       }),
   },
 
-  exportEverything: {
-    capability: "staff:manage",
-    build: (ctx) =>
-      tool({
-        description:
-          "Produce a complete export of this workspace's data — every table, with a manifest. " +
-          "Integration credentials are deliberately left out. Returns a summary rather than the " +
-          "whole file, which would be far too large for a conversation; point the owner at " +
-          "Settings for the download.",
-        inputSchema: z.object({}),
-        execute: async () => {
-          const { manifest } = await exportTenant(ctx.tenantId);
-          return {
-            businessName: manifest.businessName,
-            totalRows: manifest.totalRows,
-            tables: manifest.tables
-              .filter((t) => t.rows > 0)
-              .map((t) => ({ table: t.label, rows: t.rows })),
-            notes: manifest.notes,
-          };
-        },
-      }),
-  },
-
   addAsset: {
     capability: "staff:manage",
     build: (ctx) =>
@@ -2920,6 +2920,138 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
         execute: async ({ on }) => {
           await setTurnaroundMode(ctx.tenantId, on);
           return { turnaroundMode: on };
+        },
+      }),
+  },
+
+  // Setting up, from a conversation rather than the screens. Somebody pastes
+  // a price list into the box and says "add these" — this is what makes that
+  // work, on the same terms as the review screen: nothing is duplicated.
+  addProducts: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Add products to the catalogue, or update the ones already there. Matches by code where there is one and by " +
+          "name where there is not, so the same list added twice does not double the catalogue. Money in cents.",
+        inputSchema: z.object({
+          products: z
+            .array(
+              z.object({
+                name: z.string(),
+                sku: z.string().nullable().optional(),
+                unit: z.string().nullable().optional(),
+                unitPriceCents: z.number().int().nullable().optional(),
+                costCents: z.number().int().nullable().optional(),
+                quantityOnHand: z.number().int().nullable().optional(),
+                taxRatePercent: z.number().int().nullable().optional(),
+                category: z.string().nullable().optional(),
+              })
+            )
+            .max(200),
+        }),
+        execute: async ({ products }) => {
+          const rows = products.map((p, i) => ({
+            key: `said:${i}`,
+            name: p.name,
+            sku: p.sku ?? null,
+            unit: p.unit ?? null,
+            unitPriceCents: p.unitPriceCents ?? null,
+            costCents: p.costCents ?? null,
+            quantityOnHand: p.quantityOnHand ?? null,
+            taxRatePercent: p.taxRatePercent ?? null,
+            category: p.category ?? null,
+            source: "what you told me",
+          }));
+          return upsertProducts(ctx.tenantId, rows);
+        },
+      }),
+  },
+
+  addContacts: {
+    capability: "quote:create",
+    build: (ctx) =>
+      tool({
+        description:
+          "Add customers or suppliers in bulk, or fill in details for ones already on file. Matches by email where there " +
+          "is one and by name where there is not.",
+        inputSchema: z.object({
+          role: z.enum(["CUSTOMER", "SUPPLIER"]),
+          contacts: z
+            .array(
+              z.object({
+                name: z.string(),
+                companyName: z.string().nullable().optional(),
+                email: z.string().nullable().optional(),
+                phone: z.string().nullable().optional(),
+                vatNumber: z.string().nullable().optional(),
+                address: z.string().nullable().optional(),
+              })
+            )
+            .max(200),
+        }),
+        execute: async ({ role, contacts }) => {
+          const rows = contacts.map((c, i) => ({
+            key: `said:${i}`,
+            name: c.name,
+            companyName: c.companyName ?? null,
+            email: c.email ?? null,
+            phone: c.phone ?? null,
+            vatNumber: c.vatNumber ?? null,
+            address: c.address ?? null,
+            source: "what you told me",
+          }));
+          return upsertParties(ctx.tenantId, rows, role as PartyRole);
+        },
+      }),
+  },
+
+  setBusinessDetails: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Set the business's own details — registered name, registration and VAT numbers, address, contact details, and " +
+          "the bank account invoices are paid into. Only pass what you were actually told; anything left out stays as it is.",
+        inputSchema: z.object({
+          name: z.string().optional(),
+          registrationNumber: z.string().optional(),
+          entityType: z.string().optional(),
+          vatNumber: z.string().optional(),
+          businessAddress: z.string().optional(),
+          businessEmail: z.string().optional(),
+          businessPhone: z.string().optional(),
+          countryCode: z.string().optional(),
+          bankName: z.string().optional(),
+          bankAccountHolder: z.string().optional(),
+          bankAccountNumber: z.string().optional(),
+          bankBranchCode: z.string().optional(),
+          buildComplianceCalendar: z
+            .boolean()
+            .optional()
+            .describe("Also put what a business like this owes on the compliance calendar."),
+        }),
+        execute: async ({ buildComplianceCalendar, ...fields }) => {
+          const business = Object.fromEntries(
+            Object.entries(fields).filter(([k]) => !k.startsWith("bank"))
+          ) as Record<string, string>;
+          const banking = Object.fromEntries(
+            Object.entries(fields).filter(([k]) => k.startsWith("bank"))
+          ) as Record<string, string>;
+          const result = await applyProposal(ctx.tenantId, {
+            business,
+            banking,
+            obligations: [],
+            customers: [],
+            suppliers: [],
+            products: [],
+            buildCalendar: buildComplianceCalendar ?? false,
+          });
+          return {
+            saved: result.businessFields + result.bankingFields,
+            calendarAdded: result.calendarAdded,
+            problems: result.problems,
+          };
         },
       }),
   },

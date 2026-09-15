@@ -3,7 +3,7 @@
 // Wave, Xero) actually produces: comma-delimited, double-quote escaped,
 // header row first. Handles quoted fields containing commas/newlines.
 
-export function parseCsv(text: string): { headers: string[]; rows: string[][] } {
+export function parseCsv(text: string, delimiter = ","): { headers: string[]; rows: string[][] } {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -30,7 +30,7 @@ export function parseCsv(text: string): { headers: string[]; rows: string[][] } 
 
     if (char === '"') {
       inQuotes = true;
-    } else if (char === ",") {
+    } else if (char === delimiter) {
       row.push(field);
       field = "";
     } else if (char === "\n" || char === "\r") {

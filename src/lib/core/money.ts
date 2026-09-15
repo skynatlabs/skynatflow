@@ -104,10 +104,17 @@ export async function sendQuote(quoteId: string, tenantId: string) {
   if (!quote || quote.tenantId !== tenantId || quote.type !== TransactionType.QUOTE) {
     throw new Error("Quote not found.");
   }
-  return prisma.transaction.update({
+  const sent = await prisma.transaction.update({
     where: { id: quoteId },
     data: { status: TransactionStatus.SENT },
   });
+  // The first quote out of the door is when setting up actually paid off, so
+  // it is stamped once and never again.
+  await prisma.tenant.updateMany({
+    where: { id: tenantId, firstQuoteSentAt: null },
+    data: { firstQuoteSentAt: new Date() },
+  });
+  return sent;
 }
 
 // Records a customer response (accept/decline) — this timestamp is what the

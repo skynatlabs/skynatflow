@@ -62,6 +62,17 @@ function applies(t: ObligationTemplate, p: BusinessProfile): boolean {
  * choose between them would be wrong for every federal country.
  */
 export async function templatesFor(profile: BusinessProfile): Promise<ObligationTemplate[]> {
+  // The curated rows are the library's floor. They were written, shipped and
+  // never loaded — which made every calendar in a jurisdiction we do know
+  // about come back empty. Loading them is idempotent, so the first business
+  // that asks for a country nobody has asked for yet pays for it once.
+  if ((await prisma.obligationTemplate.count({ where: { countryCode: profile.countryCode.toUpperCase() } })) === 0) {
+    const { seedCuratedLibrary } = await import("./obligationLibrarySeed");
+    await seedCuratedLibrary().catch((err) => {
+      console.error("[obligations] could not load the curated library:", err);
+    });
+  }
+
   const rows = await prisma.obligationTemplate.findMany({
     where: {
       countryCode: profile.countryCode.toUpperCase(),

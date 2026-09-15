@@ -129,10 +129,30 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}/pos`, label: "Point of Sale", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/cash-sale`, label: "Cash Sale", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/staff`, label: "Staff & Roles", icon: UserCogIcon },
+    { href: `/dashboard/${tenantId}/setup`, label: "Bring things in", icon: BoxIcon },
     { href: `/dashboard/${tenantId}/settings`, label: "Settings", icon: UserCogIcon },
     { href: `/dashboard/${tenantId}/settings/appearance`, label: "Appearance", icon: UserCogIcon },
     { href: `/dashboard/${tenantId}/settings/officers`, label: "Officers", icon: UserCogIcon },
   ];
+
+  // A business on its way out says so on every page, with the way back.
+  const closing = tenant.deletionRequestedAt
+    ? new Date(tenant.deletionRequestedAt.getTime() + 7 * 86_400_000)
+    : null;
+  const body = (
+    <>
+      {closing && (
+        <div className="mb-4 rounded-lg px-4 py-2 text-xs font-medium" style={{ background: "var(--kb-status-danger)", color: "var(--kb-status-danger-ink)" }}>
+          This account closes on {closing.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })} and
+          everything on it will be removed.{" "}
+          <Link href={`/dashboard/${tenantId}/settings/close-account`} className="underline">
+            Keep my account
+          </Link>
+        </div>
+      )}
+      {children}
+    </>
+  );
 
   const sidebarContent = (
     <>
@@ -249,7 +269,7 @@ export default async function TenantShellLayout({
               theme={theme}
             />
           </div>
-          <div className="dashboard-main-body kb-dock-host">{children}</div>
+          <div className="dashboard-main-body kb-dock-host">{body}</div>
         </main>
         <CommandBar tenantId={tenantId} awaitingApproval={awaitingApproval} />
       </div>
@@ -262,7 +282,7 @@ export default async function TenantShellLayout({
         sidebar={sidebarContent}
         topbar={<TopBar tenantId={tenantId} unread={unread} customerLabel={niche.customerLabel} />}
       >
-        {children}
+        {body}
       </SidebarShell>
       <CommandBar tenantId={tenantId} awaitingApproval={awaitingApproval} />
     </div>

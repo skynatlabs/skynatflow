@@ -155,6 +155,16 @@ model Tenant {
   firstAuditAt                 DateTime?
   // Whether the six officers have introduced themselves yet.
   arrivalShownAt               DateTime?
+  /// Where the owner is in moving in: business, details, stock, customers,
+  /// look. Null once they finish, or for a workspace that predates it.
+  onboardingStep               String?
+  onboardedAt                  DateTime?
+  /// Stamped by the first quote sent — how long moving in actually took.
+  firstQuoteSentAt             DateTime?
+  /// Set when the owner asks to delete the business. Everything is removed
+  /// once the grace period passes; until then the owner can change their mind.
+  deletionRequestedAt          DateTime?
+  deletionRequestedById        String?
   regionCode                   String? // state or province, where it changes what you owe: "CA", "TX", "GP"
   // The entity type in the owner's own words — "Pty Ltd", "LLC", "Sole Trader".
   // Deliberately free text: an enum of company types is a geo-lock wearing a
@@ -261,6 +271,7 @@ model Tenant {
   valueEntries ValueEntry[]
   incidents    Incident[]
   fieldSyncs   FieldSync[]
+  intakeDocuments IntakeDocument[]
 
   @@map("tenants")
 }
@@ -3266,4 +3277,27 @@ model FieldSync {
 
   @@index([tenantId, appliedAt])
   @@map("field_syncs")
+}
+
+/// A document, photograph or spreadsheet brought in while moving in, and what
+/// was read from it. The file itself is not kept: what was read is, so every
+/// field it filled in can say where it came from, and what was read stays
+/// apart from what the owner confirmed.
+model IntakeDocument {
+  id        String    @id @default(cuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fileName  String
+  mediaType String
+  /// What it turned out to be: company_registration, sales_document, price_list…
+  kind      String
+  summary   String?
+  reading   Json
+  /// READ until the owner confirms what to keep, then APPLIED or DISMISSED.
+  status    String    @default("READ")
+  appliedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
+  @@map("intake_documents")
 }

@@ -27,7 +27,8 @@ const NOT_TOOL_SURFACE = new Set([
   // A static list of ISO country codes with names resolved by Intl. Nothing
   // to drive and no state to change.
   "countries",
-  // Curated rows loaded into the shared obligation library once at startup.
+  // Curated rows loaded into the shared obligation library the first time a
+  // jurisdiction is asked about.
   // The agent reads the library through proposeComplianceCalendar and writes
   // to it through document intake; bulk-seeding it is not a request anyone
   // should be able to make in conversation.
@@ -38,6 +39,14 @@ const NOT_TOOL_SURFACE = new Set([
   // Applies captures a phone queued with no signal. Driven by the phone's
   // sync route; trips, stops and proof are reachable through the trip tools.
   "fieldCapture",
+  // Removing a business, and the copy of its records offered on the way out.
+  // The owner types the business name to close an account; an agent must
+  // never be able to start that, and the copy is part of the same flow.
+  "accountClosure",
+  // Reached only through accountClosure now: the whole workspace in one file,
+  // offered when an owner closes the account rather than as a day-to-day
+  // export. Nothing for the agent to drive.
+  "portability",
 ]);
 
 describe("agent tool coverage", () => {

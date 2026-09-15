@@ -56,9 +56,6 @@ export default async function ProductsPage({
           <Link href={`/dashboard/${tenantId}/settings/templates`} className="kb-pill text-xs">
             Proposal templates
           </Link>
-          <Link href={`/dashboard/${tenantId}/settings/export`} className="kb-pill text-xs">
-            Export
-          </Link>
           <Link href={`/dashboard/${tenantId}/settings/import`} className="kb-pill text-xs">
             Import from Zoho/QuickBooks/etc.
           </Link>
@@ -74,8 +71,8 @@ export default async function ProductsPage({
           <Link href={`/dashboard/${tenantId}/settings/automation`} className="kb-pill text-xs">
             Follow-up automation
           </Link>
-          <Link href={`/dashboard/${tenantId}/settings/backup`} className="kb-pill text-xs">
-            Account &amp; backup
+          <Link href={`/dashboard/${tenantId}/setup`} className="kb-pill text-xs">
+            Bring in a price list
           </Link>
           <Link href={`/dashboard/${tenantId}/products/new`} className="kb-pill kb-pill-primary">
             + Add product

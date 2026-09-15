@@ -18,6 +18,7 @@ import { Officer } from "@prisma/client";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { prisma } from "@/lib/db";
 import { currentBrief, approvalQueue, type RankedItem, type QueueItem } from "@/lib/agent/chiefOfStaff";
+import { onboardingState } from "@/lib/onboarding/progress";
 import { PageHeader } from "../PageHeader";
 import { Figure } from "@/components/dashboard/Figure";
 import { EmptyState } from "@/components/dashboard/EmptyState";
@@ -73,13 +74,14 @@ export default async function BriefPage({
   await requireTenantAccess(tenantId);
 
   // Read together; the desk is only shown once the workspace is known.
-  const [tenant, brief, queue] = await Promise.all([
+  const [tenant, brief, queue, setup] = await Promise.all([
     prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { name: true, arrivalShownAt: true, turnaroundMode: true },
+      select: { name: true, arrivalShownAt: true, turnaroundMode: true, onboardedAt: true },
     }),
     currentBrief(tenantId),
     approvalQueue(tenantId),
+    onboardingState(tenantId),
   ]);
   if (!tenant) notFound();
   // The first time anyone opens the Brief, the officers introduce themselves.
@@ -102,6 +104,17 @@ export default async function BriefPage({
           </span>
         }
       />
+
+      {!setup.finished && setup.remaining.length > 0 && (
+        <div className="kb-card mb-4 flex flex-wrap items-center justify-between gap-3 px-5 py-3" style={{ background: "var(--kb-tint-yellow)" }}>
+          <p className="text-sm text-[var(--kb-text)]">
+            Finish setting up — {setup.remaining.map((r) => r.label.toLowerCase()).join(", ")}. The officers see more the more they have.
+          </p>
+          <Link href={`/onboarding/${tenantId}/${setup.step}`} className="kb-pill kb-pill-primary text-xs">
+            Carry on
+          </Link>
+        </div>
+      )}
 
       {tenant.turnaroundMode && (
         <p className="mb-4 rounded-lg px-4 py-2 text-xs font-medium" style={{ background: "var(--kb-tint-peach)", color: "var(--kb-tint-peach-ink)" }}>

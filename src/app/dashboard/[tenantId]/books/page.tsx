@@ -154,7 +154,7 @@ export default async function BooksPage({
             {year} · {pl.summary || "Nothing posted for this year yet."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {[year - 1, year, year + 1].map((y) => (
             <a
               key={y}
@@ -164,6 +164,10 @@ export default async function BooksPage({
               {y}
             </a>
           ))}
+          {/* What the VAT return asks for, in the shape it asks for it. */}
+          <a href={`/dashboard/${tenantId}/books/vat-summary?grouping=sars`} className="kb-pill kb-pill-ghost text-xs">
+            VAT summary
+          </a>
         </div>
       </div>
 
