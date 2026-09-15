@@ -27,7 +27,7 @@ export default async function PortalHomePage({
     prisma.transaction.findMany({
       where: { partyId: party.id, type: { in: ["QUOTE", "INVOICE"] } },
       orderBy: { createdAt: "desc" },
-      include: { itemLines: { include: { item: true } } },
+      include: { itemLines: { include: { item: true }, orderBy: { sortOrder: "asc" } } },
     }),
     prisma.event.findMany({
       where: { partyId: party.id, photoUrl: { not: null } },

@@ -31,7 +31,7 @@ export default async function PortalInvoicePage({
   const invoice = await prisma.transaction.findUnique({
     where: { id: invoiceId },
     include: {
-      itemLines: { include: { item: true } },
+      itemLines: { include: { item: true }, orderBy: { sortOrder: "asc" } },
       salesPersonMembership: { include: { user: true } },
     },
   });

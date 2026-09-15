@@ -29,7 +29,7 @@ export default async function PortalQuotePage({
   const quote = await prisma.transaction.findUnique({
     where: { id: quoteId },
     include: {
-      itemLines: { include: { item: true } },
+      itemLines: { include: { item: true }, orderBy: { sortOrder: "asc" } },
       tenant: true,
       salesPersonMembership: { include: { user: true } },
     },

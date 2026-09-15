@@ -20,6 +20,12 @@ export interface QuoteLineInput {
   unitPriceCents: number;
   discountPercent?: number;
   taxRatePercent?: number;
+  /** What this line says on the document, when the product's name is not it. */
+  description?: string | null;
+  /** How it is sold on this line: each, hour, kg, pallet. */
+  unit?: string | null;
+  /** Where it prints. A document is a sequence, not a set. */
+  sortOrder?: number;
 }
 
 // Line-item and party ids on a quote/sale arrive from form selects, which
@@ -81,12 +87,15 @@ export async function createQuote(params: {
       poNumber: params.poNumber,
       salesPersonMembershipId: params.salesPersonMembershipId,
       itemLines: {
-        create: params.lines.map((l) => ({
+        create: params.lines.map((l, i) => ({
           itemId: l.itemId,
           quantity: l.quantity,
           unitPriceCents: l.unitPriceCents,
           discountPercent: l.discountPercent ?? 0,
           taxRatePercent: l.taxRatePercent,
+          description: l.description?.trim() || null,
+          unit: l.unit?.trim() || null,
+          sortOrder: l.sortOrder ?? i,
         })),
       },
     },
@@ -276,6 +285,12 @@ export async function convertToInvoice(params: {
           unitPriceCents: l.unitPriceCents,
           discountPercent: l.discountPercent,
           taxRatePercent: l.taxRatePercent,
+          // The wording and the order are part of the document, not decoration:
+          // an invoice that renumbers or rewords the quote it came from is a
+          // different document, and somebody has to reconcile the two.
+          description: l.description,
+          unit: l.unit,
+          sortOrder: l.sortOrder,
         })),
       },
     },
@@ -573,10 +588,13 @@ export async function recordCashSale(params: {
       status: TransactionStatus.SENT,
       amountCents,
       itemLines: {
-        create: params.lines.map((l) => ({
+        create: params.lines.map((l, i) => ({
           itemId: l.itemId,
           quantity: l.quantity,
           unitPriceCents: l.unitPriceCents,
+          description: l.description?.trim() || null,
+          unit: l.unit?.trim() || null,
+          sortOrder: l.sortOrder ?? i,
         })),
       },
     },

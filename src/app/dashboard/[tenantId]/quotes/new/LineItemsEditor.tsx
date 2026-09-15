@@ -28,6 +28,10 @@ export interface LineItemValue {
   priceRand: number;
   discountPercent?: number;
   taxRatePercent?: number;
+  /** What this line says on the document, when the product's name is not it. */
+  description?: string | null;
+  /** How it is sold on this line: each, hour, kg, pallet. */
+  unit?: string | null;
 }
 
 function money(rand: number) {
@@ -130,6 +134,7 @@ export function LineItemsEditor({
                           sku: p.sku,
                           priceRand: p.unitPriceCents / 100,
                           taxRatePercent: p.taxRatePercent ?? undefined,
+                          unit: p.unit ?? row.unit ?? null,
                         })
                       }
                       onEdited={(p) =>
@@ -143,6 +148,14 @@ export function LineItemsEditor({
                       className={inputClass}
                     />
                     {row.sku && <p className="mt-0.5 text-[10px] text-[var(--kb-text-dim)]">SKU: {row.sku}</p>}
+                    {/* The same product is described differently on two jobs.
+                        What the customer agreed to is what this says. */}
+                    <input
+                      value={row.description ?? ""}
+                      onChange={(e) => updateRow(row.key, { description: e.target.value })}
+                      placeholder="Say more about this line — optional"
+                      className="mt-1 w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 text-[11px] text-[var(--kb-text-dim)] placeholder:text-[var(--kb-text-dim)] hover:border-[var(--kb-panel-border)] focus:border-[var(--kb-accent-a)] focus:outline-none"
+                    />
                   </td>
                   <td className="px-3 py-2 align-top">
                     <input
@@ -151,6 +164,12 @@ export function LineItemsEditor({
                       value={row.quantity}
                       onChange={(e) => updateRow(row.key, { quantity: Number(e.target.value) || 1 })}
                       className={inputClass}
+                    />
+                    <input
+                      value={row.unit ?? ""}
+                      onChange={(e) => updateRow(row.key, { unit: e.target.value })}
+                      placeholder="each"
+                      className="mt-1 w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 text-[11px] text-[var(--kb-text-dim)] placeholder:text-[var(--kb-text-dim)] hover:border-[var(--kb-panel-border)] focus:border-[var(--kb-accent-a)] focus:outline-none"
                     />
                   </td>
                   <td className="px-3 py-2 align-top">
@@ -210,6 +229,8 @@ export function LineItemsEditor({
                     <input type="hidden" name="linePriceRand" value={row.priceRand} />
                     <input type="hidden" name="lineDiscountPercent" value={row.discountPercent ?? 0} />
                     <input type="hidden" name="lineTaxRatePercent" value={row.taxRatePercent ?? ""} />
+                    <input type="hidden" name="lineDescription" value={row.description ?? ""} />
+                    <input type="hidden" name="lineUnit" value={row.unit ?? ""} />
                   </td>
                 </tr>
               );

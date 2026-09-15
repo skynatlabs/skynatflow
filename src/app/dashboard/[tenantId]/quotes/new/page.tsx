@@ -32,7 +32,7 @@ export default async function NewQuotePage({
   const source = duplicate
     ? await prisma.transaction.findFirst({
         where: { id: duplicate, tenantId, type: "QUOTE" },
-        include: { itemLines: { include: { item: true } } },
+        include: { itemLines: { include: { item: true }, orderBy: { sortOrder: "asc" } } },
       })
     : null;
 

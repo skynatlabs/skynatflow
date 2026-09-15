@@ -41,7 +41,7 @@ import {
 } from "@/lib/core/followUpReminders";
 import { listRecurringInvoices, setRecurringInvoiceActive } from "@/lib/core/recurring";
 import { getTaxSummary } from "@/lib/core/tax";
-import { addNote, listNotes } from "@/lib/core/notes";
+import { addNote, listNotes, listTeamNotes } from "@/lib/core/notes";
 import { addComment, listComments } from "@/lib/core/comments";
 import { logDelivery } from "@/lib/core/movement";
 import { getQuoteSlaBreaches } from "@/lib/core/sla";
@@ -381,6 +381,27 @@ export const EXTRA_READ_TOOLS: Record<string, ExtraToolDef> = {
             to: toIso ? new Date(toIso) : undefined,
             grouping,
           }),
+      }),
+  },
+
+  teamNotes: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What the team has left each other on the workspace's notes board, newest first, pinned ones on top. " +
+          "Use it when somebody asks what was said about a job, a customer or a site.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const notes = await listTeamNotes(ctx.tenantId, ctx.membershipId ?? null, 40);
+          return notes.map((n) => ({
+            title: n.title,
+            body: n.body,
+            by: n.authorName,
+            when: n.createdAt.toISOString().slice(0, 10),
+            pinned: n.pinned,
+            told: n.mentionNames,
+          }));
+        },
       }),
   },
 

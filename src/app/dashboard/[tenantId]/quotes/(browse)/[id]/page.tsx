@@ -7,6 +7,8 @@ import { quoteWhatsAppMessage } from "@/lib/core/whatsappShare";
 import { WhatsAppSendButton } from "@/components/dashboard/WhatsAppSendButton";
 import { StatusPill } from "@/components/dashboard/StatusPill";
 import { DocumentSheet } from "@/components/dashboard/DocumentSheet";
+import { RecordNotes } from "@/components/dashboard/RecordNotes";
+import { listComments } from "@/lib/core/comments";
 import { formatMoney } from "@/lib/core/currency";
 import {
   sendQuoteAction,
@@ -34,20 +36,21 @@ export default async function QuoteDetailPage({
   const quote = await prisma.transaction.findUnique({
     where: { id },
     include: {
-      itemLines: { include: { item: true } },
+      itemLines: { include: { item: true }, orderBy: { sortOrder: "asc" } },
       party: true,
       salesPersonMembership: { include: { user: true } },
     },
   });
   if (!quote || quote.tenantId !== tenantId || quote.type !== "QUOTE") notFound();
 
-  const [tenant, memberships, invoicedChild, portalToken, unusual, template] = await Promise.all([
+  const [tenant, memberships, invoicedChild, portalToken, unusual, template, notes] = await Promise.all([
     prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } }),
     prisma.membership.findMany({ where: { tenantId }, include: { user: true } }),
     prisma.transaction.findFirst({ where: { parentId: id, type: "INVOICE" } }),
     getOrCreatePortalToken(quote.partyId),
     checkUnusualAmount({ tenantId, partyId: quote.partyId, amountCents: quote.amountCents, excludeTransactionId: id }),
     prisma.tenantPdfTemplate.findFirst({ where: { tenantId, isDefault: true }, select: { logoDataUrl: true } }),
+    listComments(tenantId, "Transaction", id),
   ]);
 
   const isLocked = LOCKED_STATUSES.has(quote.status);
@@ -130,6 +133,7 @@ export default async function QuoteDetailPage({
           </Link>
         )}
             <a href={`/portal/${portalToken}/quotes/${id}/pdf`} target="_blank" className="kb-pill kb-pill-ghost text-xs">PDF</a>
+            <a href={`/dashboard/${tenantId}/quotes/${id}/docx`} className="kb-pill kb-pill-ghost text-xs">Word</a>
             <a href={`/portal/${portalToken}/quotes/${id}`} target="_blank" className="kb-pill kb-pill-ghost text-xs">View online</a>
             <Link href={`/dashboard/${tenantId}/quotes/new?duplicate=${id}`} className="kb-pill kb-pill-ghost text-xs">Duplicate</Link>
           </div>
@@ -165,10 +169,12 @@ export default async function QuoteDetailPage({
         scopeOfWork={quote.quoteKind === "PROPOSAL" ? quote.scopeOfWork : null}
         lines={quote.itemLines.map((l) => ({
           id: l.id,
-          name: l.item.name,
-          description: l.item.description,
+          // The line's own wording is what the customer agreed to; the
+          // catalogue's name sits under it as the thing it refers to.
+          name: l.description ?? l.item.name,
+          description: l.description ? l.item.name : l.item.description,
           sku: l.item.sku,
-          unit: l.item.unit,
+          unit: l.unit ?? l.item.unit,
           quantity: l.quantity,
           unitPriceCents: l.unitPriceCents,
           discountPercent: l.discountPercent,
@@ -271,6 +277,9 @@ export default async function QuoteDetailPage({
             {quote.nextFollowUpAt ? "Update reminder" : "Set reminder"}
           </button>
         </form>
+      </div>
+      <div className="mt-4">
+        <RecordNotes tenantId={tenantId} entityType="Transaction" entityId={id} notes={notes} />
       </div>
       </div>
     </div>

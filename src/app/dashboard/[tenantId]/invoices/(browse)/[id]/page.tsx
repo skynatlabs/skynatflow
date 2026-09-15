@@ -8,6 +8,8 @@ import { WhatsAppSendButton } from "@/components/dashboard/WhatsAppSendButton";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
 import { StatusPill } from "@/components/dashboard/StatusPill";
 import { DocumentSheet } from "@/components/dashboard/DocumentSheet";
+import { RecordNotes } from "@/components/dashboard/RecordNotes";
+import { listComments } from "@/lib/core/comments";
 import { formatMoney } from "@/lib/core/currency";
 import {
   recordPaymentAction,
@@ -33,14 +35,14 @@ export default async function InvoiceDetailPage({
   const invoice = await prisma.transaction.findUnique({
     where: { id },
     include: {
-      itemLines: { include: { item: true } },
+      itemLines: { include: { item: true }, orderBy: { sortOrder: "asc" } },
       party: true,
       salesPersonMembership: { include: { user: true } },
     },
   });
   if (!invoice || invoice.tenantId !== tenantId || invoice.type !== "INVOICE") notFound();
 
-  const [tenant, paid, refunded, memberships, portalToken, unusual, template] = await Promise.all([
+  const [tenant, paid, refunded, memberships, portalToken, unusual, template, notes] = await Promise.all([
     prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } }),
     totalPaid(id),
     totalRefunded(id),
@@ -48,6 +50,7 @@ export default async function InvoiceDetailPage({
     getOrCreatePortalToken(invoice.partyId),
     checkUnusualAmount({ tenantId, partyId: invoice.partyId, amountCents: invoice.amountCents, excludeTransactionId: id }),
     prisma.tenantPdfTemplate.findFirst({ where: { tenantId, isDefault: true }, select: { logoDataUrl: true } }),
+    listComments(tenantId, "Transaction", id),
   ]);
   const netPaid = paid - refunded;
   const isLocked = LOCKED_STATUSES.has(invoice.status);
@@ -83,6 +86,7 @@ export default async function InvoiceDetailPage({
               })}
             />
             <a href={`/portal/${portalToken}/invoices/${id}/pdf`} target="_blank" className="kb-pill kb-pill-ghost text-xs">PDF</a>
+            <a href={`/dashboard/${tenantId}/invoices/${id}/docx`} className="kb-pill kb-pill-ghost text-xs">Word</a>
             <a href={`/portal/${portalToken}/invoices/${id}`} target="_blank" className="kb-pill kb-pill-ghost text-xs">View online</a>
           </div>
         </div>
@@ -119,10 +123,12 @@ export default async function InvoiceDetailPage({
         salesperson={invoice.salesPersonMembership ? (invoice.salesPersonMembership.user.name ?? invoice.salesPersonMembership.user.email) : null}
         lines={invoice.itemLines.map((l) => ({
           id: l.id,
-          name: l.item.name,
-          description: l.item.description,
+          // The line's own wording is what the customer agreed to; the
+          // catalogue's name sits under it as the thing it refers to.
+          name: l.description ?? l.item.name,
+          description: l.description ? l.item.name : l.item.description,
           sku: l.item.sku,
-          unit: l.item.unit,
+          unit: l.unit ?? l.item.unit,
           quantity: l.quantity,
           unitPriceCents: l.unitPriceCents,
           discountPercent: l.discountPercent,
@@ -259,6 +265,9 @@ export default async function InvoiceDetailPage({
             {invoice.nextFollowUpAt ? "Update reminder" : "Set reminder"}
           </button>
         </form>
+      </div>
+      <div className="mt-4">
+        <RecordNotes tenantId={tenantId} entityType="Transaction" entityId={id} notes={notes} />
       </div>
       </div>
     </div>

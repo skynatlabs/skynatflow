@@ -63,8 +63,10 @@ export function buildAdminaNav(params: {
       icon: <SquaresIcon />,
       items: [
         { href: `${d}/tasks`, label: "Tasks" },
+        { href: `${d}/notes`, label: "Notes" },
         ...(is("SERVICES", "LOGISTICS") ? [{ href: `${d}/job-cards`, label: "Job Cards" }] : []),
         { href: `${d}/trips`, label: "Trips", ...(is("LOGISTICS", "SERVICES") ? {} : q(`${d}/trips`)) },
+        { href: `${d}/delivery-notes`, label: "Delivery notes" },
         { href: `${d}/fleet`, label: "Fleet", ...(is("LOGISTICS") ? {} : q(`${d}/fleet`)) },
         ...(is("MEDICAL", "SERVICES") ? [{ href: `${d}/appointments`, label: "Appointments" }] : []),
         ...(is("LOGISTICS") ? [{ href: `${d}/fuel`, label: "Fuel Logs" }] : []),

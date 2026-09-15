@@ -106,6 +106,7 @@ const EXPORTS: Array<{
   // What was read off the paperwork handed over while setting up — the
   // documents themselves were never kept, only the reading.
   { key: "intake_documents", label: "Documents read while setting up", direct: true, fetch: (t) => prisma.intakeDocument.findMany({ where: { tenantId: t } }) },
+  { key: "delivery_notes", label: "Delivery notes", direct: true, fetch: (t) => prisma.deliveryNote.findMany({ where: { tenantId: t } }) },
   { key: "wholesale_connections", label: "Trading connections", direct: false, fetch: (t) => prisma.wholesaleConnection.findMany({ where: { OR: [{ supplierTenantId: t }, { buyerTenantId: t }] } }) },
 ];
 
@@ -135,6 +136,7 @@ const EXCLUDED: Record<string, string> = {
   messages: "Exported through their threads.",
   transaction_lines: "Exported through their documents.",
   journal_lines: "Exported through their entries.",
+  delivery_note_lines: "Exported through their delivery notes.",
   purchase_order_lines: "Exported through their purchase orders.",
   job_card_tasks: "Exported through their job cards.",
   progress_claims: "Exported alongside their agreements.",

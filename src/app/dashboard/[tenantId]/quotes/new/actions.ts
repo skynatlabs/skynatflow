@@ -31,6 +31,8 @@ export async function createQuoteAction(formData: FormData) {
   const linePriceRands = formData.getAll("linePriceRand").map((v) => Number(v) || 0);
   const lineDiscountPercents = formData.getAll("lineDiscountPercent").map((v) => Number(v) || 0);
   const lineTaxRatePercents = formData.getAll("lineTaxRatePercent").map((v) => (v === "" ? null : Number(v)));
+  const lineDescriptions = formData.getAll("lineDescription").map((v) => String(v).trim());
+  const lineUnits = formData.getAll("lineUnit").map((v) => String(v).trim());
   const documentDiscountPercent = Number(formData.get("documentDiscountPercent") ?? 0) || 0;
   const subject = String(formData.get("subject") ?? "").trim();
   const poNumber = String(formData.get("poNumber") ?? "").trim();
@@ -44,6 +46,8 @@ export async function createQuoteAction(formData: FormData) {
       priceRand: linePriceRands[i] ?? 0,
       discountPercent: lineDiscountPercents[i] ?? 0,
       taxRatePercent: lineTaxRatePercents[i] ?? undefined,
+      description: lineDescriptions[i] || null,
+      unit: lineUnits[i] || null,
     }))
     .filter((r) => r.itemName && r.priceRand > 0);
 
@@ -101,6 +105,10 @@ export async function createQuoteAction(formData: FormData) {
       unitPriceCents: Math.round(row.priceRand * 100),
       discountPercent: row.discountPercent,
       taxRatePercent: row.taxRatePercent ?? undefined,
+      // What this line says, and what it is sold by, on this document.
+      description: row.description,
+      unit: row.unit,
+      sortOrder: lines.length,
     });
   }
 

@@ -9,6 +9,7 @@ import type { Transaction, TransactionLine, Item, Party, Tenant, Membership, Use
 import { prisma } from "@/lib/db";
 import { DocumentTemplate, type DocumentData } from "./DocumentTemplate";
 import { getPdfStyle, type PdfStyleConfig } from "./styles";
+import { resolveSections } from "./sections";
 import { generateQrDataUrl } from "./qr";
 import { totalPaid, totalRefunded } from "@/lib/core/money";
 
@@ -121,10 +122,15 @@ export async function renderTransactionPdf(params: {
         .filter(Boolean)
         .join(", ") || undefined,
     partyVatNumber: params.party.vatNumber ?? undefined,
-    lines: params.transaction.itemLines.map((l) => ({
-      description: l.item.name,
-      notes: l.item.description,
-      unit: l.item.unit,
+    lines: [...params.transaction.itemLines]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((l) => ({
+      // What this line says on this document wins over the catalogue's
+      // wording: the same product is described differently on two jobs, and
+      // the document is what the customer agreed to.
+      description: l.description ?? l.item.name,
+      notes: l.description ? l.item.name : l.item.description,
+      unit: l.unit ?? l.item.unit,
       sku: l.item.sku,
       quantity: l.quantity,
       unitPriceCents: l.unitPriceCents,
@@ -332,4 +338,82 @@ function describeTerms(issuedAt: Date, dueAt: Date | null): string | undefined {
   if (days <= 0) return "Due on receipt";
   if (days === 1) return "Due in 1 day";
   return `Due in ${days} days`;
+}
+
+/**
+ * A delivery note, which is a document with no money on it.
+ *
+ * It uses the workspace's slip template where there is one, and otherwise a
+ * slip layout built here: the items table without prices, and no totals. A
+ * packing slip that prints what everything cost is how a customer learns a
+ * supplier's margin, and it is printed by whoever happens to be loading.
+ */
+export async function renderDeliveryNotePdf(params: {
+  note: {
+    number: string;
+    createdAt: Date;
+    deliveredAt: Date | null;
+    reference: string | null;
+    notes: string | null;
+    deliveryAddress: string | null;
+    signedBy: string | null;
+    lines: Array<{ description: string; quantity: number; unit: string | null }>;
+    transaction: { id: string } | null;
+  };
+  party: Party;
+  tenant: Tenant;
+}): Promise<Buffer> {
+  const template = await getTemplateFor(params.tenant.id, "SLIP");
+  const baseStyle = getPdfStyle(template?.styleKey ?? "slip-classic");
+  const style: PdfStyleConfig = {
+    ...baseStyle,
+    ...(template?.accentColorHex ? { accentColor: template.accentColorHex } : {}),
+    ...(template?.fontFamily ? { fontFamily: template.fontFamily as PdfStyleConfig["fontFamily"] } : {}),
+    ...(template?.pageSize ? { pageSize: template.pageSize as PdfStyleConfig["pageSize"] } : {}),
+  };
+
+  // Money off, whatever the saved template says: this is the one document
+  // where prices are not merely optional, they are wrong.
+  const sections = resolveSections(template?.sections ?? null).map((section) => {
+    if (section.key === "itemsTable") {
+      return {
+        ...section,
+        fields: { ...(section.fields ?? {}), unitPrice: false, amount: false, discount: false, tax: false, quantity: true, lineNotes: true },
+      };
+    }
+    if (section.key === "totals" || section.key === "bankingDetails") return { ...section, visible: false };
+    // Anything the sender wrote on this particular delivery goes in the notes
+    // block, which otherwise carries the template's standing wording.
+    if (section.key === "notes" && params.note.notes) return { ...section, visible: true, body: params.note.notes };
+    return section;
+  });
+
+  const data: DocumentData = {
+    docLabel: "Delivery note",
+    docNumber: params.note.number,
+    date: params.note.createdAt.toLocaleDateString(),
+    tenantName: params.tenant.name,
+    tenantAddress: params.tenant.businessAddress ?? undefined,
+    tenantEmail: params.tenant.businessEmail ?? undefined,
+    tenantPhone: params.tenant.businessPhone ?? undefined,
+    tenantVatNumber: params.tenant.vatNumber ?? undefined,
+    tenantRegNumber: params.tenant.registrationNumber ?? undefined,
+    partyName: params.party.name,
+    partyCompany: params.party.companyName ?? undefined,
+    partyEmail: params.party.email ?? undefined,
+    partyPhone: params.party.phone ?? undefined,
+    partyAddress: params.note.deliveryAddress ?? undefined,
+    lines: params.note.lines.map((l) => ({
+      description: l.description,
+      unit: l.unit,
+      quantity: l.quantity,
+      unitPriceCents: 0,
+    })),
+    totalCents: 0,
+    subject: params.note.reference ? `Against ${params.note.reference}` : undefined,
+    logoDataUrl: template?.logoDataUrl ?? undefined,
+    sections,
+  };
+
+  return renderToBuffer(DocumentTemplate({ style, data }));
 }

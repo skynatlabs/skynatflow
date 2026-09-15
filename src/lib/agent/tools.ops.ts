@@ -133,6 +133,7 @@ import { compareBranches, listBranches, createBranch } from "@/lib/core/branches
 import { DOCUMENT_LANGUAGES } from "@/lib/core/documentLanguage";
 import { applyProposal, upsertParties, upsertProducts } from "@/lib/onboarding/apply";
 import { listIntakeDocuments, onboardingState } from "@/lib/onboarding/progress";
+import { createDeliveryNote, listDeliveryNotes, markDelivered } from "@/lib/core/deliveryNotes";
 import {
   proposeMatches,
   acceptMatch,
@@ -1603,6 +1604,32 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
       }),
   },
 
+  deliveryNotes: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Delivery notes — what went out of the door, to whom, and whether it was signed for. " +
+          "Use it for 'what did we deliver to X' and 'what is still out'.",
+        inputSchema: z.object({
+          status: z.enum(["DRAFT", "SENT", "DELIVERED"]).optional(),
+          customerId: z.string().optional(),
+        }),
+        execute: async ({ status, customerId }) => {
+          const notes = await listDeliveryNotes(ctx.tenantId, { status, partyId: customerId });
+          return notes.map((n) => ({
+            id: n.id,
+            number: n.number,
+            customer: n.party.name,
+            status: n.status,
+            lines: n.lines.length,
+            units: n.lines.reduce((sum, l) => sum + l.quantity, 0),
+            written: n.createdAt.toISOString().slice(0, 10),
+            delivered: n.deliveredAt?.toISOString().slice(0, 10) ?? null,
+          }));
+        },
+      }),
+  },
+
   setupProgress: {
     build: (ctx) =>
       tool({
@@ -3052,6 +3079,61 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
             calendarAdded: result.calendarAdded,
             problems: result.problems,
           };
+        },
+      }),
+  },
+
+  // The packing slip, written against what is still outstanding on a
+  // document — so a part delivery leaves the rest owed rather than closing
+  // the order.
+  writeDeliveryNote: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description:
+          "Write a delivery note. Give it an invoice or quote id and it starts with everything on that document that has " +
+          "not gone out yet; otherwise give a customer and the lines. It carries no prices — a packing slip that shows " +
+          "what things cost is how a customer learns your margin.",
+        inputSchema: z.object({
+          documentId: z.string().optional().describe("The invoice or quote being delivered against."),
+          customerId: z.string().optional(),
+          lines: z
+            .array(z.object({ description: z.string(), quantity: z.number().int().positive(), unit: z.string().optional() }))
+            .optional(),
+          deliveryAddress: z.string().optional(),
+          reference: z.string().optional().describe("Their order number, when they gave one."),
+          notes: z.string().optional().describe("Gate code, delivery window, who to ask for."),
+        }),
+        execute: async (input) => {
+          const note = await createDeliveryNote({
+            tenantId: ctx.tenantId,
+            transactionId: input.documentId ?? null,
+            partyId: input.customerId ?? null,
+            lines: input.lines?.map((l) => ({ description: l.description, quantity: l.quantity, unit: l.unit ?? null })),
+            deliveryAddress: input.deliveryAddress ?? null,
+            reference: input.reference ?? null,
+            notes: input.notes ?? null,
+            createdById: ctx.membershipId ?? null,
+          });
+          return {
+            id: note.id,
+            number: note.number,
+            customer: note.party.name,
+            lines: note.lines.map((l) => ({ description: l.description, quantity: l.quantity, unit: l.unit })),
+          };
+        },
+      }),
+  },
+
+  markDelivered: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description: "Record that a delivery note arrived, and who signed for it.",
+        inputSchema: z.object({ deliveryNoteId: z.string(), signedBy: z.string().optional() }),
+        execute: async ({ deliveryNoteId, signedBy }) => {
+          const note = await markDelivered(ctx.tenantId, deliveryNoteId, { signedBy: signedBy ?? null });
+          return { number: note.number, status: note.status, deliveredAt: note.deliveredAt?.toISOString() ?? null };
         },
       }),
   },

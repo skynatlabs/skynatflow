@@ -272,6 +272,7 @@ model Tenant {
   incidents    Incident[]
   fieldSyncs   FieldSync[]
   intakeDocuments IntakeDocument[]
+  deliveryNotes   DeliveryNote[]
 
   @@map("tenants")
 }
@@ -456,6 +457,8 @@ model Party {
   // fixed list of languages is the same mistake as a fixed list of countries.
   language String?
 
+  deliveryNotes DeliveryNote[]
+
   @@index([tenantId])
   @@index([tenantId, phone])
   @@map("parties")
@@ -498,6 +501,7 @@ model Item {
   stocktakes         Stocktake[]
   rentals            Rental[]
   expenseLines       ExpenseLine[]
+  deliveryNoteLines  DeliveryNoteLine[]
 
   obligations Obligation[]
 
@@ -662,8 +666,9 @@ model Transaction {
   jobCards         JobCard[]
 
   obligations Obligation[]
-  expenses    Expense[]
-  tripStops   TripStop[]
+  expenses      Expense[]
+  tripStops     TripStop[]
+  deliveryNotes DeliveryNote[]
 
   // Which branch this was sold from. Null on a single-site business.
   branchId String?
@@ -689,6 +694,13 @@ model TransactionLine {
   // the tax on a quote/invoice that already went out.
   discountPercent Float?      @default(0)
   taxRatePercent  Float?
+  /// What this line says on the document, when it should not simply be the
+  /// product's name — "Delivery, 12 pallets, Johannesburg to Durban".
+  description     String?
+  /// How it is sold: each, hour, kg, pallet. Printed beside the quantity.
+  unit            String?
+  /// The order the lines are printed in; a document is a sequence, not a set.
+  sortOrder       Int         @default(0)
 
   @@index([transactionId])
   @@map("transaction_lines")
@@ -1051,9 +1063,16 @@ model Note {
   authorId   String // Membership.id
   title      String?
   body       String
+  /// "team" — everyone in the workspace sees it; "private" — only the author.
+  audience   String   @default("team")
+  /// Membership ids named in the note, each of whom is told about it.
+  mentions   String[] @default([])
+  pinned     Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
   createdAt  DateTime @default(now())
 
   @@index([tenantId, entityType, entityId])
+  @@index([tenantId, pinned])
   @@map("notes")
 }
 
@@ -3300,4 +3319,60 @@ model IntakeDocument {
 
   @@index([tenantId, createdAt])
   @@map("intake_documents")
+}
+
+enum DeliveryNoteStatus {
+  DRAFT
+  SENT
+  DELIVERED
+}
+
+/// What actually went out of the door, against what was sold.
+///
+/// A packing slip and a delivery note are the same document read by two
+/// people: the one loading the van, and the one signing for it. It is kept
+/// apart from the invoice because a delivery is not always the whole invoice
+/// — part orders, back orders and second trips are ordinary.
+model DeliveryNote {
+  id            String             @id @default(cuid())
+  tenantId      String
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  number        String
+  status        DeliveryNoteStatus @default(DRAFT)
+  partyId       String
+  party         Party              @relation(fields: [partyId], references: [id])
+  /// The invoice or quote this delivers against, when there is one.
+  transactionId String?
+  transaction   Transaction?       @relation(fields: [transactionId], references: [id])
+  /// The stop that delivered it, so proof of delivery and the slip are one thing.
+  tripStopId    String?
+  deliveryAddress String?
+  reference     String?
+  notes         String?
+  deliveredAt   DateTime?
+  signedBy      String?
+  createdById   String?
+  createdAt     DateTime           @default(now())
+
+  lines DeliveryNoteLine[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status])
+  @@index([tenantId, transactionId])
+  @@map("delivery_notes")
+}
+
+model DeliveryNoteLine {
+  id          String       @id @default(cuid())
+  noteId      String
+  note        DeliveryNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  itemId      String?
+  item        Item?        @relation(fields: [itemId], references: [id])
+  description String
+  quantity    Int
+  unit        String?
+  sortOrder   Int          @default(0)
+
+  @@index([noteId])
+  @@map("delivery_note_lines")
 }

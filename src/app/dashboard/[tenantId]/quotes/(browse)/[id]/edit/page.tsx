@@ -15,7 +15,7 @@ export default async function EditQuotePage({
 
   const quote = await prisma.transaction.findUnique({
     where: { id },
-    include: { itemLines: { include: { item: true } }, party: true },
+    include: { itemLines: { include: { item: true }, orderBy: { sortOrder: "asc" } }, party: true },
   });
   if (!quote || quote.tenantId !== tenantId || quote.type !== "QUOTE") notFound();
   if (LOCKED_STATUSES.has(quote.status)) redirect(`/dashboard/${tenantId}/quotes/${id}`);
@@ -27,6 +27,8 @@ export default async function EditQuotePage({
     priceRand: l.unitPriceCents / 100,
     discountPercent: l.discountPercent ?? 0,
     taxRatePercent: l.taxRatePercent ?? undefined,
+    description: l.description,
+    unit: l.unit ?? l.item.unit,
   }));
 
   return (
