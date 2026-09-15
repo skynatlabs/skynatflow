@@ -93,6 +93,8 @@ const EXPORTS: Array<{
   { key: "agent_definitions", label: "Agents you configured", direct: true, fetch: (t) => prisma.agentDefinition.findMany({ where: { tenantId: t } }) },
   { key: "tenant_facts", label: "What the agent learned about you", direct: true, fetch: (t) => prisma.tenantFact.findMany({ where: { tenantId: t } }) },
   { key: "domain_events", label: "Business event log", direct: true, fetch: (t) => prisma.domainEvent.findMany({ where: { tenantId: t } }) },
+  { key: "observations", label: "What the officers noticed", direct: true, fetch: (t) => prisma.observation.findMany({ where: { tenantId: t } }) },
+  { key: "officer_autonomy", label: "What each officer is allowed to do", direct: true, fetch: (t) => prisma.officerAutonomy.findMany({ where: { tenantId: t } }) },
   { key: "wholesale_connections", label: "Trading connections", direct: false, fetch: (t) => prisma.wholesaleConnection.findMany({ where: { OR: [{ supplierTenantId: t }, { buyerTenantId: t }] } }) },
 ];
 

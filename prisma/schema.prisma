@@ -228,6 +228,9 @@ model Tenant {
 
   branches Branch[]
 
+  observations    Observation[]
+  officerAutonomy OfficerAutonomy[]
+
   @@map("tenants")
 }
 
@@ -1665,6 +1668,114 @@ model AccountingPeriod {
   @@unique([tenantId, year, month])
   @@index([tenantId])
   @@map("accounting_periods")
+}
+
+// ---------------------------------------------------------------------
+// The coordination layer.
+//
+// Six officers each entitled to interrupt is six sources of noise, and an
+// owner mutes all of them within a fortnight. So officers do not notify.
+// They write observations here — durable, typed, evidenced — and exactly one
+// coordinator decides what reaches a person today.
+//
+// An observation is deliberately not a message. A message can only be sent or
+// not sent; an observation can be deduplicated against others, ranked against
+// them, held back today and raised next week when it has got worse. That
+// difference is the entire reason this table exists rather than a notification
+// call at each site.
+// ---------------------------------------------------------------------
+
+enum Officer {
+  CEO
+  CFO
+  COO
+  LEGAL
+  SALES
+  EFFICIENCY
+  /// Deterministic watchers with no model behind them — the compliance watch,
+  /// the forecast. They observe on the same bus so the coordinator ranks them
+  /// against everything else rather than them having a private channel.
+  SYSTEM
+}
+
+enum ObservationStatus {
+  OPEN // written, never yet shown
+  RAISED // put in front of a person
+  ACTIONED // acted on
+  DISMISSED // explicitly rejected — must never be raised again
+  SUPERSEDED // a newer observation about the same thing replaced it
+  EXPIRED // went stale before it was ever worth raising
+}
+
+model Observation {
+  id       String  @id @default(cuid())
+  tenantId String
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+  officer  Officer
+
+  /// One sentence, quotable verbatim. This is what a person actually reads.
+  headline String
+  detail   String?
+
+  /// What it is worth, in cents. The primary ranking signal — an assistant
+  /// that cannot rank by money ends up ranking by recency, which is how
+  /// trivia crowds out the thing that mattered.
+  moneyCents Int?
+  /// 0-100. Low confidence does not mean do not raise; it means say so.
+  confidence Int       @default(50)
+  /// After this, acting is pointless rather than merely late.
+  urgentBy   DateTime?
+
+  /// Same subject and same kind means the same conversation. Three officers
+  /// noticing one struggling customer should reach a person once.
+  dedupeKey String
+
+  subjectType String?
+  subjectId   String?
+
+  /// The facts that led here, so a person can check rather than trust.
+  /// Shape: [{ label, value, href? }]
+  evidence Json?
+
+  /// What to do about it, in the officer's own words.
+  proposedAction String?
+
+  /// Set when one officer handed this to another; the observation stays one
+  /// item and carries both.
+  handedTo Officer?
+
+  status       ObservationStatus @default(OPEN)
+  raisedAt     DateTime?
+  decidedAt    DateTime?
+  decidedById  String?
+  /// Why it was dismissed. Read back to the officer so it stops suggesting it.
+  decisionNote String?
+
+  supersedesId String?
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, dedupeKey])
+  @@map("observations")
+}
+
+/// What each officer is allowed to do on its own, per workspace.
+///
+/// Separate from the workspace-wide AgentAutonomy because the whole point of
+/// six officers is that they differ: a COO rescheduling a job is not a CFO
+/// posting a journal entry, and one setting for both forces the cautious
+/// answer on everything.
+model OfficerAutonomy {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  officer   Officer
+  /// Highest rung this officer may reach unaided. See agent/ladder.ts.
+  ceiling   String   @default("SUGGEST")
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, officer])
+  @@map("officer_autonomy")
 }
 
 // ---------------------------------------------------------------------

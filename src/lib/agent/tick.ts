@@ -22,6 +22,7 @@ import { createNotification } from "@/lib/core/notifications2";
 import { runNamedAgent } from "@/lib/agent/named";
 import { isDue } from "@/lib/agent/schedule";
 import { runComplianceWatch } from "@/lib/agent/complianceWatch";
+import { buildBrief } from "@/lib/agent/chiefOfStaff";
 
 /** How long between open-ended reviews of one workspace. */
 const REVIEW_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -34,6 +35,8 @@ export interface TickOutcome {
   agentsRun: number;
   /** Obligations whose deadline state worsened and were raised this tick. */
   complianceRaised: number;
+  /** Items the coordinator put in front of the owner. */
+  briefed: number;
   raised: number;
   skipped?: string;
 }
@@ -78,6 +81,7 @@ export async function tickTenant(tenantId: string, now = new Date()): Promise<Ti
     reviewed: false,
     agentsRun: 0,
     complianceRaised: 0,
+    briefed: 0,
     raised: 0,
   };
 
@@ -216,6 +220,22 @@ export async function tickTenant(tenantId: string, now = new Date()): Promise<Ti
     }
   }
 
+  // --- 4. Let the coordinator decide what any of that was worth ------------
+  //
+  // Last, deliberately: every arc above may have written observations, and the
+  // coordinator should rank a whole tick's findings against each other rather
+  // than the first one it sees winning by arriving first.
+  try {
+    const brief = await buildBrief(tenantId, { now });
+    base.briefed = brief.items.length;
+    if (brief.headline) {
+      await notify(tenantId, briefTitle(brief.items.length), brief.headline);
+      raised += 1;
+    }
+  } catch (err) {
+    console.error(`[agent:tick] ${tenantId} brief failed:`, err);
+  }
+
   return { ...base, raised };
 }
 
@@ -238,6 +258,7 @@ export async function tickAllTenants(now = new Date()): Promise<TickOutcome[]> {
         reviewed: false,
         agentsRun: 0,
         complianceRaised: 0,
+        briefed: 0,
         raised: 0,
         skipped: err instanceof Error ? err.message : "failed",
       });
@@ -252,6 +273,10 @@ export async function tickAllTenants(now = new Date()): Promise<TickOutcome[]> {
 function isNothing(reply: string): boolean {
   const normalised = reply.trim().toLowerCase().replace(/[.!]/g, "");
   return normalised === "nothing" || normalised.length === 0 || normalised.startsWith("nothing");
+}
+
+function briefTitle(count: number): string {
+  return count === 1 ? "One thing worth your attention" : `${count} things worth your attention`;
 }
 
 // A title that says whether this is news or a decision. An owner scanning a

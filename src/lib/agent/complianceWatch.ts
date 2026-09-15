@@ -18,6 +18,7 @@
 import { prisma } from "@/lib/db";
 import { createNotification } from "@/lib/core/notifications2";
 import { obligationRadar, type RadarLine, type ObligationState } from "@/lib/core/obligations";
+import { observe } from "@/lib/agent/observations";
 
 export interface ComplianceWatchOutcome {
   /** Obligations whose state worsened since the owner was last told. */
@@ -117,12 +118,43 @@ export async function runComplianceWatch(
       a.daysUntil - b.daysUntil
   );
 
-  await createNotification({
-    tenantId,
-    type: "GENERAL",
-    title: titleFor(fresh),
-    body: fresh.map(describe).join("\n\n").slice(0, 1500),
-  });
+  // Writes to the bus rather than notifying directly. A deterministic watcher
+  // with no model behind it still has to compete for attention on the same
+  // terms as everything else — a private channel to the owner is exactly the
+  // privilege the coordination layer exists to remove.
+  //
+  // The direct notification stays for anything that stops work: an expired
+  // driving permit is not a ranking question, and holding it back because
+  // four higher-scoring things happened today would be indefensible.
+  for (const line of fresh) {
+    await observe({
+      tenantId,
+      officer: "SYSTEM",
+      headline: describe(line),
+      dedupeKey: `obligation:${line.id}`,
+      subjectType: "obligation",
+      subjectId: line.id,
+      // Severity stands in for money until an obligation carries an amount.
+      moneyCents: line.severity === "CRITICAL" ? 50_000_00 : line.severity === "HIGH" ? 15_000_00 : null,
+      confidence: 100, // a date is a date
+      urgentBy: line.actionByAt,
+      proposedAction: line.consequence,
+      evidence: [
+        { label: "Due", value: line.dueAt.toISOString().slice(0, 10) },
+        ...(line.authority ? [{ label: "Required by", value: line.authority }] : []),
+      ],
+    });
+  }
+
+  const blocking = fresh.filter((l) => l.blocksWork);
+  if (blocking.length > 0) {
+    await createNotification({
+      tenantId,
+      type: "GENERAL",
+      title: titleFor(blocking),
+      body: blocking.map(describe).join("\n\n").slice(0, 1500),
+    });
+  }
 
   await prisma.obligation.updateMany({
     where: { id: { in: fresh.map((l) => l.id) } },

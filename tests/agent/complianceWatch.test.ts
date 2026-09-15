@@ -8,6 +8,11 @@ import { prisma } from "../../src/lib/db";
 import { runComplianceWatch } from "../../src/lib/agent/complianceWatch";
 import { addObligation } from "../../src/lib/core/obligations";
 
+// Non-blocking findings now go to the observation bus and compete for
+// attention on the same terms as everything else. Only something that stops
+// work still notifies directly — that is not a ranking question.
+const observations = () => prisma.observation.count({ where: { tenantId } });
+
 let tenantId: string;
 
 beforeEach(async () => {
@@ -17,6 +22,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await prisma.notification.deleteMany({ where: { tenantId } });
+  await prisma.observation.deleteMany({ where: { tenantId } });
   await prisma.obligation.deleteMany({ where: { tenantId } });
   await prisma.tenant.delete({ where: { id: tenantId } });
 });
@@ -35,7 +41,7 @@ describe("runComplianceWatch", () => {
 
     const out = await runComplianceWatch(tenantId, JUNE);
     expect(out.raised).toBe(0);
-    expect(await prisma.notification.count({ where: { tenantId } })).toBe(0);
+    expect(await observations()).toBe(0);
   });
 
   it("raises once, then stays quiet while nothing changes", async () => {
@@ -56,7 +62,7 @@ describe("runComplianceWatch", () => {
     const second = await runComplianceWatch(tenantId, new Date("2026-06-01T09:15:00Z"));
     expect(second.raised).toBe(0);
 
-    expect(await prisma.notification.count({ where: { tenantId } })).toBe(1);
+    expect(await observations()).toBe(1);
   });
 
   it("speaks again when the state genuinely worsens", async () => {
@@ -78,7 +84,10 @@ describe("runComplianceWatch", () => {
     // 8 June: OVERDUE. Worth saying again.
     expect((await runComplianceWatch(tenantId, new Date("2026-06-08T09:00:00Z"))).raised).toBe(1);
 
-    expect(await prisma.notification.count({ where: { tenantId } })).toBe(3);
+    // Three observations, but each supersedes the last on the same key — so
+    // the bus holds one live finding and a trail of what it used to say.
+    expect(await prisma.observation.count({ where: { tenantId, status: "OPEN" } })).toBe(1);
+    expect(await observations()).toBe(3);
   });
 
   it("leads with what is blocking work and names the consequence", async () => {
@@ -138,10 +147,12 @@ describe("runComplianceWatch", () => {
     });
 
     await runComplianceWatch(tenantId, JUNE);
-    const note = await prisma.notification.findFirst({ where: { tenantId } });
+    // A contract renewal does not stop work, so it goes to the bus rather
+    // than straight to the owner.
+    const observed = await prisma.observation.findFirst({ where: { tenantId } });
     // Useless without both: one is when to act, the other is what happens.
-    expect(note!.body).toContain("2026-06-01");
-    expect(note!.body).toContain("2026-07-01");
-    expect(note!.body).toContain("Notice has to be given");
+    expect(observed!.headline).toContain("2026-06-01");
+    expect(observed!.headline).toContain("2026-07-01");
+    expect(observed!.headline).toContain("Notice has to be given");
   });
 });
