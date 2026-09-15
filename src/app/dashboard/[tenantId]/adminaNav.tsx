@@ -116,6 +116,7 @@ export function buildAdminaNav(params: {
       icon: <GearIcon />,
       items: [
         { href: `${d}/settings`, label: "All settings" },
+        { href: `${d}/settings/appearance`, label: "Appearance" },
         { href: `${d}/settings/pdf-templates`, label: "PDF templates" },
         { href: `${d}/settings/payment-gateways`, label: "Payment gateways" },
         { href: `${d}/settings/automation`, label: "Follow-ups" },

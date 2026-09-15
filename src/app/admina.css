@@ -4330,7 +4330,13 @@
   color: #fff;
   border: 1px solid var(--ts-purple);
 }
-.kb-shell[data-skin="admina"] .kb-pill-primary:hover { background: #486cea; border-color: #486cea; }
+/* Hover was a hand-picked darker blue, which would stay blue under every
+   palette. color-mix keeps the same "slightly darker than the button" effect
+   against whatever accent is in use. */
+.kb-shell[data-skin="admina"] .kb-pill-primary:hover {
+  background: color-mix(in srgb, var(--ts-purple) 88%, #000);
+  border-color: color-mix(in srgb, var(--ts-purple) 88%, #000);
+}
 .kb-shell[data-skin="admina"] .kb-pill-ghost {
   background: transparent;
   color: var(--ts-text);

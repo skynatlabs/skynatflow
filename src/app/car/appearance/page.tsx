@@ -1,5 +1,4 @@
 import { getPlatformColorSkin, COLOR_SKIN_LABELS, type ColorSkin } from "@/lib/ai/model";
-import { setColorSkinAction } from "./actions";
 
 export default async function AdminAppearancePage() {
   const current = await getPlatformColorSkin();
@@ -30,18 +29,54 @@ export default async function AdminAppearancePage() {
       helpText: "Sci-fi glass look: cool cyan/electric-blue accents, crisp edges. Has its own light and dark variant.",
       swatches: ["#0ea5e9", "#22d3ee", "#0f172a"],
     },
+    {
+      id: "jewel",
+      helpText: "Emerald, mango and magenta over a deep canvas — rich and saturated without going neon.",
+      swatches: ["#059669", "#f59e0b", "#db2777"],
+    },
+    {
+      id: "summer",
+      helpText: "Cyan, blue, orange, yellow and pink as flat colour — no gradients anywhere, so everything reads crisply at small sizes.",
+      swatches: ["#06b6d4", "#f97316", "#ec4899"],
+    },
+    {
+      id: "admina",
+      helpText:
+        "Dense, data-first admin in blue and slate. The only skin that changes the navigation itself: a twin icon rail and panel grouped by what you are doing, instead of one long list.",
+      swatches: ["#3b82f6", "#475569", "#0f172a"],
+    },
   ];
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-[var(--kb-text)]">Appearance</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-        The dashboard&apos;s color skin, platform-wide — applies to every tenant. Safe to flip
-        any time, no redeploy needed. Sidebar navigation stays the same neutral dark tone in
-        every skin; this only changes accent colors and stat-tile tints.
+        The dashboard&apos;s colour skin, platform-wide — applies to every tenant. Safe to flip
+        any time, no redeploy needed. Most skins change only accent colours and stat-tile tints,
+        leaving the sidebar the same neutral dark tone. Admina is the exception: it replaces the
+        navigation itself with a twin icon rail.
       </p>
 
-      <div className="kb-card mt-6 divide-y divide-[var(--kb-panel-border)]">
+      {/* Disabled rather than removed. The skins and their CSS are all still
+          here, and re-enabling the choice is a one-line change in
+          getPlatformColorSkin — but seven half-maintained variations of the
+          whole chrome was not a feature, it was seven ways for a page to look
+          wrong. */}
+      <div
+        className="mt-6 rounded-md px-4 py-3 text-sm"
+        style={{ background: "var(--kb-tint-blue)", color: "var(--kb-tint-blue-ink)" }}
+      >
+        <p>
+          Admina is now the only look, and every page is designed and tested against it. The other
+          skins below are kept but no longer selectable.
+        </p>
+        <p className="mt-1.5 opacity-90">
+          What people can change is their own accent colour, from Appearance in their dashboard
+          settings — their choice, not a platform-wide one.
+        </p>
+      </div>
+
+      <div className="kb-card mt-6 divide-y divide-[var(--kb-panel-border)] opacity-60">
         {skins.map((s) => {
           const isCurrent = current === s.id;
           return (
@@ -60,12 +95,7 @@ export default async function AdminAppearancePage() {
               {isCurrent ? (
                 <span className="kb-pill kb-pill-primary text-xs">Active</span>
               ) : (
-                <form action={setColorSkinAction}>
-                  <input type="hidden" name="skin" value={s.id} />
-                  <button type="submit" className="kb-pill kb-pill-ghost text-xs">
-                    Use this
-                  </button>
-                </form>
+                <span className="kb-pill text-xs text-[var(--kb-text-dim)]">Disabled</span>
               )}
             </div>
           );

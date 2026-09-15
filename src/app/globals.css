@@ -595,6 +595,13 @@ body:has(.kb-shell[data-skin="admina"]:not([data-theme="dark"])) { background: #
   --kb-text: #111827;          /* neutral-900 */
   --kb-text-dim: #6b7280;      /* neutral-500 */
 
+  /* The Admina template reads its primary colour from --primary-600, which it
+     never actually defines — every use falls back to a literal #487FFF. Defining
+     it here in terms of the accent is what makes the palette reach the buttons:
+     one definition, and all 38 rules that consume --primary-600 or --ts-purple
+     follow. Custom properties resolve at use, so an accent override later in
+     this file still wins. */
+  --primary-600: var(--kb-accent-a);
   --kb-accent-a: #487fff;      /* primary-600 — the main theme colour */
   --kb-accent-mid: #519fff;    /* primary-400 — gradient partner */
   --kb-accent-b: #45b369;      /* success-main — standalone accent */
@@ -828,3 +835,25 @@ body:has(.kb-shell[data-skin="admina"]:not([data-theme="dark"])) { background: #
 
 /* Primary shortcut tile — a ring in every skin that uses lifted cards. */
 .kb-tile-primary { box-shadow: inset 0 0 0 2px var(--kb-accent-a); }
+
+/* ------------------------------------------------------------------ accents
+   The one visual choice a person gets, and deliberately the smallest one that
+   is still worth having: three accent tokens, nothing else. Surfaces, text and
+   borders stay exactly as Admina sets them in both light and dark, so no
+   palette can ever leave somebody with unreadable text — which is the failure
+   mode of every theme picker that lets you move more than this.
+
+   --kb-accent-mid is the gradient partner for --kb-accent-a, so a palette that
+   sets it to a different hue (see blush) is what makes gradients genuinely run
+   from one colour into another rather than into a lighter version of itself.
+
+   Blue is Admina's own accent and needs no block: it is what you get when no
+   palette is chosen. */
+
+.kb-shell[data-accent="violet"]  { --kb-accent-a: #7c5cff; --kb-accent-mid: #9b82ff; --kb-accent-b: #45b369; }
+.kb-shell[data-accent="emerald"] { --kb-accent-a: #10a37f; --kb-accent-mid: #34c79b; --kb-accent-b: #487fff; }
+.kb-shell[data-accent="teal"]    { --kb-accent-a: #0d9488; --kb-accent-mid: #2dd4bf; --kb-accent-b: #487fff; }
+.kb-shell[data-accent="amber"]   { --kb-accent-a: #e08700; --kb-accent-mid: #f5a524; --kb-accent-b: #487fff; }
+.kb-shell[data-accent="pink"]    { --kb-accent-a: #ec4899; --kb-accent-mid: #f472b6; --kb-accent-b: #487fff; }
+.kb-shell[data-accent="blush"]   { --kb-accent-a: #ef5da8; --kb-accent-mid: #f5a524; --kb-accent-b: #487fff; }
+.kb-shell[data-accent="red"]     { --kb-accent-a: #dc2626; --kb-accent-mid: #ef4444; --kb-accent-b: #487fff; }

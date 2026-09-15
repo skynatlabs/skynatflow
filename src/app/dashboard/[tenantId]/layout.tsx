@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { nicheConfig } from "@/lib/niches/config";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { getPlatformColorSkin } from "@/lib/ai/model";
+import { getPlatformColorSkin, getAccentForUser } from "@/lib/ai/model";
 import { AuthRequiredError, ForbiddenError, requireTenantAccess } from "@/lib/auth/tenant-access";
 import { logoutAction } from "@/app/logout/actions";
 import { FlowMark } from "@/components/FlowMark";
@@ -71,6 +71,8 @@ export default async function TenantShellLayout({
   const cookieStore = await cookies();
   const theme = cookieStore.get("kb-theme")?.value === "dark" ? "dark" : "light";
   const skin = await getPlatformColorSkin();
+  // A person's own accent, which follows them between workspaces.
+  const accent = await getAccentForUser(access.userId);
 
   const nav = [
     { href: `/dashboard/${tenantId}`, label: "Home", icon: HomeIcon },
@@ -114,6 +116,7 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}/cash-sale`, label: "Cash Sale", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/staff`, label: "Staff & Roles", icon: UserCogIcon },
     { href: `/dashboard/${tenantId}/settings`, label: "Settings", icon: UserCogIcon },
+    { href: `/dashboard/${tenantId}/settings/appearance`, label: "Appearance", icon: UserCogIcon },
   ];
 
   const sidebarContent = (
@@ -189,7 +192,7 @@ export default async function TenantShellLayout({
   // it. Every other skin keeps the original single-column sidebar.
   if (skin === "admina") {
     return (
-      <div className="kb-shell" data-theme={theme} data-skin={skin}>
+      <div className="kb-shell" data-theme={theme} data-skin={skin} data-accent={accent}>
         <TwinSidebar
           groups={buildAdminaNav({
             tenantId,
@@ -238,7 +241,7 @@ export default async function TenantShellLayout({
   }
 
   return (
-    <div className="kb-shell flex" data-theme={theme} data-skin={skin}>
+    <div className="kb-shell flex" data-theme={theme} data-skin={skin} data-accent={accent}>
       <SidebarShell
         sidebar={sidebarContent}
         topbar={<TopBar tenantId={tenantId} unread={unread} customerLabel={niche.customerLabel} />}

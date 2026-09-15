@@ -228,15 +228,22 @@ model Tenant {
 // membership, for support and cross-business oversight. This is distinct
 // from an OWNER membership, which only grants access to that one business.
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String?
-  phone        String? // WhatsApp-reachable — where the daily briefing goes
-  passwordHash String? // null = account exists (e.g. added by a staff invite) but hasn't been claimed with a password yet
-  isSuperAdmin Boolean  @default(false)
-  totpSecret   String? // base32, set once 2FA setup is confirmed
-  totpEnabled  Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  phone         String? // WhatsApp-reachable — where the daily briefing goes
+  // Which accent colour this person sees on buttons, links and key figures.
+  // Follows them between workspaces rather than being set per tenant: it is a
+  // preference about how somebody likes to look at software, not a property of
+  // the business. Null means the default. Deliberately only an accent — the
+  // surfaces stay as Admina defines them, so a palette can never make the app
+  // unreadable.
+  accentPalette String?
+  passwordHash  String? // null = account exists (e.g. added by a staff invite) but hasn't been claimed with a password yet
+  isSuperAdmin  Boolean  @default(false)
+  totpSecret    String? // base32, set once 2FA setup is confirmed
+  totpEnabled   Boolean  @default(false)
+  createdAt     DateTime @default(now())
 
   memberships Membership[]
 
