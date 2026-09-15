@@ -35,6 +35,9 @@ const NOT_TOOL_SURFACE = new Set([
   // Formats money in the workspace's currency. A pure function over a code
   // and a number; nothing to drive.
   "currency",
+  // Applies captures a phone queued with no signal. Driven by the phone's
+  // sync route; trips, stops and proof are reachable through the trip tools.
+  "fieldCapture",
 ]);
 
 describe("agent tool coverage", () => {

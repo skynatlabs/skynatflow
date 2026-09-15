@@ -128,6 +128,7 @@ const EXCLUDED: Record<string, string> = {
   webhook_deliveries: "Delivery attempts against those endpoints; no business meaning without them.",
   api_keys: "Hashed API keys. Useless to import and dangerous to circulate.",
   voice_usage: "Platform metering, not business data.",
+  field_syncs: "Delivery receipts for captures sent from a phone; the captures themselves are exported as trips, stops and events.",
   messages: "Exported through their threads.",
   transaction_lines: "Exported through their documents.",
   journal_lines: "Exported through their entries.",

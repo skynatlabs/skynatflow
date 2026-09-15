@@ -15,13 +15,12 @@ import { costRates, lastDays, tripCostCents } from "@/lib/core/costing";
 import { PageHeader } from "../PageHeader";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
 import { TripTracker } from "./TripTracker";
+import { StopCapture } from "./StopCapture";
 import {
   startTripAction,
   endTripAction,
   cancelTripAction,
   addStopAction,
-  arriveAction,
-  departAction,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -116,30 +115,16 @@ export default async function TripsPage({ params }: { params: Promise<{ tenantId
                 </div>
 
                 <ol className="mt-3 divide-y divide-[var(--kb-panel-border)] text-sm">
-                  {t.stops.map((s) => (
-                    <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                      <span>
-                        <span className="mr-2 text-[10px] tabular-nums text-[var(--kb-text-dim)]">{s.sequence + 1}</span>
-                        {s.party?.name ?? s.label ?? s.addressText ?? "Stop"}
-                        <span className="ml-2 text-xs text-[var(--kb-text-dim)]">
-                          {s.arrivedAt ? `arrived ${when(s.arrivedAt)}` : ""}
-                          {s.departedAt ? ` · left ${when(s.departedAt)}` : ""}
-                        </span>
-                      </span>
-                      <span className="flex gap-1">
-                        {!s.arrivedAt && (
-                          <form action={arriveAction.bind(null, tenantId)}>
-                            <input type="hidden" name="stopId" value={s.id} />
-                            <SubmitButton className="kb-pill kb-pill-ghost !py-1 text-[11px]">Arrived</SubmitButton>
-                          </form>
-                        )}
-                        {s.arrivedAt && !s.departedAt && (
-                          <form action={departAction.bind(null, tenantId)}>
-                            <input type="hidden" name="stopId" value={s.id} />
-                            <SubmitButton className="kb-pill kb-pill-ghost !py-1 text-[11px]">Leaving</SubmitButton>
-                          </form>
-                        )}
-                      </span>
+                  {t.stops.map((st) => (
+                    <li key={st.id}>
+                      <StopCapture
+                        tenantId={tenantId}
+                        stopId={st.id}
+                        label={`${st.sequence + 1}. ${st.party?.name ?? st.label ?? st.addressText ?? "Stop"}`}
+                        arrivedAt={st.arrivedAt ? st.arrivedAt.toISOString() : null}
+                        departedAt={st.departedAt ? st.departedAt.toISOString() : null}
+                        hasProof={Boolean(st.eventId)}
+                      />
                     </li>
                   ))}
                 </ol>

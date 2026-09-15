@@ -260,6 +260,7 @@ model Tenant {
   tripStops    TripStop[]
   valueEntries ValueEntry[]
   incidents    Incident[]
+  fieldSyncs   FieldSync[]
 
   @@map("tenants")
 }
@@ -3242,4 +3243,22 @@ model Incident {
 
   @@index([tenantId, at])
   @@map("incidents")
+}
+
+/// A field action captured on a phone, applied once. The id is generated on
+/// the phone at the moment of the tap, so a capture retried after the signal
+/// comes back is recognised and not applied twice — which is what lets the
+/// app record an arrival with no signal and send it later.
+model FieldSync {
+  id        String   @id // client-generated
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kind      String
+  /// When it happened on the phone, which is not when it arrived here.
+  capturedAt DateTime
+  appliedAt  DateTime @default(now())
+  result     String?
+
+  @@index([tenantId, appliedAt])
+  @@map("field_syncs")
 }
