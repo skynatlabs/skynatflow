@@ -109,6 +109,8 @@ export function buildAdminaNav(params: {
         { href: `${d}/org`, label: "Org Chart" },
         { href: `${d}/team-performance`, label: "Team Performance" },
         { href: `${d}/attendance`, label: "Attendance" },
+        { href: `${d}/leave`, label: "Leave" },
+        { href: `${d}/assets`, label: "Assets" },
       ],
     },
     {

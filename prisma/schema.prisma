@@ -219,6 +219,11 @@ model Tenant {
   bankAccounts        BankAccount[]
   reconciliationRules ReconciliationRule[]
 
+  assets            Asset[]
+  leaveRequests     LeaveRequest[]
+  holidays          Holiday[]
+  employmentRecords EmploymentRecord[]
+
   @@map("tenants")
 }
 
@@ -275,6 +280,10 @@ model Membership {
   jobCardsAssigned          JobCard[]
 
   obligations Obligation[]
+
+  assetsHeld        Asset[]            @relation("AssetHolder")
+  leaveRequests     LeaveRequest[]     @relation("LeaveTaker")
+  employmentRecords EmploymentRecord[] @relation("EmploymentSubject")
 
   @@unique([userId, tenantId])
   @@index([tenantId])
@@ -1630,6 +1639,166 @@ model AccountingPeriod {
   @@unique([tenantId, year, month])
   @@index([tenantId])
   @@map("accounting_periods")
+}
+
+// ---------------------------------------------------------------------
+// The things and people a business is responsible for.
+//
+// Assets, leave, employment records and handovers are four features in most
+// products. Here they lean on one another: an asset is issued to a person, a
+// person's documents expire and can stop work through the obligation engine,
+// and what they hold and know is what a handover is made of. Modelling them
+// apart would mean the day somebody leaves is still four screens and a
+// forgotten laptop.
+// ---------------------------------------------------------------------
+
+enum AssetStatus {
+  IN_STOCK // held by the business, not issued
+  ISSUED // out with a person
+  IN_REPAIR
+  LOST
+  RETIRED // sold, scrapped or written off — kept, never deleted
+}
+
+model Asset {
+  id       String      @id @default(cuid())
+  tenantId String
+  tenant   Tenant      @relation(fields: [tenantId], references: [id])
+  name     String
+  category String? // "laptop", "vehicle", "power tool" — free text, because every trade's list differs
+  serial   String?
+  status   AssetStatus @default(IN_STOCK)
+
+  // What it cost and when, so depreciation (phase 120) has something real to
+  // work from rather than asking somebody to type their asset register twice.
+  purchasedOn      DateTime?
+  purchaseCents    Int?
+  // Expected life in months. Null means nobody has said, which is different
+  // from zero and must not be depreciated as if it were.
+  usefulLifeMonths Int?
+
+  /**
+   * Who has it now. Null when it is in stock, in repair or gone.
+   */
+  holderId String?
+  holder   Membership? @relation("AssetHolder", fields: [holderId], references: [id])
+  issuedAt DateTime?
+
+  notes     String?
+  createdAt DateTime @default(now())
+
+  movements AssetMovement[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, holderId])
+  @@map("assets")
+}
+
+// Every issue, return and write-off. Append-only: "who had the drill in March"
+// is a question somebody asks in June, and a current-holder field alone
+// cannot answer it.
+model AssetMovement {
+  id       String   @id @default(cuid())
+  assetId  String
+  asset    Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  tenantId String
+  fromId   String? // Membership.id, null when coming out of stock
+  toId     String? // Membership.id, null when going back to stock or out of service
+  kind     String // "issued" | "returned" | "repair" | "lost" | "retired"
+  note     String?
+  at       DateTime @default(now())
+
+  @@index([tenantId, at])
+  @@index([assetId])
+  @@map("asset_movements")
+}
+
+enum LeaveKind {
+  ANNUAL
+  SICK
+  FAMILY // family responsibility
+  UNPAID
+  PARENTAL
+  OTHER
+}
+
+enum LeaveStatus {
+  REQUESTED
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+model LeaveRequest {
+  id           String      @id @default(cuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id])
+  membershipId String
+  membership   Membership  @relation("LeaveTaker", fields: [membershipId], references: [id])
+  kind         LeaveKind   @default(ANNUAL)
+  startOn      DateTime
+  endOn        DateTime
+  // Working days, computed when the request is made and stored — a later
+  // change to the public-holiday list must not silently restate leave that
+  // has already been approved and taken.
+  days         Float
+  status       LeaveStatus @default(REQUESTED)
+  reason       String?
+  decidedById  String?
+  decidedAt    DateTime?
+  createdAt    DateTime    @default(now())
+
+  @@index([tenantId, status])
+  @@index([membershipId, startOn])
+  @@map("leave_requests")
+}
+
+// A day nobody is expected to work. Seeded per country from the obligation
+// library's jurisdiction, and editable — every business has days of its own.
+model Holiday {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  onDate    DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, onDate, name])
+  @@index([tenantId, onDate])
+  @@map("holidays")
+}
+
+enum EmploymentRecordKind {
+  CONTRACT
+  WARNING
+  REVIEW
+  QUALIFICATION
+  ONBOARDING
+  OFFBOARDING
+  NOTE
+}
+
+// The file you need on the day it goes wrong.
+//
+// Append-only by design: a warning that can be edited after the fact is not
+// evidence of anything, and the whole point of keeping these is that they
+// hold up later.
+model EmploymentRecord {
+  id              String               @id @default(cuid())
+  tenantId        String
+  tenant          Tenant               @relation(fields: [tenantId], references: [id])
+  membershipId    String
+  membership      Membership           @relation("EmploymentSubject", fields: [membershipId], references: [id])
+  kind            EmploymentRecordKind
+  title           String
+  body            String?
+  documentDataUrl String? // same base64 pattern as e-signatures and receipts
+  effectiveOn     DateTime
+  recordedById    String?
+  createdAt       DateTime             @default(now())
+
+  @@index([tenantId, membershipId])
+  @@map("employment_records")
 }
 
 // ---------------------------------------------------------------------

@@ -70,6 +70,24 @@ import { balanceSheet, profitAndLoss, trialBalance } from "@/lib/core/financialR
 import { backfillLedger, ledgerCoverage } from "@/lib/core/ledgerBackfill";
 import { listBankAccounts, importStatement, reconciliationGap } from "@/lib/core/banking";
 import {
+  createAsset,
+  issueAsset,
+  returnAsset,
+  listAssets,
+  assetSummary,
+  assetsHeldBy,
+} from "@/lib/core/assets";
+import {
+  requestLeave,
+  decideLeave,
+  leaveBalances,
+  whoIsAway,
+  listLeaveRequests,
+  addEmploymentRecord,
+  listEmploymentRecords,
+} from "@/lib/core/people";
+import { buildHandoverPack } from "@/lib/core/handover";
+import {
   proposeMatches,
   acceptMatch,
   ignoreLine,
@@ -426,6 +444,159 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
               account: r.account.name,
               usedTimes: r.timesApplied,
               overruledTimes: r.timesOverruled,
+            })),
+          };
+        },
+      }),
+  },
+
+  whoIsAway: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Who is on approved leave over a date range. Check this before promising a customer a " +
+          "date or committing someone to a job — it is the question this feature exists for.",
+        inputSchema: z.object({
+          from: z.string().describe("YYYY-MM-DD"),
+          to: z.string().describe("YYYY-MM-DD"),
+        }),
+        execute: async ({ from, to }) => {
+          const away = await whoIsAway(
+            ctx.tenantId,
+            new Date(`${from}T00:00:00.000Z`),
+            new Date(`${to}T23:59:59.999Z`)
+          );
+          return {
+            count: away.length,
+            away: away.map((a) => ({
+              name: a.name,
+              kind: a.kind,
+              from: a.startOn.toISOString().slice(0, 10),
+              to: a.endOn.toISOString().slice(0, 10),
+            })),
+          };
+        },
+      }),
+  },
+
+  leaveBalances: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Everyone's leave position: entitlement, days already taken, days approved but still " +
+          "ahead, and what is left. Taken and booked are separate because they mean different " +
+          "things when deciding whether to approve another request.",
+        inputSchema: z.object({ year: z.number().int().optional() }),
+        execute: async ({ year }) => ({ balances: await leaveBalances(ctx.tenantId, { year }) }),
+      }),
+  },
+
+  listLeaveRequests: {
+    build: (ctx) =>
+      tool({
+        description: "Leave requests, optionally filtered to those still waiting on a decision.",
+        inputSchema: z.object({
+          status: z.enum(["REQUESTED", "APPROVED", "DECLINED", "CANCELLED"]).optional(),
+        }),
+        execute: async ({ status }) => {
+          const rows = await listLeaveRequests(ctx.tenantId, { status });
+          return {
+            requests: rows.map((r) => ({
+              leaveRequestId: r.id,
+              who: r.membership.user?.name ?? r.membership.user?.email ?? "Team member",
+              kind: r.kind,
+              from: r.startOn.toISOString().slice(0, 10),
+              to: r.endOn.toISOString().slice(0, 10),
+              days: r.days,
+              status: r.status,
+            })),
+          };
+        },
+      }),
+  },
+
+  assetRegister: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What equipment the business owns and who has it. Use for questions about tools, " +
+          "laptops, phones or vehicles, and before somebody leaves.",
+        inputSchema: z.object({
+          status: z.enum(["IN_STOCK", "ISSUED", "IN_REPAIR", "LOST", "RETIRED"]).optional(),
+        }),
+        execute: async ({ status }) => {
+          const [assets, summary] = await Promise.all([
+            listAssets(ctx.tenantId, { status }),
+            assetSummary(ctx.tenantId),
+          ]);
+          return {
+            summary: summary.summary,
+            counts: {
+              total: summary.total,
+              issued: summary.issued,
+              inStock: summary.inStock,
+              inRepair: summary.inRepair,
+              lost: summary.lost,
+            },
+            valueAtCost: summary.valueAtCostCents / 100,
+            withoutRecordedValue: summary.missingValue,
+            assets: assets.map((a) => ({
+              assetId: a.id,
+              name: a.name,
+              category: a.category,
+              serial: a.serial,
+              status: a.status,
+              heldBy: a.holder?.user?.name ?? a.holder?.user?.email ?? null,
+            })),
+          };
+        },
+      }),
+  },
+
+  // The read that makes somebody leaving a solved problem rather than a
+  // fortnight of remembering.
+  handoverPack: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What a person is still holding and what only they know: equipment in their name, open " +
+          "quotes, unfinished jobs, customers nobody else has dealt with, leave already approved. " +
+          "Built from what they actually touched, not from what they remember. Use when somebody " +
+          "resigns, goes on long leave, or changes role.",
+        inputSchema: z.object({ teamMemberId: z.string() }),
+        execute: async ({ teamMemberId }) => {
+          const pack = await buildHandoverPack({
+            tenantId: ctx.tenantId,
+            membershipId: teamMemberId,
+          });
+          return {
+            who: pack.name,
+            summary: pack.summary,
+            blocking: pack.blockingCount,
+            items: pack.items,
+            // Stated so the pack is never presented as exhaustive.
+            caveats: pack.caveats,
+          };
+        },
+      }),
+  },
+
+  employmentRecords: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Contracts, warnings, reviews and qualifications on file for a person, or for everyone. " +
+          "Read-only here — these are evidence, and adding one is a separate, deliberate act.",
+        inputSchema: z.object({ teamMemberId: z.string().optional() }),
+        execute: async ({ teamMemberId }) => {
+          const rows = await listEmploymentRecords(ctx.tenantId, teamMemberId);
+          return {
+            records: rows.map((r) => ({
+              id: r.id,
+              who: r.membership.user?.name ?? r.membership.user?.email ?? "Team member",
+              kind: r.kind,
+              title: r.title,
+              on: r.effectiveOn.toISOString().slice(0, 10),
             })),
           };
         },
@@ -1491,6 +1662,167 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
         inputSchema: z.object({ bankAccountId: z.string(), csv: z.string() }),
         execute: async ({ bankAccountId, csv }) =>
           importStatement({ tenantId: ctx.tenantId, bankAccountId, csv }),
+      }),
+  },
+
+  addAsset: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description: "Put a piece of equipment on the asset register.",
+        inputSchema: z.object({
+          name: z.string(),
+          category: z.string().optional().describe("laptop, vehicle, power tool — their words."),
+          serial: z.string().optional(),
+          purchasePrice: z.number().positive().optional().describe("In rands."),
+          usefulLifeMonths: z.number().int().positive().optional(),
+        }),
+        execute: async ({ purchasePrice, ...rest }) => {
+          const asset = await createAsset({
+            ...rest,
+            tenantId: ctx.tenantId,
+            purchaseCents: purchasePrice ? Math.round(purchasePrice * 100) : null,
+          });
+          return { assetId: asset.id };
+        },
+      }),
+  },
+
+  issueAsset: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Record that a piece of equipment has gone out with somebody. The movement is kept, so " +
+          "who had what and when stays answerable later.",
+        inputSchema: z.object({
+          assetId: z.string(),
+          teamMemberId: z.string(),
+          note: z.string().optional(),
+        }),
+        execute: async ({ assetId, teamMemberId, note }) => {
+          await issueAsset({
+            tenantId: ctx.tenantId,
+            assetId,
+            toMembershipId: teamMemberId,
+            note,
+          });
+          return { ok: true };
+        },
+      }),
+  },
+
+  returnAsset: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description: "Record equipment coming back, optionally straight into repair.",
+        inputSchema: z.object({
+          assetId: z.string(),
+          toRepair: z.boolean().optional(),
+          note: z.string().optional(),
+        }),
+        execute: async ({ assetId, toRepair, note }) => {
+          await returnAsset({ tenantId: ctx.tenantId, assetId, toRepair, note });
+          return { ok: true };
+        },
+      }),
+  },
+
+  assetsHeldByPerson: {
+    build: (ctx) =>
+      tool({
+        description: "Everything one person currently has out in their name.",
+        inputSchema: z.object({ teamMemberId: z.string() }),
+        execute: async ({ teamMemberId }) => {
+          const held = await assetsHeldBy(ctx.tenantId, teamMemberId);
+          return { count: held.length, assets: held.map((a) => ({ assetId: a.id, name: a.name })) };
+        },
+      }),
+  },
+
+  requestLeave: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Put in a leave request. Working days are worked out from the dates, skipping weekends " +
+          "and the workspace's public holidays.",
+        inputSchema: z.object({
+          teamMemberId: z.string(),
+          from: z.string().describe("YYYY-MM-DD"),
+          to: z.string().describe("YYYY-MM-DD"),
+          kind: z.enum(["ANNUAL", "SICK", "FAMILY", "UNPAID", "PARENTAL", "OTHER"]).optional(),
+          reason: z.string().optional(),
+        }),
+        execute: async ({ teamMemberId, from, to, kind, reason }) => {
+          const req = await requestLeave({
+            tenantId: ctx.tenantId,
+            membershipId: teamMemberId,
+            startOn: new Date(`${from}T00:00:00.000Z`),
+            endOn: new Date(`${to}T00:00:00.000Z`),
+            kind,
+            reason,
+          });
+          return { leaveRequestId: req.id, workingDays: req.days };
+        },
+      }),
+  },
+
+  decideLeave: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Approve or decline a leave request. Check leaveBalances and whoIsAway first — " +
+          "approving somebody into a week when everyone else is already off is the mistake this " +
+          "is meant to prevent.",
+        inputSchema: z.object({ leaveRequestId: z.string(), approve: z.boolean() }),
+        execute: async ({ leaveRequestId, approve }) => {
+          await decideLeave({
+            tenantId: ctx.tenantId,
+            leaveRequestId,
+            approve,
+            decidedById: ctx.membershipId ?? ctx.userId,
+          });
+          return { ok: true };
+        },
+      }),
+  },
+
+  addEmploymentRecord: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Put a contract, warning, review, qualification or note on somebody's file. These are " +
+          "evidence and cannot be edited afterwards, so only record what actually happened and " +
+          "what the owner has asked you to record.",
+        inputSchema: z.object({
+          teamMemberId: z.string(),
+          kind: z.enum([
+            "CONTRACT",
+            "WARNING",
+            "REVIEW",
+            "QUALIFICATION",
+            "ONBOARDING",
+            "OFFBOARDING",
+            "NOTE",
+          ]),
+          title: z.string(),
+          body: z.string().optional(),
+          effectiveOn: z.string().optional().describe("YYYY-MM-DD, defaults to today."),
+        }),
+        execute: async ({ teamMemberId, effectiveOn, ...rest }) => {
+          const record = await addEmploymentRecord({
+            ...rest,
+            tenantId: ctx.tenantId,
+            membershipId: teamMemberId,
+            effectiveOn: effectiveOn ? new Date(`${effectiveOn}T12:00:00.000Z`) : undefined,
+            recordedById: ctx.userId,
+          });
+          return { recordId: record.id };
+        },
       }),
   },
 

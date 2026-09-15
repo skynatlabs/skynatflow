@@ -104,6 +104,8 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}/compliance`, label: "Compliance", icon: CheckSquareIcon },
     { href: `/dashboard/${tenantId}/expenses`, label: "Expenses", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/attendance`, label: "Attendance", icon: CheckSquareIcon },
+    { href: `/dashboard/${tenantId}/leave`, label: "Leave", icon: CheckSquareIcon },
+    { href: `/dashboard/${tenantId}/assets`, label: "Assets", icon: BoxIcon },
     { href: `/dashboard/${tenantId}/org`, label: "Org Chart", icon: UserCogIcon },
     { href: `/dashboard/${tenantId}/team-performance`, label: "Team Performance", icon: SignatureIcon },
     ...(niche.skin === "LOGISTICS" ? [{ href: `/dashboard/${tenantId}/fuel`, label: "Fuel Logs", icon: BoxIcon }] : []),
