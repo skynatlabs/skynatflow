@@ -23,6 +23,7 @@ import { runNamedAgent } from "@/lib/agent/named";
 import { isDue } from "@/lib/agent/schedule";
 import { runComplianceWatch } from "@/lib/agent/complianceWatch";
 import { buildBrief } from "@/lib/agent/chiefOfStaff";
+import { runCFO } from "@/lib/agent/officers/cfo";
 
 /** How long between open-ended reviews of one workspace. */
 const REVIEW_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -37,6 +38,8 @@ export interface TickOutcome {
   complianceRaised: number;
   /** Items the coordinator put in front of the owner. */
   briefed: number;
+  /** Findings the CFO wrote to the bus this tick. */
+  cfoObserved: number;
   raised: number;
   skipped?: string;
 }
@@ -82,6 +85,7 @@ export async function tickTenant(tenantId: string, now = new Date()): Promise<Ti
     agentsRun: 0,
     complianceRaised: 0,
     briefed: 0,
+    cfoObserved: 0,
     raised: 0,
   };
 
@@ -220,6 +224,22 @@ export async function tickTenant(tenantId: string, now = new Date()): Promise<Ti
     }
   }
 
+  // --- 3.5 The officers do their rounds -------------------------------------
+  //
+  // Before the coordinator, so a whole tick's findings get ranked against
+  // each other rather than the first one to arrive winning. The CFO needs no
+  // model: every check it runs is arithmetic over the ledger, which is why it
+  // keeps working on a day the AI provider does not.
+  try {
+    const cfo = await runCFO(tenantId);
+    base.cfoObserved = cfo.observed;
+    if (cfo.failed.length > 0) {
+      console.error(`[agent:tick] ${tenantId} CFO checks failed: ${cfo.failed.join(", ")}`);
+    }
+  } catch (err) {
+    console.error(`[agent:tick] ${tenantId} CFO failed:`, err);
+  }
+
   // --- 4. Let the coordinator decide what any of that was worth ------------
   //
   // Last, deliberately: every arc above may have written observations, and the
@@ -259,6 +279,7 @@ export async function tickAllTenants(now = new Date()): Promise<TickOutcome[]> {
         agentsRun: 0,
         complianceRaised: 0,
         briefed: 0,
+        cfoObserved: 0,
         raised: 0,
         skipped: err instanceof Error ? err.message : "failed",
       });

@@ -1,0 +1,366 @@
+// The chief financial officer.
+//
+// Its job is to know what everything actually costs and to notice money
+// leaving that nobody authorised. It is the first officer because it has the
+// most machinery already beneath it — books, bank reconciliation, the cash
+// forecast, margins, retention, tax — and because its findings are the ones
+// most obviously worth money.
+//
+// Deliberately deterministic, like the compliance watch and for the same
+// reasons. "Three invoices worth R84,000 never reached the books" is a fact
+// with arithmetic behind it, and routing it through a language model buys
+// nothing while costing a call per tenant and the ability to work at all
+// when the AI provider is down. A model has a place here — phrasing the
+// conversation with a customer, weighing two bad options — but not in
+// deciding whether R84,000 is missing.
+//
+// Every check follows the same shape: find the fact, attach the money, attach
+// the evidence somebody can go and check, and write it to the bus. Nothing
+// here notifies anybody. The coordinator decides what is worth a person's
+// day.
+
+import { prisma } from "@/lib/db";
+import { observe, type EvidenceItem, type ObserveParams } from "../observations";
+import { ledgerCoverage } from "@/lib/core/ledgerBackfill";
+import { listBankAccounts, reconciliationGap } from "@/lib/core/banking";
+import { buildCashForecast } from "@/lib/core/cashForecast";
+import { findCostRises } from "@/lib/core/repricing";
+import { spendSplit } from "@/lib/core/expenses";
+import { retentionHeld } from "@/lib/core/progressBilling";
+import { profitAndLoss } from "@/lib/core/financialReports";
+import { supplierPerformance } from "@/lib/core/supplierPerformance";
+
+type Finding = Omit<ObserveParams, "tenantId" | "officer">;
+
+function rands(cents: number): string {
+  return `R${Math.abs(cents / 100).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`;
+}
+
+const dash = (tenantId: string, path: string) => `/dashboard/${tenantId}/${path}`;
+
+// ------------------------------------------------------------------ checks
+//
+// Each returns a finding or null. Null means genuinely nothing to say, which
+// is the common case on a well-run week and has to stay cheap.
+
+/**
+ * Work that never reached the books.
+ *
+ * Every figure the CFO produces is built on the ledger, so this check comes
+ * first: a profit figure built on two thirds of the invoices is worse than no
+ * figure, because somebody will act on it.
+ */
+async function booksBehind(tenantId: string): Promise<Finding | null> {
+  const coverage = await ledgerCoverage(tenantId);
+  if (coverage.upToDate) return null;
+
+  const missing =
+    coverage.unpostedInvoices + coverage.unpostedPayments + coverage.unpostedExpenses;
+  if (missing === 0) return null;
+
+  // What the unposted invoices are actually worth — the money the reports are
+  // currently blind to.
+  const unposted = await prisma.transaction.aggregate({
+    where: { tenantId, type: "INVOICE", status: { notIn: ["DRAFT", "CANCELLED"] } },
+    _sum: { amountCents: true },
+  });
+
+  const evidence: EvidenceItem[] = [
+    { label: "Invoices not posted", value: String(coverage.unpostedInvoices) },
+    { label: "Payments not posted", value: String(coverage.unpostedPayments) },
+    { label: "Expenses not posted", value: String(coverage.unpostedExpenses) },
+  ];
+
+  return {
+    headline: `${missing} thing${missing === 1 ? "" : "s"} never reached the books, so every figure I produce is missing them.`,
+    detail:
+      "Until these are posted the profit and loss, the balance sheet and the margin figures are all understated.",
+    moneyCents: unposted._sum.amountCents ?? null,
+    confidence: 100,
+    dedupeKey: "cfo:books-behind",
+    evidence,
+    proposedAction: "Post the outstanding history to the books — it takes one click and nothing is overwritten.",
+  };
+}
+
+/** Statement lines nobody has explained. */
+async function bankUnexplained(tenantId: string): Promise<Finding | null> {
+  const accounts = await listBankAccounts(tenantId);
+  if (accounts.length === 0) return null;
+
+  let unmatched = 0;
+  let unexplainedCents = 0;
+  for (const a of accounts) {
+    const gap = await reconciliationGap(tenantId, a.id);
+    unmatched += gap.unmatched;
+    unexplainedCents += Math.abs(gap.unexplainedCents);
+  }
+  if (unmatched === 0) return null;
+
+  return {
+    headline: `${unmatched} bank line${unmatched === 1 ? "" : "s"} worth ${rands(unexplainedCents)} ${unmatched === 1 ? "is" : "are"} still unexplained.`,
+    detail:
+      "Money has moved through the account that the books cannot account for. Some of it is probably income nobody invoiced.",
+    moneyCents: unexplainedCents,
+    confidence: 100,
+    dedupeKey: "cfo:bank-unexplained",
+    evidence: [{ label: "Lines", value: String(unmatched), href: dash(tenantId, "banking") }],
+    proposedAction: "Work through the matches — most will already have a suggestion waiting.",
+  };
+}
+
+/**
+ * The week the money runs out.
+ *
+ * The single most useful thing a CFO can say to a small business, and almost
+ * none of them can say it.
+ */
+async function cashGap(tenantId: string): Promise<Finding | null> {
+  const forecast = await buildCashForecast({ tenantId });
+  if (forecast.shortfallWeek === null) return null;
+
+  const week = forecast.weeks[forecast.shortfallWeek];
+  if (!week) return null;
+
+  return {
+    headline: `On current commitments the account goes negative in week ${forecast.shortfallWeek + 1}, around ${week.weekStart}.`,
+    detail:
+      `The lowest point is ${rands(forecast.lowestCents)}. ` +
+      forecast.caveats.join(" "),
+    moneyCents: Math.abs(forecast.lowestCents),
+    confidence: 75, // a forecast, and it says so
+    urgentBy: new Date(week.weekStart),
+    dedupeKey: "cfo:cash-shortfall",
+    evidence: [
+      { label: "Opening balance", value: rands(forecast.openingCents) },
+      { label: "Lowest point", value: rands(forecast.lowestCents) },
+      { label: "Week", value: week.weekStart, href: dash(tenantId, "cash-forecast") },
+    ],
+    proposedAction:
+      "Chasing the right invoice moves this more than chasing the oldest. I can rank them by effect on that week.",
+  };
+}
+
+/** Selling below cost, or at a margin nobody chose. */
+async function marginErosion(tenantId: string): Promise<Finding | null> {
+  const report = await findCostRises(tenantId);
+  if (report.lines.length === 0) return null;
+
+  const losses = report.lines.filter((l) => l.sellingAtALoss);
+  const worst = report.lines[0];
+
+  // What the erosion is worth is unknowable without volume, so the money
+  // attached is the per-unit gap on the worst line rather than an invented
+  // annual figure. Overstating it would be the easiest thing in the world
+  // and would make every other number here suspect.
+  const perUnitGap = worst.latestPaidCents - worst.catalogueCostCents;
+
+  return {
+    headline:
+      losses.length > 0
+        ? `${losses[0].name} now costs more than it sells for — every one sold loses money.`
+        : `${report.lines.length} product${report.lines.length === 1 ? "" : "s"} cost more than the catalogue says, so the margin being reported is not the margin being earned.`,
+    detail: worst.basis,
+    moneyCents: perUnitGap > 0 ? perUnitGap : null,
+    confidence: 90,
+    dedupeKey: "cfo:margin-erosion",
+    evidence: [
+      { label: "Worst", value: worst.name, href: dash(tenantId, "margins") },
+      { label: "Reported margin", value: `${worst.marginAssumedPercent}%` },
+      { label: "Actual margin", value: `${worst.marginNowPercent}%` },
+    ],
+    proposedAction: `Reprice to ${rands(worst.suggestedPriceCents)} to hold the margin this was originally set at.`,
+  };
+}
+
+/** Spend nobody has split between the business and the owner. */
+async function unclassifiedSpend(tenantId: string): Promise<Finding | null> {
+  const split = await spendSplit(tenantId);
+  if (split.unreviewedCount === 0) return null;
+
+  // Only worth raising once it is material enough to distort the picture.
+  // Two unreviewed receipts is not a finding, it is a Tuesday.
+  if (split.unreviewedCents < 200_000 && split.unreviewedCount < 10) return null;
+
+  return {
+    headline: `${rands(split.unreviewedCents)} of spending has not been split between the business and you.`,
+    detail:
+      "Until it is, the cost of running this business is overstated or understated and I cannot tell you which. " +
+      "Drawings counted as costs are the most common reason a profitable business appears to make nothing.",
+    moneyCents: split.unreviewedCents,
+    confidence: 100,
+    dedupeKey: "cfo:unclassified-spend",
+    evidence: [
+      { label: "Payments", value: String(split.unreviewedCount), href: dash(tenantId, "expenses") },
+      { label: "Business costs so far", value: rands(split.businessCents) },
+      { label: "Your drawings so far", value: rands(split.drawingsCents) },
+    ],
+    proposedAction: "Split them — I can classify the obvious ones and ask only about the rest.",
+  };
+}
+
+/** Money other people are holding. */
+async function retentionOutstanding(tenantId: string): Promise<Finding | null> {
+  const held = await retentionHeld(tenantId);
+  if (held.onCompleteJobsCents === 0) return null;
+
+  return {
+    headline: `${rands(held.onCompleteJobsCents)} of retention is owed on jobs that are already finished.`,
+    detail:
+      "Retention is collected by asking. Nobody will remind you, and it is usually forgotten once the site is done.",
+    moneyCents: held.onCompleteJobsCents,
+    confidence: 95,
+    dedupeKey: "cfo:retention-outstanding",
+    evidence: [{ label: "Jobs", value: String(held.agreements) }],
+    proposedAction: "Invoice the retention on the finished jobs.",
+  };
+}
+
+/** Customers who have stopped paying. */
+async function overdueDebtors(tenantId: string): Promise<Finding | null> {
+  const now = new Date();
+  const overdue = await prisma.transaction.findMany({
+    where: {
+      tenantId,
+      type: "INVOICE",
+      status: { in: ["SENT", "OVERDUE", "PARTIALLY_PAID"] },
+      dueAt: { lt: now },
+    },
+    select: { id: true, amountCents: true, dueAt: true, party: { select: { name: true } } },
+    orderBy: { amountCents: "desc" },
+    take: 100,
+  });
+  if (overdue.length === 0) return null;
+
+  const total = overdue.reduce((s, o) => s + o.amountCents, 0);
+  const worst = overdue[0];
+  const days = worst.dueAt
+    ? Math.floor((now.getTime() - worst.dueAt.getTime()) / 86_400_000)
+    : 0;
+
+  return {
+    headline: `${rands(total)} is overdue across ${overdue.length} invoice${overdue.length === 1 ? "" : "s"}, the largest being ${worst.party.name}.`,
+    detail: `${worst.party.name} is ${days} day${days === 1 ? "" : "s"} past due on ${rands(worst.amountCents)}.`,
+    moneyCents: total,
+    confidence: 100,
+    dedupeKey: "cfo:overdue-debtors",
+    evidence: [
+      { label: "Invoices", value: String(overdue.length), href: dash(tenantId, "overdue") },
+      { label: "Oldest", value: `${days} days` },
+    ],
+    proposedAction: "I can draft the chasers, in a tone matched to each customer's payment history.",
+  };
+}
+
+/** A period that lost money. */
+async function tradingAtALoss(tenantId: string): Promise<Finding | null> {
+  const now = new Date();
+  const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
+  const pl = await profitAndLoss(tenantId, { from, to: now });
+
+  // Nothing posted means nothing to conclude, not a loss.
+  if (pl.income.totalCents === 0 && pl.expenses.totalCents === 0) return null;
+  if (pl.netProfitCents >= 0) return null;
+
+  return {
+    headline: `The last three months lost ${rands(pl.netProfitCents)} — more went out than came in.`,
+    detail:
+      `${rands(pl.income.totalCents)} of income against ${rands(pl.costOfSales.totalCents + pl.expenses.totalCents)} of cost.` +
+      (pl.grossMarginPercent !== null ? ` Gross margin was ${pl.grossMarginPercent}%.` : ""),
+    moneyCents: Math.abs(pl.netProfitCents),
+    confidence: 95,
+    dedupeKey: "cfo:trading-loss",
+    evidence: [
+      { label: "Income", value: rands(pl.income.totalCents), href: dash(tenantId, "books") },
+      { label: "Overheads", value: rands(pl.expenses.totalCents) },
+      {
+        label: "Biggest cost",
+        value:
+          [...pl.expenses.rows].sort((a, b) => b.balanceCents - a.balanceCents)[0]?.name ?? "—",
+      },
+    ],
+    proposedAction: "Worth looking at together — the largest overhead is usually the one worth attacking first.",
+  };
+}
+
+/** Suppliers whose prices have crept. */
+async function supplierDrift(tenantId: string): Promise<Finding | null> {
+  const report = await supplierPerformance(tenantId);
+  const drifting = report.suppliers.filter(
+    (s) => s.priceDriftPercent !== null && s.priceDriftPercent >= 8
+  );
+  if (drifting.length === 0) return null;
+
+  const worst = drifting.sort((a, b) => b.totalSpentCents - a.totalSpentCents)[0];
+  // What the drift has cost, approximately, on what has been spent with them.
+  const cost = Math.round(
+    worst.totalSpentCents * ((worst.priceDriftPercent ?? 0) / 100)
+  );
+
+  return {
+    headline: `${worst.name} has raised prices ${worst.priceDriftPercent}% since you started buying from them.`,
+    detail:
+      "Each rise was small enough to go unquestioned. The cumulative one is not, and it is rarely renegotiated because nobody notices it happening.",
+    moneyCents: cost,
+    confidence: 80,
+    dedupeKey: `cfo:supplier-drift:${worst.supplierId}`,
+    subjectType: "customer",
+    subjectId: worst.supplierId,
+    evidence: [
+      { label: "Spent with them", value: rands(worst.totalSpentCents), href: dash(tenantId, "margins") },
+      { label: "Orders", value: String(worst.ordersPlaced) },
+    ],
+    proposedAction: "Worth a conversation, or a second quote from somebody else.",
+  };
+}
+
+// -------------------------------------------------------------------- run
+
+export interface CfoRun {
+  checked: number;
+  observed: number;
+  /** Checks that threw. One broken check must not silence the others. */
+  failed: string[];
+}
+
+const CHECKS: Array<{ name: string; run: (t: string) => Promise<Finding | null> }> = [
+  { name: "booksBehind", run: booksBehind },
+  { name: "bankUnexplained", run: bankUnexplained },
+  { name: "cashGap", run: cashGap },
+  { name: "overdueDebtors", run: overdueDebtors },
+  { name: "tradingAtALoss", run: tradingAtALoss },
+  { name: "marginErosion", run: marginErosion },
+  { name: "retentionOutstanding", run: retentionOutstanding },
+  { name: "unclassifiedSpend", run: unclassifiedSpend },
+  { name: "supplierDrift", run: supplierDrift },
+];
+
+/**
+ * Run the CFO over a workspace.
+ *
+ * Writes findings to the bus and returns what it did. Raises nothing itself —
+ * the coordinator decides, and that separation is what stops nine checks
+ * becoming nine interruptions.
+ *
+ * A check that throws is recorded and skipped. One broken query must not cost
+ * a business the other eight findings, and a silent partial run would be
+ * worse than either.
+ */
+export async function runCFO(tenantId: string): Promise<CfoRun> {
+  const failed: string[] = [];
+  let observed = 0;
+
+  for (const check of CHECKS) {
+    try {
+      const finding = await check.run(tenantId);
+      if (!finding) continue;
+      const written = await observe({ ...finding, tenantId, officer: "CFO" });
+      if (written) observed++;
+    } catch (err) {
+      failed.push(check.name);
+      console.error(`[cfo] ${tenantId} ${check.name} failed:`, err);
+    }
+  }
+
+  return { checked: CHECKS.length, observed, failed };
+}

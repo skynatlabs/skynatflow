@@ -191,12 +191,15 @@ function headlineFor(items: RankedItem[], heldBack: number): string {
 
   const lead = items[0];
   const extra = items.length - 1 + heldBack;
-  const tail =
-    extra > 0 ? ` and ${extra} other thing${extra === 1 ? "" : "s"}.` : "";
+  if (extra === 0) return lead.headline;
+
+  // The officer's sentence is a complete one and ends in a full stop, so the
+  // tail is joined to its stem rather than appended after the punctuation.
+  const stem = lead.headline.replace(/\.\s*$/, "");
 
   // Lead with the sentence the officer wrote, not a count. A count is a number
   // to dismiss; a named problem is a decision to make.
-  return `${lead.headline}${tail}`;
+  return `${stem}, and ${extra} other thing${extra === 1 ? "" : "s"}.`;
 }
 
 // ------------------------------------------------------------------ queue

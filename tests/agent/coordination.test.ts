@@ -314,7 +314,9 @@ describe("the chief of staff", () => {
 
     const brief = await buildBrief(tenantId);
     expect(brief.headline).toMatch(/^VAT is due in four days/);
-    expect(brief.headline).toContain("1 other thing");
+    // Joined to the stem, not appended after the officer's full stop.
+    expect(brief.headline).toContain(", and 1 other thing.");
+    expect(brief.headline).not.toContain(". and");
   });
 
   it("says nothing when there is nothing", async () => {
