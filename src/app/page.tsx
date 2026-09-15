@@ -11,9 +11,9 @@ import { MarketingFonts, MarketingNav, MarketingFooterStatic, PricingTeaser, Ind
 // marketing page (see chrome.tsx) — only the hero and unique sections
 // below are specific to this page.
 export const metadata: Metadata = {
-  title: "flow — Agentic business management",
+  title: "skynat.ai — Agentic business management",
   description:
-    "The agentic platform for business management, invoicing, and CRM — flow quotes, follows up, and chases payment on its own, so you run the business instead of the busywork. By Skynat.",
+    "The agentic platform for business management, invoicing, and CRM — skynat.ai quotes, follows up, and chases payment on its own, so you run the business instead of the busywork. By Skynat.",
 };
 
 export default async function Home() {
@@ -44,7 +44,7 @@ export default async function Home() {
                 An agentic platform for running your business
               </span>
               <h1>
-                Quote fast. Get paid faster. Let <em>flow</em> chase the rest.
+                Quote fast. Get paid faster. Let <em>skynat.ai</em> chase the rest.
               </h1>
               <p className="sub">
                 One place to quote, invoice, and follow up — with an AI PA that carries out the busywork
@@ -111,7 +111,7 @@ export default async function Home() {
           <p className="section-sub">
             Tell it what you need in plain language — &ldquo;send a quote for a 5kVA system to John, 082 123
             4567&rdquo; — and it drafts the quote, finds or creates the customer, and gets it ready to send.
-            You stay focused on the job; flow&apos;s AI PA handles the admin around it.
+            You stay focused on the job; skynat.ai&apos;s AI PA handles the admin around it.
           </p>
         </div>
 
@@ -120,7 +120,7 @@ export default async function Home() {
             <div className="feature-icon">💬</div>
             <h3>Command box</h3>
             <p className="muted">
-              Type what you want done in plain English — flow&apos;s AI PA turns it into a real quote,
+              Type what you want done in plain English — skynat.ai&apos;s AI PA turns it into a real quote,
               invoice, or customer record.
             </p>
           </div>
@@ -234,7 +234,7 @@ export default async function Home() {
             <div className="how-num" style={{ background: "var(--mint)" }}>
               3
             </div>
-            <h3>flow chases payment</h3>
+            <h3>skynat.ai chases payment</h3>
             <p>Reminders go out on schedule. You only get pinged when it&apos;s something you need to decide.</p>
           </div>
         </div>
@@ -250,7 +250,7 @@ export default async function Home() {
         <div className="testimonial scatter-card card-dark">
           <div className="quote-mark">&ldquo;</div>
           <p className="testimonial-body">
-            Before flow, I&apos;d lose track of which quotes were even still live. Now I can see it at a
+            Before skynat.ai, I&apos;d lose track of which quotes were even still live. Now I can see it at a
             glance, and it nudges customers for me — I&apos;ve gotten paid faster just from that.
           </p>
           <div className="testimonial-by">
@@ -273,7 +273,7 @@ export default async function Home() {
       {/* ================= FINAL CTA ================= */}
       <section className="cta-band">
         <div className="cta-band-inner">
-          <h2>Stop chasing. Let flow do it.</h2>
+          <h2>Stop chasing. Let skynat.ai do it.</h2>
           <p>Free to start, no credit card required.</p>
           <a className="cta-primary cta-band-btn" href="/signup">
             Create my workspace &rarr;

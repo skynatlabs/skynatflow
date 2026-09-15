@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PricingTeaser } from "@/components/marketing/chrome";
 
 export const metadata: Metadata = {
-  title: "About — flow",
+  title: "About — skynat.ai",
   description: "Built by Skynat, for businesses that run on hustle, not headcount.",
 };
 
@@ -39,7 +39,7 @@ export default function AboutPage() {
         <p style={{ maxWidth: 680, margin: "0 auto", color: "var(--ink-dim)", fontSize: "1.05rem", lineHeight: 1.7, textAlign: "center" }}>
           Most business software is built for enterprises and trimmed down for small businesses — which
           means small businesses inherit enterprise complexity without enterprise headcount to manage it.
-          flow starts from the opposite direction: one shared engine, eight industry skins, and an AI layer
+          skynat.ai starts from the opposite direction: one shared engine, eight industry skins, and an AI layer
           that does the chasing so you don&apos;t have to.
         </p>
       </section>
@@ -51,7 +51,7 @@ export default function AboutPage() {
         </div>
         <p style={{ maxWidth: 680, margin: "0 auto", color: "var(--ink-dim)", fontSize: "1.05rem", lineHeight: 1.7, textAlign: "center" }}>
           The AI PA, voice assistant, and automated follow-ups are the first layer of a bigger direction:
-          flow is being built toward handling more of the day-to-day operations of a business on its
+          skynat.ai is being built toward handling more of the day-to-day operations of a business on its
           own — quoting, invoicing, CRM, and project work — through natural conversation instead of forms
           and menus, always with a human approving what actually goes out.
         </p>
@@ -74,7 +74,7 @@ export default function AboutPage() {
 
       <section className="cta-band">
         <div className="cta-band-inner">
-          <h2>Come run your business on flow</h2>
+          <h2>Come run your business on skynat.ai</h2>
           <a className="cta-primary cta-band-btn" href="/signup">
             Start free trial &rarr;
           </a>

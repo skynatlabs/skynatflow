@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/core/currency";
 import { valueSummary } from "@/lib/core/valueLedger";
 import { PageHeader } from "../PageHeader";
+import { Figure } from "@/components/dashboard/Figure";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
 import { setMonthlyFeeAction } from "./actions";
 
@@ -57,7 +58,9 @@ export default async function ValuePage({ params }: { params: Promise<{ tenantId
           <div key={t.label} className="kb-card px-5 py-4">
             <p className="text-[10px] font-medium tracking-wide uppercase text-[var(--kb-text-dim)]">{t.label}</p>
             <p className="mt-1 text-2xl leading-none font-semibold tabular-nums text-[var(--kb-text)]" style={{ color: t.cents < 0 ? "var(--kb-tint-peach-ink)" : undefined }}>
-              {money(t.cents)}
+              <Figure workings={v.months.map((m) => ({ label: m.month, value: money(t.label === "Found" ? m.identifiedCents : t.label === "Taken on" ? m.acceptedCents : t.label === "Verified" ? m.realisedCents : m.realisedCents - m.costCents) }))}>
+                {money(t.cents)}
+              </Figure>
             </p>
             <p className="mt-1 text-xs text-[var(--kb-text-dim)]">{t.note}</p>
           </div>

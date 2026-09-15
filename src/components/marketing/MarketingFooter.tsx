@@ -32,7 +32,7 @@ export default function MarketingFooter() {
       <div className="mx-auto max-w-6xl px-6">
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
           <div>
-            <Image src="/flow-logo.png" alt="flow" width={110} height={32} className="h-7 w-auto" />
+            <Image src="/flow-logo.png" alt="skynat.ai" width={110} height={32} className="h-7 w-auto" />
             <p className="mt-3 max-w-[20ch] text-xs text-[var(--kb-text-dim)]">
               By Skynat. One platform to run your entire business.
             </p>

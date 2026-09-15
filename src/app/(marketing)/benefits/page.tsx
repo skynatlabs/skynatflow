@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PricingTeaser } from "@/components/marketing/chrome";
 
 export const metadata: Metadata = {
-  title: "Benefits — flow",
+  title: "Benefits — skynat.ai",
   description: "Everything a five-tool stack does for you, minus the five subscriptions.",
 };
 
@@ -39,7 +39,7 @@ export default function BenefitsPage() {
               Everything a five-tool stack does for you, <span className="grad-text">minus the five subscriptions</span>
             </h1>
             <p className="sub">
-              flow replaces the spreadsheet, the WhatsApp thread, the separate invoicing app, the separate
+              skynat.ai replaces the spreadsheet, the WhatsApp thread, the separate invoicing app, the separate
               CRM, and the notebook of expense slips — with one system that actually talks to itself.
             </p>
           </section>

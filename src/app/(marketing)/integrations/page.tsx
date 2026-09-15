@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PricingTeaser } from "@/components/marketing/chrome";
 
 export const metadata: Metadata = {
-  title: "Integrations — flow",
+  title: "Integrations — skynat.ai",
   description: "Connects with the tools you already use. Migrate in from your old system, and connect the tools you're keeping.",
 };
 

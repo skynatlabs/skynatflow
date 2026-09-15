@@ -4,7 +4,7 @@ import { disconnectCalendarAction } from "./actions";
 
 const ERROR_MESSAGES: Record<string, string> = {
   "not-configured": "Google OAuth isn't set up yet — a super admin needs to add it at /admin/api-keys first.",
-  "no-refresh-token": "Google didn't grant offline access. Go to myaccount.google.com/permissions, remove flow's access, then try connecting again.",
+  "no-refresh-token": "Google didn't grant offline access. Go to myaccount.google.com/permissions, remove skynat.ai's access, then try connecting again.",
   "exchange-failed": "Something went wrong connecting to Google — try again.",
   access_denied: "You cancelled the Google sign-in.",
 };

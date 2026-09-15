@@ -709,9 +709,15 @@
    the page's last rows sit underneath the bar on every screen — and on a
    phone that is the Approve button. Content ends above the dock, always. */
 .kb-shell[data-skin="admina"] .dashboard-main-body.kb-dock-host {
-  padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  /* On a phone the dock carries the four tabs under the bar as well. */
+  padding-bottom: calc(10.5rem + env(safe-area-inset-bottom, 0px));
   width: 100%;
   min-width: 0;
+}
+@media (min-width: 1024px) {
+  .kb-shell[data-skin="admina"] .dashboard-main-body.kb-dock-host {
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 /* === dashboard body css end === */

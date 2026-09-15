@@ -98,8 +98,8 @@ export default async function FinishOnboardingPage({
         </section>
 
         <div className="mt-6 flex justify-end">
-          <a href={`/dashboard/${tenantId}`} className="kb-pill kb-pill-primary px-6 py-3">
-            Go to my dashboard &rarr;
+          <a href={`/dashboard/${tenantId}/brief/welcome`} className="kb-pill kb-pill-primary px-6 py-3">
+            Meet your officers &rarr;
           </a>
         </div>
       </div>

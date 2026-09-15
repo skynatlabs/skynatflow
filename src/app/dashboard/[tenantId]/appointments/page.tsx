@@ -46,7 +46,7 @@ export default async function AppointmentsPage({
     <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Appointments</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-        Booked site visits and consultations. Mark a past one as a no-show and flow sends the
+        Booked site visits and consultations. Mark a past one as a no-show and skynat.ai sends the
         rebooking nudge immediately.
       </p>
 

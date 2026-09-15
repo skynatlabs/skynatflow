@@ -99,7 +99,7 @@ export default async function BooksPage({
       <main className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
         <h1 className="text-2xl font-semibold text-[var(--kb-text)]">The books</h1>
         <p className="mt-1 max-w-prose text-sm text-[var(--kb-text-dim)]">
-          flow has always known what you invoiced and what you spent. That is not the same as
+          skynat.ai has always known what you invoiced and what you spent. That is not the same as
           knowing whether you made anything — and it cannot be reconciled against a bank statement
           or handed to an accountant. This turns it into real double-entry books.
         </p>

@@ -28,6 +28,7 @@ import { runCEO } from "@/lib/agent/officers/ceo";
 import { runCOO } from "@/lib/agent/officers/coo";
 import { runSales } from "@/lib/agent/officers/sales";
 import { runLegal } from "@/lib/agent/officers/legal";
+import { ninetyDayCheckIn } from "@/lib/agent/arrival";
 import { realiseValue, recordPlatformCost } from "@/lib/core/valueLedger";
 import { runCFO } from "@/lib/agent/officers/cfo";
 
@@ -304,6 +305,8 @@ export async function tickTenant(tenantId: string, now = new Date()): Promise<Ti
   try {
     base.valueRealised = await realiseValue(tenantId, now);
     await recordPlatformCost(tenantId, now);
+    // Day 30, 60 and 90: what the officers were worth, unprompted.
+    await ninetyDayCheckIn(tenantId, now);
   } catch (err) {
     console.error(`[agent:tick] ${tenantId} value ledger failed:`, err);
   }

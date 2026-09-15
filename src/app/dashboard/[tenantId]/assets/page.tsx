@@ -103,7 +103,7 @@ export default async function AssetsPage({
                 <li key={a.id} className="px-5 py-3.5">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-medium text-[var(--kb-text)]">{a.name}</p>
+                      <p className="font-medium text-[var(--kb-text)]"><a href={`/dashboard/${tenantId}/assets/${a.id}`} className="hover:underline">{a.name}</a></p>
                       <p className="mt-0.5 text-xs text-[var(--kb-text-dim)]">
                         {[a.category, a.serial, holder ? `with ${holder}` : null]
                           .filter(Boolean)

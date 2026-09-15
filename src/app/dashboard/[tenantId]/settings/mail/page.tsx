@@ -13,7 +13,7 @@ export default async function MailSettingsPage({
     <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Mail</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-        Connect an account so flow can watch for statements, invoices, legal mail, and quote
+        Connect an account so skynat.ai can watch for statements, invoices, legal mail, and quote
         replies — and flag what actually needs your attention.
       </p>
 

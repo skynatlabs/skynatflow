@@ -81,7 +81,9 @@ export default async function InboxPage({
             </li>
           ))}
           {notifications.length === 0 && (
-            <li className="px-5 py-4 text-sm text-[var(--kb-text-dim)]">Nothing yet.</li>
+            <li className="px-5 py-4 text-sm text-[var(--kb-text-dim)]">
+              Nothing has needed you. Blocking deadlines, customer replies and anything an officer cannot rank land here the moment they happen; everything else waits on The Brief.
+            </li>
           )}
         </ul>
       </section>

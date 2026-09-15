@@ -36,7 +36,7 @@ export function unsplashUrl(photoId: string, width = 800) {
 // VoiceAssistant/DailyVoiceBriefing components) — no invented capabilities.
 export const FULL_ENGINE_FEATURES: { icon: string; title: string; body: string }[] = [
   { icon: "💬", title: "AI PA — command box", body: "Type what you need in plain language and the AI PA drafts the quote, invoice, or customer record for you." },
-  { icon: "🎙️", title: "Voice assistant & daily briefing", body: "Talk to flow instead of typing, and get a spoken daily rundown of what needs your attention." },
+  { icon: "🎙️", title: "Voice assistant & daily briefing", body: "Talk to skynat.ai instead of typing, and get a spoken daily rundown of what needs your attention." },
   { icon: "🤖", title: "AI follow-ups, approved by you", body: "Quiet leads and overdue invoices get a drafted nudge automatically — nothing sends without your review." },
   { icon: "⚡", title: "Quotes & invoices", body: "Build from your catalog, send as a branded PDF, and track status automatically from sent to paid." },
   { icon: "🔔", title: "Customer self-service portal", body: "Customers view, accept, and pay online — no login or app download required on their side." },
@@ -117,7 +117,7 @@ export function MarketingNav() {
       <nav>
         <Link className="brand" href="/">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/flow-logo.png" alt="flow" />
+          <img src="/flow-logo.png" alt="skynat.ai" />
         </Link>
         <div className="navlinks">
           <Link href="/benefits">Product</Link>
@@ -207,7 +207,7 @@ export function MarketingFooterStatic() {
       <div className="footer-inner">
         <div className="brand">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/flow-logo.png" alt="flow" />
+          <img src="/flow-logo.png" alt="skynat.ai" />
         </div>
         <div className="footer-links">
           <Link href="/benefits">Product</Link>

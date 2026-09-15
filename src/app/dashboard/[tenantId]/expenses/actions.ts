@@ -69,6 +69,7 @@ export async function submitExpenseAction(formData: FormData) {
     jobCardId: String(formData.get("jobCardId") ?? "").trim() || null,
     odometerKm: odo ? Number(odo) : null,
     isOwnerDrawing: drawing === "true" ? true : drawing === "false" ? false : null,
+    recoverable: formData.get("recoverable") === "on",
   });
   refresh(tenantId);
 }

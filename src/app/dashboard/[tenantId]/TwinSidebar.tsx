@@ -18,6 +18,8 @@ export interface TwinNavItem {
   href: string;
   label: string;
   badge?: number;
+  /** Nothing here for this workspace yet: folded under More, never removed. */
+  quiet?: boolean;
 }
 
 export interface TwinNavGroup {
@@ -136,7 +138,7 @@ export function TwinSidebar({
         {/* -------------------------------------------------------- panel */}
         <div className="twin-panel">
           <div className="twin-panel__head">
-            <span className="twin-panel__logo">flow</span>
+            <span className="twin-panel__logo">skynat.ai</span>
             <button
               type="button"
               className="twin-panel__close"
@@ -151,7 +153,7 @@ export function TwinSidebar({
 
           <div className="twin-panel__body">
             <ul className="twin-menu active" key={shown?.key}>
-              {shown?.items.map((item) => {
+              {shown?.items.filter((item) => !item.quiet || pathname === item.href || pathname.startsWith(item.href + "/")).map((item) => {
                 const current =
                   pathname === item.href || pathname.startsWith(item.href + "/");
                 return (
@@ -164,6 +166,22 @@ export function TwinSidebar({
                 );
               })}
             </ul>
+            {(() => {
+              const folded = shown?.items.filter((item) => item.quiet && !(pathname === item.href || pathname.startsWith(item.href + "/"))) ?? [];
+              if (folded.length === 0) return null;
+              return (
+                <details className="twin-more">
+                  <summary>More ({folded.length})</summary>
+                  <ul className="twin-menu active">
+                    {folded.map((item) => (
+                      <li key={item.href}>
+                        <Link href={item.href}><span>{item.label}</span></Link>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              );
+            })()}
           </div>
 
           <div className="twin-panel__foot">{footer}</div>

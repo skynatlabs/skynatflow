@@ -24,7 +24,7 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "flow — Agentic Business Operating System",
+  title: "skynat.ai — Six executives for your business",
   description:
     "Invoicing, CRM, and project management that act on your business, not just record it — an agentic platform for how SMEs actually work. By Skynat.",
 };

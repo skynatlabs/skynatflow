@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: { params: Promise<{ skin: str
   const skin = resolveSkin((await params).skin);
   if (!skin) return {};
   const config = NICHE_CONFIGS[skin];
-  return { title: `flow for ${config.label}`, description: config.tagline };
+  return { title: `skynat.ai for ${config.label}`, description: config.tagline };
 }
 
 export default async function IndustryPage({ params }: { params: Promise<{ skin: string }> }) {
@@ -53,7 +53,7 @@ export default async function IndustryPage({ params }: { params: Promise<{ skin:
               </span>
               <h1>{config.tagline}</h1>
               <p className="sub">
-                Same flow engine, tuned for how {config.label.toLowerCase()} actually works — your{" "}
+                Same skynat.ai engine, tuned for how {config.label.toLowerCase()} actually works — your{" "}
                 {config.customerLabel.toLowerCase()}s, your pipeline stages, your vocabulary.
               </p>
               <div className="cta-row">
@@ -127,7 +127,7 @@ export default async function IndustryPage({ params }: { params: Promise<{ skin:
           <span className="kicker">The full engine</span>
           <h2>Everything else you get, out of the box</h2>
           <p className="section-sub">
-            Beyond what&apos;s tuned specifically for {config.label.toLowerCase()}, every flow workspace
+            Beyond what&apos;s tuned specifically for {config.label.toLowerCase()}, every skynat.ai workspace
             includes the same AI PA, voice assistant, and core toolset.
           </p>
         </div>
@@ -149,7 +149,7 @@ export default async function IndustryPage({ params }: { params: Promise<{ skin:
 
       <section className="cta-band">
         <div className="cta-band-inner">
-          <h2>See flow set up for {config.label.toLowerCase()}</h2>
+          <h2>See skynat.ai set up for {config.label.toLowerCase()}</h2>
           <p>Free to start, no credit card required.</p>
           <a className="cta-primary cta-band-btn" href="/signup">
             Start free trial &rarr;

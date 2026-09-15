@@ -301,7 +301,7 @@ export default async function TenantHomePage({
             Good to see you, {tenant.name}
           </h1>
           <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-            Tell flow what you need, or look over the numbers below.
+            Tell skynat.ai what you need, or look over the numbers below.
           </p>
         </div>
       </div>

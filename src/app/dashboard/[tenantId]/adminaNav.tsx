@@ -1,61 +1,86 @@
-// flow's pages, grouped into the Admina rail's categories.
-//
-// The template ships eight rail icons over ~85 demo pages. This app has 33
-// real pages, and the grouping below is by what someone is actually doing —
-// money, people, stock, work, team — rather than by the template's own
-// Dashboards/Components/Forms split, which is a kitchen-sink demo taxonomy
-// and means nothing here.
-//
-// Which groups appear depends on the niche, exactly as the flat nav did: a
-// logistics workspace gets Fuel Logs, a medical one gets Claims.
-
 import type { TwinNavGroup } from "./TwinSidebar";
+
+// Six desks, one per officer, and settings.
+//
+// The rail used to be categories of pages. It is now the six rooms the
+// officers work in, each holding the pages that officer would reach for:
+// the Brief is the CEO's desk, Money the CFO's, Operations the COO's,
+// Customers the sales consultant's, Compliance & people the legal
+// consultant's, Savings the efficiency consultant's. Nothing was deleted;
+// everything moved.
+//
+// Show only what applies: a page with nothing in it and nothing the trade
+// needs is not hidden — it is folded under "More" at the bottom of its desk,
+// so the desk shows the work this business actually has, and nothing
+// becomes unreachable.
 
 export function buildAdminaNav(params: {
   tenantId: string;
   skin: string;
   customerLabel: string;
   unread: number;
+  /** Pages with nothing in them for this workspace, folded under More. */
+  quiet?: Set<string>;
 }): TwinNavGroup[] {
-  const { tenantId, skin, customerLabel, unread } = params;
+  const { tenantId, skin, customerLabel, unread, quiet } = params;
   const d = `/dashboard/${tenantId}`;
   const is = (...s: string[]) => s.includes(skin);
+  const q = (href: string) => (quiet?.has(href.replace(`${d}/`, "")) ? { quiet: true } : {});
 
   const groups: TwinNavGroup[] = [
     {
       key: "home",
-      label: "Overview",
+      label: "The Brief",
       icon: <HouseIcon />,
       items: [
-        { href: d, label: "Home" },
         { href: `${d}/brief`, label: "The Brief" },
         { href: `${d}/value`, label: "Value" },
         { href: `${d}/agent`, label: "Agent" },
+        { href: d, label: "Dashboard" },
         { href: `${d}/today`, label: "Today" },
         { href: `${d}/this-week`, label: "This Week" },
-        { href: `${d}/goals`, label: "Goals" },
-        { href: `${d}/compliance`, label: "Compliance" },
+        { href: `${d}/goals`, label: "Goals", ...q(`${d}/goals`) },
       ],
     },
     {
       key: "money",
-      label: "Sales & money",
+      label: "Money",
       icon: <TagIcon />,
       items: [
-        { href: `${d}/quotes`, label: "Quotes" },
         { href: `${d}/invoices`, label: "Invoices" },
-        { href: `${d}/unsent-quotes`, label: "Unsent Quotes" },
         { href: `${d}/overdue`, label: "Overdue" },
-        { href: `${d}/pipeline`, label: "Pipeline" },
-        { href: `${d}/statements`, label: "Statements" },
-        { href: `${d}/cash-forecast`, label: "Cash forecast" },
         { href: `${d}/expenses`, label: "Expenses" },
         { href: `${d}/books`, label: "The books" },
         { href: `${d}/banking`, label: "Bank & reconciliation" },
-        { href: `${d}/margins`, label: "Margins & suppliers" },
-        { href: `${d}/costs`, label: "Costs" },
-        { href: `${d}/savings`, label: "Savings" },
-        { href: `${d}/disputes`, label: "Reports" },
+        { href: `${d}/cash-forecast`, label: "Cash forecast" },
+        { href: `${d}/statements`, label: "Statements" },
+        { href: `${d}/disputes`, label: "Reports", ...q(`${d}/disputes`) },
+      ],
+    },
+    {
+      key: "work",
+      label: "Operations",
+      icon: <SquaresIcon />,
+      items: [
+        { href: `${d}/tasks`, label: "Tasks" },
+        ...(is("SERVICES", "LOGISTICS") ? [{ href: `${d}/job-cards`, label: "Job Cards" }] : []),
+        { href: `${d}/trips`, label: "Trips", ...(is("LOGISTICS", "SERVICES") ? {} : q(`${d}/trips`)) },
+        { href: `${d}/fleet`, label: "Fleet", ...(is("LOGISTICS") ? {} : q(`${d}/fleet`)) },
+        ...(is("MEDICAL", "SERVICES") ? [{ href: `${d}/appointments`, label: "Appointments" }] : []),
+        ...(is("LOGISTICS") ? [{ href: `${d}/fuel`, label: "Fuel Logs" }] : []),
+        ...(is("MEDICAL") ? [{ href: `${d}/claims`, label: "Claims" }] : []),
+        { href: `${d}/products`, label: "Products" },
+        { href: `${d}/inventory`, label: "Inventory", ...q(`${d}/inventory`) },
+        ...(is("RETAIL", "WHOLESALE")
+          ? [
+              { href: `${d}/stocktake`, label: "Stocktake" },
+              { href: `${d}/purchase-orders`, label: "Purchase Orders" },
+            ]
+          : []),
+        { href: `${d}/pos`, label: "Point of Sale", ...(is("RETAIL") ? {} : q(`${d}/pos`)) },
+        { href: `${d}/cash-sale`, label: "Cash Sale", ...(is("RETAIL") ? {} : q(`${d}/cash-sale`)) },
+        { href: `${d}/rentals`, label: "Rentals", ...q(`${d}/rentals`) },
+        { href: `${d}/properties`, label: "Properties", ...q(`${d}/properties`) },
       ],
     },
     {
@@ -64,59 +89,38 @@ export function buildAdminaNav(params: {
       icon: <UsersIcon />,
       items: [
         { href: `${d}/customers`, label: customerLabel + "s" },
+        { href: `${d}/quotes`, label: "Quotes" },
+        { href: `${d}/unsent-quotes`, label: "Unsent Quotes" },
+        { href: `${d}/pipeline`, label: "Pipeline" },
         { href: `${d}/inbox`, label: "Inbox", badge: unread || undefined },
         { href: `${d}/messages`, label: "Messages" },
         { href: `${d}/ai-drafts`, label: "AI Drafts" },
-        { href: `${d}/connections`, label: "Connections" },
+        { href: `${d}/connections`, label: "Connections", ...q(`${d}/connections`) },
         ...(is("NONPROFIT") ? [{ href: `${d}/members`, label: "Members & Donors" }] : []),
       ],
     },
     {
-      key: "stock",
-      label: "Products & stock",
-      icon: <BagIcon />,
-      items: [
-        { href: `${d}/products`, label: "Products" },
-        { href: `${d}/inventory`, label: "Inventory" },
-        ...(is("RETAIL", "WHOLESALE")
-          ? [
-              { href: `${d}/stocktake`, label: "Stocktake" },
-              { href: `${d}/purchase-orders`, label: "Purchase Orders" },
-            ]
-          : []),
-        { href: `${d}/rentals`, label: "Rentals" },
-        { href: `${d}/properties`, label: "Properties" },
-      ],
-    },
-    {
-      key: "work",
-      label: "Work",
-      icon: <SquaresIcon />,
-      items: [
-        { href: `${d}/tasks`, label: "Tasks" },
-        ...(is("SERVICES", "LOGISTICS") ? [{ href: `${d}/job-cards`, label: "Job Cards" }] : []),
-        { href: `${d}/trips`, label: "Trips" },
-        { href: `${d}/fleet`, label: "Fleet" },
-        ...(is("MEDICAL", "SERVICES")
-          ? [{ href: `${d}/appointments`, label: "Appointments" }]
-          : []),
-        ...(is("LOGISTICS") ? [{ href: `${d}/fuel`, label: "Fuel Logs" }] : []),
-        ...(is("MEDICAL") ? [{ href: `${d}/claims`, label: "Claims" }] : []),
-        { href: `${d}/pos`, label: "Point of Sale" },
-        { href: `${d}/cash-sale`, label: "Cash Sale" },
-      ],
-    },
-    {
       key: "team",
-      label: "Team",
+      label: "Compliance & people",
       icon: <UserCogIcon />,
       items: [
+        { href: `${d}/compliance`, label: "Compliance" },
         { href: `${d}/staff`, label: "Staff & Roles" },
-        { href: `${d}/org`, label: "Org Chart" },
-        { href: `${d}/team-performance`, label: "Team Performance" },
-        { href: `${d}/attendance`, label: "Attendance" },
         { href: `${d}/leave`, label: "Leave" },
+        { href: `${d}/attendance`, label: "Attendance", ...q(`${d}/attendance`) },
         { href: `${d}/assets`, label: "Assets" },
+        { href: `${d}/org`, label: "Org Chart", ...q(`${d}/org`) },
+        { href: `${d}/team-performance`, label: "Team Performance", ...q(`${d}/team-performance`) },
+      ],
+    },
+    {
+      key: "stock",
+      label: "Savings",
+      icon: <BagIcon />,
+      items: [
+        { href: `${d}/savings`, label: "Savings" },
+        { href: `${d}/costs`, label: "Costs" },
+        { href: `${d}/margins`, label: "Margins & suppliers" },
       ],
     },
     {
@@ -125,8 +129,8 @@ export function buildAdminaNav(params: {
       icon: <GearIcon />,
       items: [
         { href: `${d}/settings`, label: "All settings" },
-        { href: `${d}/settings/appearance`, label: "Appearance" },
         { href: `${d}/settings/officers`, label: "Officers" },
+        { href: `${d}/settings/appearance`, label: "Appearance" },
         { href: `${d}/settings/pdf-templates`, label: "PDF templates" },
         { href: `${d}/settings/payment-gateways`, label: "Payment gateways" },
         { href: `${d}/settings/automation`, label: "Follow-ups" },

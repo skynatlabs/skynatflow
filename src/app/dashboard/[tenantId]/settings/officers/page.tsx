@@ -11,7 +11,9 @@ import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { prisma } from "@/lib/db";
 import { listCeilings, RUNGS, RUNG_LABELS, type Rung } from "@/lib/agent/ladder";
 import { PageHeader } from "../../PageHeader";
-import { updateCeiling } from "./actions";
+import { updateCeiling, turnaroundAction } from "./actions";
+import { packFor } from "@/lib/core/industryPacks";
+import { sharedMemory } from "@/lib/agent/observations";
 
 export const dynamic = "force-dynamic";
 
@@ -35,11 +37,12 @@ export default async function OfficersPage({
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    select: { id: true },
+    select: { id: true, niche: true, turnaroundMode: true },
   });
   if (!tenant) notFound();
 
-  const settings = await listCeilings(tenantId);
+  const [settings, memory] = await Promise.all([listCeilings(tenantId), sharedMemory(tenantId, 20)]);
+  const pack = packFor(tenant.niche);
   const save = updateCeiling.bind(null, tenantId);
 
   return (
@@ -70,6 +73,12 @@ export default async function OfficersPage({
                   <p className="mt-1 text-xs leading-relaxed text-[var(--kb-text-dim)]">
                     {role.remit}
                   </p>
+                  {s.officer !== "SYSTEM" && pack.watches[s.officer as keyof typeof pack.watches] && (
+                    <p className="mt-1 text-xs leading-relaxed text-[var(--kb-text)]">
+                      <span className="font-medium">In {pack.label.toLowerCase()}: </span>
+                      {pack.watches[s.officer as keyof typeof pack.watches]}
+                    </p>
+                  )}
                 </div>
                 {s.capped && (
                   <span
@@ -110,6 +119,45 @@ export default async function OfficersPage({
           );
         })}
       </div>
+
+      <section className="kb-card mt-6 px-5 py-4" style={{ borderTop: `3px solid ${tenant.turnaroundMode ? "var(--kb-tint-peach-ink)" : "var(--kb-panel-border)"}` }}>
+        <h3 className="font-semibold text-[var(--kb-text)]">Turnaround mode</h3>
+        <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[var(--kb-text-dim)]">
+          For a business genuinely in trouble. Every officer&apos;s findings are reordered around cash: money owed, cash running out, tax already spent and costs that can stop now come first. Advice about margin and growth waits — it is worthless to somebody who cannot make payroll on Friday.
+        </p>
+        <form action={turnaroundAction.bind(null, tenantId)} className="mt-3">
+          <input type="hidden" name="on" value={tenant.turnaroundMode ? "false" : "true"} />
+          <button type="submit" className={`kb-pill text-xs ${tenant.turnaroundMode ? "kb-pill-ghost" : "kb-pill-primary"}`}>
+            {tenant.turnaroundMode ? "Switch turnaround mode off" : "Switch turnaround mode on"}
+          </button>
+        </form>
+      </section>
+
+      <section className="kb-card mt-6 px-5 py-4">
+        <h3 className="font-semibold text-[var(--kb-text)]">What you have decided</h3>
+        <p className="mt-1 max-w-2xl text-xs text-[var(--kb-text-dim)]">
+          Every officer reads this before suggesting anything. Something you set aside is not raised again, and a related point from another officer arrives with less confidence and your earlier decision quoted beside it.
+        </p>
+        {memory.length === 0 ? (
+          <p className="mt-2 text-xs text-[var(--kb-text-dim)]">Nothing decided yet. Take on or set aside a finding on The Brief and it is remembered here.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-[var(--kb-panel-border)] text-sm">
+            {memory.map((m, i) => (
+              <li key={i} className="flex items-start justify-between gap-3 py-2">
+                <span className="min-w-0">
+                  <span className="kb-pill mr-2 !py-0.5 text-[10px]">{m.officer}</span>
+                  {m.headline}
+                  {m.why && <span className="block text-[11px] text-[var(--kb-text-dim)]">{m.why}</span>}
+                </span>
+                <span className="shrink-0 text-right text-[11px]" style={{ color: m.outcome === "accepted" ? "var(--kb-tint-mint-ink)" : "var(--kb-text-dim)" }}>
+                  {m.outcome}
+                  <span className="block text-[var(--kb-text-dim)]">{m.on ? m.on.toISOString().slice(0, 10) : ""}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

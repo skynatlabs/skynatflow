@@ -85,7 +85,7 @@ export function CaptureForm({
     setFields((f) => ({ ...f, [k]: e.target.value }));
 
   return (
-    <form action={action} className="kb-card mt-3 p-4">
+    <form id="capture" action={action} className="kb-card mt-3 scroll-mt-4 p-4">
       <input type="hidden" name="tenantId" value={tenantId} />
       <input type="hidden" name="receiptDataUrl" value={receiptDataUrl} />
       <input type="hidden" name="receiptRead" value={fields.amountRand !== undefined ? "yes" : ""} />
@@ -179,6 +179,7 @@ export function CaptureForm({
           <label className="flex items-center gap-1.5"><input type="radio" name="isOwnerDrawing" value="false" defaultChecked /> Business cost</label>
           <label className="flex items-center gap-1.5"><input type="radio" name="isOwnerDrawing" value="true" /> Personal — my own money out</label>
           <label className="flex items-center gap-1.5"><input type="radio" name="isOwnerDrawing" value="" /> Not sure</label>
+          <label className="ml-2 flex items-center gap-1.5" title="A toll, permit or materials the customer should pay back"><input type="checkbox" name="recoverable" /> Customer pays this back</label>
         </fieldset>
         <SubmitButton pendingText="Saving…">Record it</SubmitButton>
       </div>

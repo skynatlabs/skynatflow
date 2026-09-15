@@ -13,12 +13,14 @@
 // respects that gets read every day while a complete one gets read once.
 
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Officer } from "@prisma/client";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { prisma } from "@/lib/db";
 import { currentBrief, approvalQueue, type RankedItem, type QueueItem } from "@/lib/agent/chiefOfStaff";
 import { PageHeader } from "../PageHeader";
+import { Figure } from "@/components/dashboard/Figure";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { decideObservation } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -72,9 +74,11 @@ export default async function BriefPage({
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    select: { name: true },
+    select: { name: true, arrivalShownAt: true, turnaroundMode: true },
   });
   if (!tenant) notFound();
+  // The first time anyone opens the Brief, the officers introduce themselves.
+  if (!tenant.arrivalShownAt) redirect(`/dashboard/${tenantId}/brief/welcome`);
 
   const [brief, queue] = await Promise.all([
     currentBrief(tenantId),
@@ -92,17 +96,21 @@ export default async function BriefPage({
         title="The Brief"
         crumbs={[{ label: "The Brief" }]}
         actions={
-          <Link
-            href={`/dashboard/${tenantId}/settings/officers`}
-            className="kb-pill kb-pill-ghost text-xs"
-          >
-            Who reports to you
-          </Link>
+          <span className="flex flex-wrap gap-1">
+            <Link href={`/dashboard/${tenantId}/brief/audit`} className="kb-pill kb-pill-ghost text-xs">First audit</Link>
+            <Link href={`/dashboard/${tenantId}/settings/officers`} className="kb-pill kb-pill-ghost text-xs">Who reports to you</Link>
+          </span>
         }
       />
 
+      {tenant.turnaroundMode && (
+        <p className="mb-4 rounded-lg px-4 py-2 text-xs font-medium" style={{ background: "var(--kb-tint-peach)", color: "var(--kb-tint-peach-ink)" }}>
+          Turnaround mode is on: cash comes first, and everything else waits. Switch it off under Who reports to you.
+        </p>
+      )}
+
       {brief.items.length === 0 ? (
-        <EmptyDesk />
+        <EmptyDesk tenantId={tenantId} />
       ) : (
         <>
           <section className="kb-card mb-5 px-5 py-4">
@@ -140,23 +148,21 @@ export default async function BriefPage({
         </>
       )}
 
-      {waiting.length > 0 && <WaitingOnYou items={waiting} tenantId={tenantId} />}
+      <div id="waiting">{waiting.length > 0 && <WaitingOnYou items={waiting} tenantId={tenantId} />}</div>
     </div>
   );
 }
 
 // ------------------------------------------------------------------- parts
 
-function EmptyDesk() {
+function EmptyDesk({ tenantId }: { tenantId: string }) {
   return (
-    <div className="kb-card px-6 py-10 text-center">
-      <h3 className="font-semibold text-[var(--kb-text)]">Nothing needs you today.</h3>
-      <p className="mx-auto mt-2 max-w-md text-sm text-[var(--kb-text-dim)]">
-        Your officers went through the books, the bank, the debtors and the
-        deadlines and found nothing worth interrupting you about. A quiet desk
-        is the point — it is what makes a busy one worth reading.
-      </p>
-    </div>
+    <EmptyState
+      title="Nothing needs you today."
+      purpose="Your officers went through the books, the bank, the debtors, the fleet and the deadlines and found nothing worth interrupting you about. A quiet desk is the point — it is what makes a busy one worth reading."
+      needs="They read what the business records. The more that goes in — slips, trips, bank statements, renewals — the more they can find."
+      action={{ label: "Record a cost", href: `/dashboard/${tenantId}/expenses` }}
+    />
   );
 }
 
@@ -217,9 +223,13 @@ function FindingCard({
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
           {item.moneyCents !== null && item.moneyCents > 0 && (
-            <span className="font-semibold tabular-nums text-[var(--kb-text)]">
+            <Figure
+              className="font-semibold tabular-nums text-[var(--kb-text)]"
+              workings={item.evidence.map((e) => ({ label: e.label, value: e.value }))}
+              note={`${item.confidence}% sure. ${item.alsoNoticedBy.length ? `Also raised by ${item.alsoNoticedBy.map((o) => OFFICER[o].name).join(", ")}.` : ""}`}
+            >
               {money(item.moneyCents)}
-            </span>
+            </Figure>
           )}
           {due && (
             <span

@@ -5,6 +5,7 @@ import { Officer } from "@prisma/client";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { assertCan } from "@/lib/core/access";
 import { setCeiling, RUNGS, type Rung } from "@/lib/agent/ladder";
+import { setTurnaroundMode } from "@/lib/core/industryPacks";
 
 /**
  * Change how far one officer may go on its own.
@@ -25,6 +26,15 @@ export async function updateCeiling(tenantId: string, formData: FormData) {
 
   await setCeiling({ tenantId, officer, ceiling });
 
+  revalidatePath(`/dashboard/${tenantId}/settings/officers`);
+  revalidatePath(`/dashboard/${tenantId}/brief`);
+}
+
+/** Cash first, everything else second — for a business genuinely in trouble. */
+export async function turnaroundAction(tenantId: string, formData: FormData) {
+  const access = await requireTenantAccess(tenantId);
+  assertCan(access.role, "staff:manage");
+  await setTurnaroundMode(tenantId, formData.get("on") === "true");
   revalidatePath(`/dashboard/${tenantId}/settings/officers`);
   revalidatePath(`/dashboard/${tenantId}/brief`);
 }

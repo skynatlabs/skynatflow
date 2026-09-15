@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PRICING_PLANS, TRIAL_DAYS } from "@/lib/marketing/pricing";
 
 export const metadata: Metadata = {
-  title: "Pricing — flow",
+  title: "Pricing — skynat.ai",
   description: "Simple pricing, no five-figure implementation fee. 14 days free, then pick a plan that fits.",
 };
 
@@ -105,7 +105,7 @@ export default function PricingPage() {
         <div className="testimonial scatter-card card-light">
           <span className="kicker">The math that actually matters</span>
           <p className="testimonial-body" style={{ fontSize: "1.15rem" }}>
-            If flow catches just one overdue invoice before it&apos;s written off, or recovers one abandoned
+            If skynat.ai catches just one overdue invoice before it&apos;s written off, or recovers one abandoned
             quote that would&apos;ve gone cold, it&apos;s already paid for itself for the month. Everything
             else — the time saved not re-entering data across five tools — is the part that compounds.
           </p>

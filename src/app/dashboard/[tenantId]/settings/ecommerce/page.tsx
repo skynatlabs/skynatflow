@@ -23,7 +23,7 @@ export default async function EcommercePage({
       <h1 className="text-2xl font-semibold text-[var(--kb-text)]">Ecommerce</h1>
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Connect your WordPress/WooCommerce store: pull your product catalog in, and every new order
-        auto-generates a flow invoice — emailed to the customer from flow — the moment it comes in.
+        auto-generates a skynat.ai invoice — emailed to the customer from skynat.ai — the moment it comes in.
       </p>
 
       <div className="kb-card mt-6 p-6">

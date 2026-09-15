@@ -27,7 +27,7 @@ export function PaCommandBox({ tenantId }: { tenantId: string }) {
       });
       const data = await res.json();
       if (data.error || data.fallbackToQa) {
-        setMessage(data.error ?? "flow doesn't have an action for that yet — try asking a question instead via the floating ✦ button.");
+        setMessage(data.error ?? "skynat.ai doesn't have an action for that yet — try asking a question instead via the floating ✦ button.");
         return;
       }
       if (data.amountCents != null) {
@@ -51,14 +51,14 @@ export function PaCommandBox({ tenantId }: { tenantId: string }) {
   return (
     <div className="kb-panel mb-4 p-3">
       <label className="mb-1 block text-xs font-medium text-[var(--kb-text-dim)]">
-        🤖 Ask flow to do something — e.g. &ldquo;send quote for R39,995 8kva system to John, 082 123 4567&rdquo;
+        🤖 Ask skynat.ai to do something — e.g. &ldquo;send quote for R39,995 8kva system to John, 082 123 4567&rdquo;
       </label>
       <div className="flex gap-2">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder="Tell flow what you need..."
+          placeholder="Tell skynat.ai what you need..."
           className="kb-input flex-1"
           disabled={busy}
         />

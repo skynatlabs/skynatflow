@@ -14,6 +14,10 @@ import { addCustomerCommentAction } from "./comments-actions";
 import { PhotoEventForm } from "./PhotoEventForm";
 import { EditCustomerForm } from "./EditCustomerForm";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
+import { RecordPanel } from "@/components/dashboard/RecordPanel";
+import { EmptyState } from "@/components/dashboard/EmptyState";
+import { customerMargins, lastDays } from "@/lib/core/costing";
+import { formatMoney } from "@/lib/core/currency";
 import {
   convertToInvoiceAction,
   recordPaymentAction,
@@ -44,12 +48,16 @@ export default async function CustomerHistoryPage({
   if (!history) notFound();
   const { party, transactions, events } = history;
 
-  const [portalToken, allRecurring, comments, memberships] = await Promise.all([
+  const [portalToken, allRecurring, comments, memberships, margins, tenantRow] = await Promise.all([
     getOrCreatePortalToken(id),
     listRecurringInvoices(tenantId),
     listComments(tenantId, "Party", id),
     prisma.membership.findMany({ where: { tenantId }, include: { user: true } }),
+    customerMargins(tenantId, lastDays(365)),
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true } }),
   ]);
+  const margin = margins.find((m) => m.partyId === id);
+  const cur = tenantRow?.currency ?? "ZAR";
   const recurringForCustomer = allRecurring.filter((r) => r.partyId === id);
 
   const invoicedQuoteIds = new Set(
@@ -79,6 +87,22 @@ export default async function CustomerHistoryPage({
           {party.vatNumber && <p className="text-xs text-[var(--kb-text-dim)]">VAT: {party.vatNumber}</p>}
         </div>
       </div>
+      <RecordPanel
+        tenantId={tenantId}
+        subjectId={id}
+        actions={[
+          { label: "New quote", href: `/dashboard/${tenantId}/quotes/new?customerId=${id}` },
+          { label: "Start a trip to them", href: `/dashboard/${tenantId}/trips` },
+          { label: "Record a cost for them", href: `/dashboard/${tenantId}/expenses` },
+          { label: "Their statement", href: `/dashboard/${tenantId}/statements` },
+        ]}
+        facts={margin ? [
+          { label: "Invoiced, 12 months", value: formatMoney(margin.revenueCents, cur) },
+          { label: "Cost to serve", value: formatMoney(margin.costCents, cur) },
+          { label: "Margin", value: formatMoney(margin.marginCents, cur), tone: margin.marginCents < 0 ? "bad" : "good" },
+          { label: "Jobs", value: String(margin.jobs) },
+        ] : []}
+      />
       <EditCustomerForm tenantId={tenantId} customerId={id} party={party} />
 
       <section className="kb-card mt-6 p-6">
@@ -199,7 +223,9 @@ export default async function CustomerHistoryPage({
               </li>
             ))}
           {transactions.length === 0 && (
-            <li className="py-2 text-sm text-[var(--kb-text-dim)]">Nothing yet.</li>
+            <li>
+              <EmptyState compact title={`No quotes or invoices for ${party.name} yet.`} purpose="Every document for this customer lands here, with what was paid against it." action={{ label: "Quote them", href: `/dashboard/${tenantId}/quotes/new?customerId=${id}` }} />
+            </li>
           )}
         </ul>
       </section>
@@ -313,7 +339,9 @@ export default async function CustomerHistoryPage({
             </li>
           ))}
           {events.length === 0 && (
-            <li className="py-2 text-sm text-[var(--kb-text-dim)]">Nothing yet.</li>
+            <li>
+              <EmptyState compact title="No visits, deliveries or installs recorded." purpose="Log one below with a photograph — it is the proof that defends an invoice." />
+            </li>
           )}
         </ul>
         <PhotoEventForm action={logPhotoEventAction} tenantId={tenantId} customerId={id} />

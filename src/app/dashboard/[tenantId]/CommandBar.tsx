@@ -117,6 +117,11 @@ export function CommandBar({
   // The server owns the transcript; the client only carries the id.
   const [threadId, setThreadId] = useState<string | null>(null);
   const [micSupported, setMicSupported] = useState(false);
+  // Find: records and pages the typed text names. Enter on a highlighted one
+  // goes there; Enter otherwise asks the agent. A question or an instruction
+  // is never preselected, so asking is never hijacked by a name match.
+  const [found, setFound] = useState<Array<{ kind: string; label: string; hint: string; href: string }>>([]);
+  const [highlight, setHighlight] = useState(-1);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -155,6 +160,37 @@ export function CommandBar({
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [turns, busy]);
+
+  useEffect(() => {
+    const q = text.trim();
+    if (q.length < 2 || busy) return;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/dashboard/${tenantId}/find?q=${encodeURIComponent(q)}`, { signal: controller.signal });
+        if (!res.ok) return;
+        const data = (await res.json()) as { results: typeof found; asking: boolean };
+        setFound(data.results);
+        setHighlight(data.asking || data.results.length === 0 ? -1 : 0);
+      } catch {
+        /* a cancelled or failed lookup just means no suggestions */
+      }
+    }, 180);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [text, busy, tenantId]);
+
+  const matches = text.trim().length >= 2 ? found : [];
+
+  function go(href: string) {
+    setText("");
+    setFound([]);
+    setHighlight(-1);
+    setOpen(false);
+    router.push(href);
+  }
 
   const send = useCallback(
     async (instruction: string) => {
@@ -226,7 +262,7 @@ export function CommandBar({
       } catch {
         setTurns((t) => [
           ...t,
-          { role: "assistant", content: "Couldn't reach flow just now.", failed: true },
+          { role: "assistant", content: "Couldn't reach skynat.ai just now.", failed: true },
         ]);
       } finally {
         setActivity([]);
@@ -269,10 +305,10 @@ export function CommandBar({
     <div className="kb-dock">
       <div className="kb-dock-inner">
         {open && (
-          <section className="kb-dock-panel" aria-label="Conversation with flow">
+          <section className="kb-dock-panel" aria-label="Conversation with skynat.ai">
             <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--kb-panel-border)] px-4 py-2.5">
               <p className="text-xs font-semibold text-[var(--kb-text)]">
-                flow
+                skynat.ai
                 <span className="ml-2 font-normal text-[var(--kb-text-dim)]">
                   can see the page you&apos;re on
                 </span>
@@ -436,10 +472,37 @@ export function CommandBar({
         {/* The bar itself never goes away. It is the composer, not a popup —
             which is why focusing it opens the transcript rather than a button
             having to be found and clicked first. */}
+        {matches.length > 0 && !busy && (
+          <ul className="kb-dock-panel !max-h-72 !flex-none overflow-y-auto py-1" role="listbox" aria-label="Go to">
+            {matches.map((m, i) => (
+              <li key={`${m.kind}:${m.href}:${i}`} role="option" aria-selected={i === highlight}>
+                <button
+                  type="button"
+                  onMouseEnter={() => setHighlight(i)}
+                  onClick={() => go(m.href)}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm"
+                  style={{ background: i === highlight ? "var(--kb-tint-blue)" : undefined }}
+                >
+                  <span className="truncate text-[var(--kb-text)]">{m.label}</span>
+                  <span className="shrink-0 text-[11px] text-[var(--kb-text-dim)]">{m.hint}</span>
+                </button>
+              </li>
+            ))}
+            <li className="border-t border-[var(--kb-panel-border)] px-4 py-1.5 text-[11px] text-[var(--kb-text-dim)]">
+              {highlight >= 0 ? "Enter to open · " : ""}↑↓ to choose · keep typing to ask instead
+            </li>
+          </ul>
+        )}
+
         <form
           className="kb-dock-bar"
           onSubmit={(e) => {
             e.preventDefault();
+            if (highlight >= 0 && matches[highlight]) {
+              go(matches[highlight].href);
+              return;
+            }
+            setFound([]);
             send(text);
           }}
         >
@@ -451,10 +514,20 @@ export function CommandBar({
             ref={inputRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (matches.length === 0) return;
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setHighlight((h) => Math.min(matches.length - 1, h + 1));
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setHighlight((h) => Math.max(-1, h - 1));
+              }
+            }}
             onFocus={() => setOpen(true)}
             disabled={busy}
-            placeholder={listening ? "Listening…" : "Ask flow to do something…"}
-            aria-label="Ask flow to do something"
+            placeholder={listening ? "Listening…" : "Ask skynat.ai to do something…"}
+            aria-label="Ask skynat.ai to do something"
             aria-keyshortcuts="Meta+K Control+K"
             className="kb-dock-input"
           />
@@ -491,6 +564,24 @@ export function CommandBar({
             {busy ? "…" : "Send"}
           </button>
         </form>
+
+        {/* On a phone the app is four surfaces, not a rail of desks: the
+            Brief, the queue, capturing a fact, and asking. Both done
+            standing up. The bar above is Ask; these are the other three. */}
+        <nav className="kb-mobile-tabs lg:hidden" aria-label="On the go">
+          <a href={`/dashboard/${tenantId}/brief`} aria-current={pathname.endsWith("/brief") ? "page" : undefined}>
+            <span aria-hidden="true">◎</span>Brief
+          </a>
+          <a href={`/dashboard/${tenantId}/brief#waiting`}>
+            <span aria-hidden="true">☰</span>Queue{awaitingApproval > 0 ? ` (${awaitingApproval > 9 ? "9+" : awaitingApproval})` : ""}
+          </a>
+          <a href={`/dashboard/${tenantId}/expenses#capture`} aria-current={pathname.endsWith("/expenses") ? "page" : undefined}>
+            <span aria-hidden="true">⊕</span>Capture
+          </a>
+          <button type="button" onClick={() => { inputRef.current?.focus(); setOpen(true); }}>
+            <span aria-hidden="true">✦</span>Ask
+          </button>
+        </nav>
       </div>
     </div>
   );

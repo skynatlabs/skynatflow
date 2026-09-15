@@ -123,7 +123,7 @@ export default async function PipelinePage({
                   )}
                 </li>
               ))}
-              {col.items.length === 0 && <li className="text-xs opacity-60">Nothing here.</li>}
+              {col.items.length === 0 && <li className="text-xs opacity-60">No deals at this stage.</li>}
             </ul>
             {col.count > COLUMN_LIMIT && (
               <Link

@@ -97,7 +97,7 @@ export default async function TasksPage({
                   );
                 })}
               {tasks.filter((t) => t.status === col.status).length === 0 && (
-                <li className="text-xs opacity-60">Nothing here.</li>
+                <li className="text-xs opacity-60">Nothing in this column. Officers add tasks here when they book something for you.</li>
               )}
             </ul>
           </div>

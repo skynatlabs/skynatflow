@@ -14,6 +14,7 @@ import { SidebarShell } from "./SidebarShell";
 import { TwinSidebar } from "./TwinSidebar";
 import { AdminaTopBar } from "./AdminaTopBar";
 import { buildAdminaNav } from "./adminaNav";
+import { quietPages } from "@/lib/core/readiness";
 import { unreadCount } from "@/lib/core/notifications2";
 import {
   HomeIcon,
@@ -134,7 +135,7 @@ export default async function TenantShellLayout({
         <div className="shrink-0">
           <div className="flex items-center gap-2 px-2">
             <FlowMark size={28} />
-            <span className="text-lg font-bold text-white">flow</span>
+            <span className="text-lg font-bold text-white">skynat.ai</span>
           </div>
 
           <div className="mt-7 rounded-[10px] px-3 py-3" style={{ background: "var(--kb-navy-soft)" }}>
@@ -209,6 +210,7 @@ export default async function TenantShellLayout({
             skin: niche.skin,
             customerLabel: niche.customerLabel,
             unread,
+            quiet: await quietPages(tenantId),
           })}
           brand={<FlowMark size={28} />}
           workspaceName={tenant.name}
@@ -228,7 +230,7 @@ export default async function TenantShellLayout({
                   <button type="submit">Sign out</button>
                 </form>
               </div>
-              <p className="twin-version">flow</p>
+              <p className="twin-version">skynat.ai</p>
             </>
           }
         />

@@ -54,6 +54,8 @@ import { winRate, readingNotAnswering, quietCustomers, discountLeak } from "@/li
 import { packFor, setTurnaroundMode } from "@/lib/core/industryPacks";
 import { tenderReadiness } from "@/lib/agent/officers/legal";
 import { sharedMemory } from "@/lib/agent/observations";
+import { find } from "@/lib/core/find";
+import { firstAudit } from "@/lib/agent/arrival";
 import { listConnectionsForTenant } from "@/lib/core/connections";
 import { listThreadsForMember, sendMessage, listMessages } from "@/lib/core/messaging";
 import {
@@ -1580,6 +1582,23 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
           const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId }, select: { niche: true, turnaroundMode: true } });
           return tenant ? { ...packFor(tenant.niche), turnaroundMode: tenant.turnaroundMode } : null;
         },
+      }),
+  },
+
+  findRecord: {
+    build: (ctx) =>
+      tool({
+        description: "Find the customers, documents, products, assets, trips and pages a name or number refers to. Use when someone names a thing rather than asking about it.",
+        inputSchema: z.object({ query: z.string() }),
+        execute: async ({ query }) => find(ctx.tenantId, query, 12),
+      }),
+  },
+  firstAudit: {
+    build: (ctx) =>
+      tool({
+        description: "The deep read a consultant would charge for: money leaking, work that did not pay, compliance exposure, contracts renewing, money in other people's hands.",
+        inputSchema: z.object({}),
+        execute: async () => firstAudit(ctx.tenantId),
       }),
   },
 };

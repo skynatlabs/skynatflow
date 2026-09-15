@@ -16,6 +16,7 @@ import { formatMoney } from "@/lib/core/currency";
 import { captureLedger } from "@/lib/core/captureLedger";
 import { assetCosts, customerMargins, fleetCost, jobMargins, laneMargins, lastDays } from "@/lib/core/costing";
 import { PageHeader } from "../PageHeader";
+import { Figure } from "@/components/dashboard/Figure";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
 import { setAssetCapacityAction, setCostRateAction } from "./actions";
 
@@ -164,12 +165,26 @@ export default async function CostsPage({
                     <td className="py-2 pr-4 text-right">{money(a.obligationCents)}</td>
                     <td className="py-2 pr-4 text-right">{money(a.depreciationCents)}</td>
                     <td className="py-2 pr-4 text-right">{money(a.labourCents)}</td>
-                    <td className="py-2 pr-4 text-right font-semibold">{money(a.totalCents)}</td>
+                    <td className="py-2 pr-4 text-right font-semibold">
+                      <Figure workings={[
+                        { label: "Tagged to it (fuel, repairs, tolls)", value: money(a.directCents) },
+                        { label: "Cover and licences, apportioned by day", value: money(a.obligationCents) },
+                        { label: "Depreciation, straight line", value: money(a.depreciationCents) },
+                        { label: "Driver hours × cost rate", value: money(a.labourCents) },
+                      ]}>{money(a.totalCents)}</Figure>
+                    </td>
                     <td className="py-2 pr-4 text-right">
                       {a.units.toLocaleString("en-US", { maximumFractionDigits: 1 })} {UNIT_WORD[a.capacityUnit!]}
                       <span className="block text-[10px] text-[var(--kb-text-dim)]">{a.unitsSource.toLowerCase()}</span>
                     </td>
-                    <td className="py-2 pr-4 text-right font-semibold">{a.costPerUnitCents !== null ? `${money(a.costPerUnitCents)}/${UNIT_WORD[a.capacityUnit!]}` : "—"}</td>
+                    <td className="py-2 pr-4 text-right font-semibold">
+                      {a.costPerUnitCents !== null ? (
+                        <Figure
+                          workings={[{ label: "Total cost", value: money(a.totalCents) }, { label: `÷ ${UNIT_WORD[a.capacityUnit!]}s`, value: a.units.toLocaleString("en-US", { maximumFractionDigits: 1 }) }]}
+                          note={a.unitsSource === "ODOMETER" ? "Kilometres from the lowest and highest odometer readings in the period." : "Units from recorded trips — lower confidence than an odometer."}
+                        >{`${money(a.costPerUnitCents)}/${UNIT_WORD[a.capacityUnit!]}`}</Figure>
+                      ) : "—"}
+                    </td>
                     <td className="py-2">
                       <span className="kb-pill !py-0.5 text-[10px]" style={{ background: CONF[a.confidence].bg, color: CONF[a.confidence].ink }}>
                         {a.confidence.toLowerCase()}

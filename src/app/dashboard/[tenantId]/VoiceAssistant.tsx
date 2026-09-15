@@ -101,7 +101,7 @@ export function VoiceAssistant({ tenantId }: { tenantId: string }) {
         onClick={listening ? stopListening : startListening}
         className={`kb-pill text-xs ${listening ? "kb-pill-primary" : "kb-pill-ghost"}`}
       >
-        {listening ? "🎙️ Listening…" : "🎤 Ask flow"}
+        {listening ? "🎙️ Listening…" : "🎤 Ask skynat.ai"}
       </button>
       {status && <p className="text-xs text-[var(--kb-text-dim)]">{status}</p>}
     </div>
