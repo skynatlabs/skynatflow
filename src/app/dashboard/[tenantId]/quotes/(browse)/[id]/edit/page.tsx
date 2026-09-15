@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { listProducts } from "@/lib/core/catalog";
 import { LineItemsEditor } from "../../../new/LineItemsEditor";
 import { updateQuoteLinesAction } from "./actions";
 
@@ -20,11 +19,10 @@ export default async function EditQuotePage({
   });
   if (!quote || quote.tenantId !== tenantId || quote.type !== "QUOTE") notFound();
   if (LOCKED_STATUSES.has(quote.status)) redirect(`/dashboard/${tenantId}/quotes/${id}`);
-
-  const products = await listProducts(tenantId);
   const initialLines = quote.itemLines.map((l) => ({
     itemId: l.itemId,
     itemName: l.item.name,
+    sku: l.item.sku,
     quantity: l.quantity,
     priceRand: l.unitPriceCents / 100,
     discountPercent: l.discountPercent ?? 0,
@@ -62,13 +60,7 @@ export default async function EditQuotePage({
           </div>
         </div>
         <LineItemsEditor
-          products={products.map((p) => ({
-            id: p.id,
-            name: p.name,
-            unitPriceCents: p.unitPriceCents,
-            sku: p.sku,
-            taxRatePercent: p.taxRatePercent,
-          }))}
+          tenantId={tenantId}
           initialLines={initialLines}
           initialDocumentDiscountPercent={quote.discountPercent ?? 0}
         />

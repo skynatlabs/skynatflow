@@ -1,51 +1,48 @@
 "use client";
 
 import { useState } from "react";
+import { ProductSearch } from "@/components/dashboard/ProductSearch";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-3 py-2.5 text-sm text-[var(--kb-text)] placeholder:text-[var(--kb-text-dim)] focus:border-[var(--kb-accent-a)] focus:outline-none";
 const labelClass = "block text-sm font-medium text-[var(--kb-text)]";
 
 export function ProductPicker({
-  products,
+  tenantId,
   label = "What's the quote for",
 }: {
-  products: { id: string; name: string; unitPriceCents: number }[];
+  tenantId: string;
   label?: string;
 }) {
   const [itemName, setItemName] = useState("");
   const [priceRand, setPriceRand] = useState("");
   const [selectedItemId, setSelectedItemId] = useState("");
 
-  function handleNameChange(value: string) {
-    setItemName(value);
-    const match = products.find((p) => p.name === value);
-    if (match) {
-      setPriceRand((match.unitPriceCents / 100).toString());
-      setSelectedItemId(match.id);
-    } else {
-      setSelectedItemId("");
-    }
-  }
-
   return (
     <>
       <div>
         <label className={labelClass}>{label}</label>
-        <input
+        <ProductSearch
+          tenantId={tenantId}
           name="itemName"
-          list="product-catalog"
           required
           value={itemName}
-          onChange={(e) => handleNameChange(e.target.value)}
-          placeholder={products.length ? "Start typing to pick from your catalog..." : undefined}
+          selectedId={selectedItemId}
+          onType={(v) => {
+            setItemName(v);
+            setSelectedItemId("");
+          }}
+          onSelect={(p) => {
+            setItemName(p.name);
+            setSelectedItemId(p.id);
+            setPriceRand((p.unitPriceCents / 100).toString());
+          }}
+          onEdited={(p) => {
+            setItemName(p.name);
+            setPriceRand((p.unitPriceCents / 100).toString());
+          }}
           className={inputClass}
         />
-        <datalist id="product-catalog">
-          {products.map((p) => (
-            <option key={p.id} value={p.name} />
-          ))}
-        </datalist>
         <input type="hidden" name="itemId" value={selectedItemId} />
       </div>
       <div className="flex gap-4">
@@ -54,7 +51,7 @@ export function ProductPicker({
           <input name="quantity" type="number" defaultValue={1} min={1} className={inputClass} />
         </div>
         <div className="flex-1">
-          <label className={labelClass}>Price (ZAR)</label>
+          <label className={labelClass}>Price</label>
           <input
             name="priceRand"
             type="number"

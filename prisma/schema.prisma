@@ -590,6 +590,10 @@ model Transaction {
   // tools. amountCents already reflects this once applied; kept here too
   // so the PDF/online view can show the breakdown, not just the result.
   discountPercent         Float?            @default(0)
+  // The document's number in the system it was imported from — Zoho's
+  // Estimate Number, QuickBooks' Num. What makes re-running an import fill in
+  // what is missing on documents already here, instead of duplicating them.
+  externalRef             String?
   // The currency this document is in, and the rate to the workspace's own
   // currency frozen at issue — so a paid invoice never silently restates.
   // Null means the workspace currency at 1:1.
@@ -656,6 +660,7 @@ model Transaction {
   @@index([tenantId])
   @@index([tenantId, status])
   @@index([tenantId, type, status])
+  @@index([tenantId, type, externalRef])
   @@map("transactions")
 }
 

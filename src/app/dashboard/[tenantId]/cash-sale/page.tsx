@@ -1,4 +1,3 @@
-import { listProducts } from "@/lib/core/catalog";
 import { recordCashSaleAction } from "./actions";
 import { ProductPicker } from "../quotes/new/ProductPicker";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
@@ -13,7 +12,6 @@ export default async function CashSalePage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
-  const products = await listProducts(tenantId);
 
   return (
     <main className="mx-auto max-w-md p-4 sm:p-6 lg:p-8">
@@ -35,7 +33,7 @@ export default async function CashSalePage({
           />
         </div>
         <ProductPicker
-          products={products.map((p) => ({ id: p.id, name: p.name, unitPriceCents: p.unitPriceCents }))}
+          tenantId={tenantId}
           label="What's being sold"
         />
         <SubmitButton className="kb-pill kb-pill-primary w-full justify-center py-3" pendingText="Recording sale…">

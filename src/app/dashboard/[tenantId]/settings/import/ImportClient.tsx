@@ -197,8 +197,20 @@ export function ImportClient({ tenantId }: { tenantId: string }) {
         <div className="kb-card p-6">
           <p className="text-sm font-semibold text-[var(--kb-text)]">
             Imported {result.imported} · Skipped {result.skipped}
+            {result.repaired ? ` · ${result.repaired} filled in` : ""}
+            {result.alreadyHere ? ` · ${result.alreadyHere} already here` : ""}
             {result.errors.length > 0 && ` · ${result.errors.length} errors`}
           </p>
+          {result.repaired ? (
+            <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
+              {result.repaired} document{result.repaired === 1 ? " was" : "s were"} already here with no line items — the items from this file were added to {result.repaired === 1 ? "it" : "them"} instead of creating copies.
+            </p>
+          ) : null}
+          {result.withoutLines ? (
+            <p className="mt-2 rounded-lg px-3 py-2 text-xs font-medium" style={{ background: "var(--kb-tint-yellow)", color: "var(--kb-tint-yellow-ink)" }}>
+              {result.withoutLines} document{result.withoutLines === 1 ? " came" : "s came"} in with a customer and a total but no line items. Map the “Line item name”, “quantity” and “price each” columns above and import the same file again — the items will be added to these, not duplicated.
+            </p>
+          ) : null}
           {result.errors.length > 0 && (
             <ul className="mt-2 space-y-1 text-xs text-[var(--kb-tint-peach-ink)]">
               {result.errors.slice(0, 10).map((e, i) => (

@@ -88,6 +88,9 @@ export const IMPORT_PRESETS: Record<
       itemDescription: ["Item Desc", "Item Description", "Description"],
       itemQuantity: ["Quantity", "Qty"],
       itemRate: ["Item Price", "Rate", "Item Rate"],
+      itemTaxPercent: ["Item Tax %", "Tax %", "Tax Percentage"],
+      itemDiscountPercent: ["Discount", "Item Discount"],
+      subject: ["Subject"],
     },
     invoices: {
       customerName: ["Customer Name", "Display Name"],
@@ -100,6 +103,9 @@ export const IMPORT_PRESETS: Record<
       itemDescription: ["Item Desc", "Item Description", "Description"],
       itemQuantity: ["Quantity", "Qty"],
       itemRate: ["Item Price", "Rate", "Item Rate"],
+      itemTaxPercent: ["Item Tax %", "Tax %", "Tax Percentage"],
+      itemDiscountPercent: ["Discount", "Item Discount"],
+      subject: ["Subject"],
     },
   },
   quickbooks: {
@@ -226,6 +232,9 @@ export const TARGET_FIELDS = {
     { key: "itemDescription", label: "Line item description", required: false },
     { key: "itemQuantity", label: "Line item quantity", required: false },
     { key: "itemRate", label: "Line item price each", required: false },
+    { key: "itemTaxPercent", label: "Line item tax %", required: false },
+    { key: "itemDiscountPercent", label: "Line item discount %", required: false },
+    { key: "subject", label: "Subject", required: false },
   ],
   invoices: [
     { key: "customerName", label: "Customer name", required: true },
@@ -238,6 +247,9 @@ export const TARGET_FIELDS = {
     { key: "itemDescription", label: "Line item description", required: false },
     { key: "itemQuantity", label: "Line item quantity", required: false },
     { key: "itemRate", label: "Line item price each", required: false },
+    { key: "itemTaxPercent", label: "Line item tax %", required: false },
+    { key: "itemDiscountPercent", label: "Line item discount %", required: false },
+    { key: "subject", label: "Subject", required: false },
   ],
 } as const;
 

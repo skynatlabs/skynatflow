@@ -7,6 +7,8 @@ import { invoiceWhatsAppMessage } from "@/lib/core/whatsappShare";
 import { WhatsAppSendButton } from "@/components/dashboard/WhatsAppSendButton";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
 import { StatusPill } from "@/components/dashboard/StatusPill";
+import { DocumentSheet } from "@/components/dashboard/DocumentSheet";
+import { formatMoney } from "@/lib/core/currency";
 import {
   recordPaymentAction,
   recordRefundAction,
@@ -16,7 +18,7 @@ import {
 } from "./actions";
 
 function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
+  return formatMoney(cents, "ZAR", { decimals: true });
 }
 
 const LOCKED_STATUSES = new Set(["PAID", "PARTIALLY_PAID", "CANCELLED"]);
@@ -38,111 +40,100 @@ export default async function InvoiceDetailPage({
   });
   if (!invoice || invoice.tenantId !== tenantId || invoice.type !== "INVOICE") notFound();
 
-  const [tenant, paid, refunded, memberships, portalToken, unusual] = await Promise.all([
+  const [tenant, paid, refunded, memberships, portalToken, unusual, template] = await Promise.all([
     prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } }),
     totalPaid(id),
     totalRefunded(id),
     prisma.membership.findMany({ where: { tenantId }, include: { user: true } }),
     getOrCreatePortalToken(invoice.partyId),
     checkUnusualAmount({ tenantId, partyId: invoice.partyId, amountCents: invoice.amountCents, excludeTransactionId: id }),
+    prisma.tenantPdfTemplate.findFirst({ where: { tenantId, isDefault: true }, select: { logoDataUrl: true } }),
   ]);
   const netPaid = paid - refunded;
   const isLocked = LOCKED_STATUSES.has(invoice.status);
 
+  const docNumber = invoice.externalRef ?? `INV-${invoice.id.slice(-6).toUpperCase()}`;
+
   return (
-    <div className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold text-[var(--kb-text)]">
-              Invoice for {invoice.party.name}
-            </h1>
-            <StatusPill status={invoice.status} />
+    <div className="min-h-full">
+      <div className="sticky top-0 z-20 border-b border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-4 py-3 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-lg font-semibold text-[var(--kb-text)]">{docNumber}</h1>
+              <StatusPill status={invoice.status} />
+            </div>
+            <p className="truncate text-xs text-[var(--kb-text-dim)]">
+              Invoice for {invoice.party.name} · {money(netPaid)} paid of {money(invoice.amountCents)}
+              {isLocked && " · locked"}
+            </p>
           </div>
-          <p className="mt-0.5 text-sm text-[var(--kb-text-dim)]">
-            {invoice.party.name}
-            {isLocked && " — locked, can't be edited"}
+          <div className="flex flex-wrap items-center gap-2">
+            {!isLocked && (
+              <Link href={`/dashboard/${tenantId}/invoices/${id}/edit`} className="kb-pill kb-pill-ghost text-xs">Edit</Link>
+            )}
+            <WhatsAppSendButton
+              phone={invoice.party.phone}
+              label="Send via WhatsApp"
+              message={invoiceWhatsAppMessage({
+                tenantName: tenant.name,
+                customerName: invoice.party.name,
+                amountLabel: money(invoice.amountCents),
+                viewUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com"}/portal/${portalToken}/invoices/${id}`,
+              })}
+            />
+            <a href={`/portal/${portalToken}/invoices/${id}/pdf`} target="_blank" className="kb-pill kb-pill-ghost text-xs">PDF</a>
+            <a href={`/portal/${portalToken}/invoices/${id}`} target="_blank" className="kb-pill kb-pill-ghost text-xs">View online</a>
+          </div>
+        </div>
+        {unusual?.isUnusual && (
+          <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            This is {unusual.multiple.toFixed(1)}&times; what {invoice.party.name} normally pays ({money(unusual.averageCents)} average) — worth a second look before sending.
           </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {!isLocked && (
-            <Link href={`/dashboard/${tenantId}/invoices/${id}/edit`} className="kb-pill kb-pill-ghost text-xs">
-              Edit
-            </Link>
-          )}
-          <a href={`/portal/${portalToken}/invoices/${id}/pdf`} target="_blank" className="kb-pill kb-pill-ghost text-xs">
-            Download PDF
-          </a>
-          <a href={`/portal/${portalToken}/invoices/${id}`} target="_blank" className="kb-pill kb-pill-ghost text-xs">
-            View online
-          </a>
-          <WhatsAppSendButton
-            phone={invoice.party.phone}
-            label="Send via WhatsApp"
-            message={invoiceWhatsAppMessage({
-              tenantName: tenant.name,
-              customerName: invoice.party.name,
-              amountLabel: money(invoice.amountCents),
-              viewUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com"}/portal/${portalToken}/invoices/${id}`,
-            })}
-          />
-        </div>
-      </div>
-
-      {(invoice.subject || invoice.poNumber) && (
-        <div className="mt-3 text-sm text-[var(--kb-text-dim)]">
-          {invoice.subject && <p>{invoice.subject}</p>}
-          {invoice.poNumber && <p className="text-xs">PO #: {invoice.poNumber}</p>}
-        </div>
-      )}
-
-      {unusual?.isUnusual && (
-        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          ⚠️ This is {unusual.multiple.toFixed(1)}&times; what {invoice.party.name} normally pays
-          ({money(unusual.averageCents)} average) — worth a second look before sending.
-        </div>
-      )}
-
-      <div className="kb-card mt-6 p-6">
-        <ul className="divide-y divide-[var(--kb-panel-border)]">
-          {invoice.itemLines.map((l) => {
-            const gross = l.quantity * l.unitPriceCents;
-            const afterDiscount = gross * (1 - (l.discountPercent ?? 0) / 100);
-            const lineTotal = afterDiscount * (1 + (l.taxRatePercent ?? 0) / 100);
-            return (
-              <li key={l.id} className="flex items-center justify-between py-2 text-sm">
-                <span className="text-[var(--kb-text)]">
-                  {l.quantity} &times; {l.item.name}
-                  {(l.discountPercent || l.taxRatePercent) && (
-                    <span className="text-[var(--kb-text-dim)]">
-                      {" "}
-                      ({l.discountPercent ? `${l.discountPercent}% disc` : ""}
-                      {l.discountPercent && l.taxRatePercent ? ", " : ""}
-                      {l.taxRatePercent ? `${l.taxRatePercent}% tax` : ""})
-                    </span>
-                  )}
-                </span>
-                <span className="text-[var(--kb-text)]">{money(lineTotal)}</span>
-              </li>
-            );
-          })}
-        </ul>
-        {(invoice.discountPercent ?? 0) > 0 && (
-          <div className="mt-1 flex justify-between text-xs text-[var(--kb-text-dim)]">
-            <span>Overall discount</span>
-            <span>{invoice.discountPercent}%</span>
-          </div>
         )}
-        <div className="mt-3 flex justify-between border-t border-[var(--kb-panel-border)] pt-3">
-          <span className="font-semibold text-[var(--kb-text)]">Total</span>
-          <span className="font-bold text-[var(--kb-text)]">{money(invoice.amountCents)}</span>
-        </div>
-        <div className="mt-1 flex justify-between text-xs text-[var(--kb-text-dim)]">
-          <span>Paid so far</span>
-          <span>{money(netPaid)}</span>
-        </div>
       </div>
 
+      <DocumentSheet
+        kind="Invoice"
+        number={docNumber}
+        status={invoice.status}
+        currency={invoice.currency ?? tenant.currency}
+        logoDataUrl={template?.logoDataUrl}
+        business={{
+          name: tenant.name,
+          address: tenant.businessAddress,
+          email: tenant.businessEmail,
+          phone: tenant.businessPhone,
+          vatNumber: tenant.vatNumber,
+          registrationNumber: tenant.registrationNumber,
+          bankName: tenant.bankName,
+          bankAccountHolder: tenant.bankAccountHolder,
+          bankAccountNumber: tenant.bankAccountNumber,
+          bankBranchCode: tenant.bankBranchCode,
+        }}
+        customer={invoice.party}
+        issuedAt={invoice.createdAt}
+        dueAt={invoice.dueAt}
+        subject={invoice.subject}
+        poNumber={invoice.poNumber}
+        salesperson={invoice.salesPersonMembership ? (invoice.salesPersonMembership.user.name ?? invoice.salesPersonMembership.user.email) : null}
+        lines={invoice.itemLines.map((l) => ({
+          id: l.id,
+          name: l.item.name,
+          description: l.item.description,
+          sku: l.item.sku,
+          unit: l.item.unit,
+          quantity: l.quantity,
+          unitPriceCents: l.unitPriceCents,
+          discountPercent: l.discountPercent,
+          taxRatePercent: l.taxRatePercent,
+        }))}
+        documentDiscountPercent={invoice.discountPercent ?? 0}
+        amountCents={invoice.amountCents}
+        paidCents={netPaid}
+      />
+
+      <div className="mx-auto max-w-[52rem] px-4 pb-10 sm:px-6">
       {invoice.status !== "PAID" && invoice.status !== "CANCELLED" && (
         <div className="kb-card mt-4 flex flex-wrap items-center gap-2 p-6">
           <form action={recordPaymentAction} className="flex items-center gap-1.5">
@@ -268,6 +259,7 @@ export default async function InvoiceDetailPage({
             {invoice.nextFollowUpAt ? "Update reminder" : "Set reminder"}
           </button>
         </form>
+      </div>
       </div>
     </div>
   );

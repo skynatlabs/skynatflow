@@ -727,6 +727,28 @@ body:has(.kb-shell[data-skin="admina"]:not([data-theme="dark"])) { background: #
   color: var(--kb-text);
 }
 
+/* The rendered document (quote/invoice) is a picture of printed paper. The
+   Admina template styles every table in the app — header tint, row hover,
+   slate text — at a specificity no utility class beats, so the sheet resets
+   its own table here, one step more specific than the template. */
+.kb-shell .doc-sheet table thead th {
+  background: #262626;
+  color: #ffffff;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.kb-shell .doc-sheet table tbody td {
+  background: transparent;
+  color: #262626;
+  border-bottom: 1px solid #e5e5e5;
+  padding: 0.625rem 0.75rem;
+  font-size: 13px;
+  white-space: normal;
+}
+.kb-shell .doc-sheet table tbody tr:hover td { background: transparent; }
+
 /* Mobile: the four surfaces under the Ask bar. */
 .kb-mobile-tabs {
   display: grid;

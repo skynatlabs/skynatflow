@@ -6,6 +6,8 @@ import { checkUnusualAmount } from "@/lib/core/money";
 import { quoteWhatsAppMessage } from "@/lib/core/whatsappShare";
 import { WhatsAppSendButton } from "@/components/dashboard/WhatsAppSendButton";
 import { StatusPill } from "@/components/dashboard/StatusPill";
+import { DocumentSheet } from "@/components/dashboard/DocumentSheet";
+import { formatMoney } from "@/lib/core/currency";
 import {
   sendQuoteAction,
   sendQuoteViaWhatsAppAction,
@@ -17,7 +19,7 @@ import {
 } from "./actions";
 
 function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
+  return formatMoney(cents, "ZAR", { decimals: true });
 }
 
 const LOCKED_STATUSES = new Set(["ACCEPTED", "DECLINED", "CANCELLED"]);
@@ -39,100 +41,39 @@ export default async function QuoteDetailPage({
   });
   if (!quote || quote.tenantId !== tenantId || quote.type !== "QUOTE") notFound();
 
-  const [tenant, memberships, invoicedChild, portalToken, unusual] = await Promise.all([
+  const [tenant, memberships, invoicedChild, portalToken, unusual, template] = await Promise.all([
     prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } }),
     prisma.membership.findMany({ where: { tenantId }, include: { user: true } }),
     prisma.transaction.findFirst({ where: { parentId: id, type: "INVOICE" } }),
     getOrCreatePortalToken(quote.partyId),
     checkUnusualAmount({ tenantId, partyId: quote.partyId, amountCents: quote.amountCents, excludeTransactionId: id }),
+    prisma.tenantPdfTemplate.findFirst({ where: { tenantId, isDefault: true }, select: { logoDataUrl: true } }),
   ]);
 
   const isLocked = LOCKED_STATUSES.has(quote.status);
 
+  const docNumber = quote.externalRef ?? `QT-${quote.id.slice(-6).toUpperCase()}`;
+
   return (
-    <div className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold text-[var(--kb-text)]">
+    <div className="min-h-full">
+      {/* The action bar, as in every document tool: what it is on the left,
+          what can be done to it on the right. The document is below it. */}
+      <div className="sticky top-0 z-20 border-b border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-4 py-3 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-lg font-semibold text-[var(--kb-text)]">{docNumber}</h1>
+              <StatusPill status={quote.status} />
+            </div>
+            <p className="truncate text-xs text-[var(--kb-text-dim)]">
               {quote.quoteKind === "PROPOSAL" ? "Proposal" : "Quote"} for {quote.party.name}
-            </h1>
-            <StatusPill status={quote.status} />
+              {isLocked && " · locked"}
+            </p>
           </div>
-          <p className="mt-0.5 text-sm text-[var(--kb-text-dim)]">
-            {quote.party.name} · {quote.status === "DRAFT" ? "not yet sent" : `${quote.status.toLowerCase().replace(/_/g, " ")}`}
-            {isLocked && " — locked, can't be edited"}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {!isLocked && (
-            <Link href={`/dashboard/${tenantId}/quotes/${id}/edit`} className="kb-pill kb-pill-ghost text-xs">
-              Edit
-            </Link>
-          )}
-          <Link href={`/dashboard/${tenantId}/quotes/new?duplicate=${id}`} className="kb-pill kb-pill-ghost text-xs">
-            Duplicate
-          </Link>
-          <a href={`/portal/${portalToken}/quotes/${id}/pdf`} target="_blank" className="kb-pill kb-pill-ghost text-xs">
-            Download PDF
-          </a>
-          <a href={`/portal/${portalToken}/quotes/${id}`} target="_blank" className="kb-pill kb-pill-ghost text-xs">
-            View online
-          </a>
-        </div>
-      </div>
-
-      {(quote.subject || quote.poNumber) && (
-        <div className="mt-3 text-sm text-[var(--kb-text-dim)]">
-          {quote.subject && <p>{quote.subject}</p>}
-          {quote.poNumber && <p className="text-xs">PO #: {quote.poNumber}</p>}
-        </div>
-      )}
-
-      {unusual?.isUnusual && (
-        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          ⚠️ This is {unusual.multiple.toFixed(1)}&times; what {quote.party.name} normally pays
-          ({money(unusual.averageCents)} average) — worth a second look before sending.
-        </div>
-      )}
-
-      <div className="kb-card mt-6 p-6">
-        <ul className="divide-y divide-[var(--kb-panel-border)]">
-          {quote.itemLines.map((l) => {
-            const gross = l.quantity * l.unitPriceCents;
-            const afterDiscount = gross * (1 - (l.discountPercent ?? 0) / 100);
-            const lineTotal = afterDiscount * (1 + (l.taxRatePercent ?? 0) / 100);
-            return (
-              <li key={l.id} className="flex items-center justify-between py-2 text-sm">
-                <span className="text-[var(--kb-text)]">
-                  {l.quantity} &times; {l.item.name}
-                  {(l.discountPercent || l.taxRatePercent) && (
-                    <span className="text-[var(--kb-text-dim)]">
-                      {" "}
-                      ({l.discountPercent ? `${l.discountPercent}% disc` : ""}
-                      {l.discountPercent && l.taxRatePercent ? ", " : ""}
-                      {l.taxRatePercent ? `${l.taxRatePercent}% tax` : ""})
-                    </span>
-                  )}
-                </span>
-                <span className="text-[var(--kb-text)]">{money(lineTotal)}</span>
-              </li>
-            );
-          })}
-        </ul>
-        {(quote.discountPercent ?? 0) > 0 && (
-          <div className="mt-1 flex justify-between text-xs text-[var(--kb-text-dim)]">
-            <span>Overall discount</span>
-            <span>{quote.discountPercent}%</span>
-          </div>
-        )}
-        <div className="mt-3 flex justify-between border-t border-[var(--kb-panel-border)] pt-3">
-          <span className="font-semibold text-[var(--kb-text)]">Total</span>
-          <span className="font-bold text-[var(--kb-text)]">{money(quote.amountCents)}</span>
-        </div>
-      </div>
-
-      <div className="kb-card mt-4 flex flex-wrap items-center gap-2 p-6">
+          <div className="flex flex-wrap items-center gap-2">
+            {!isLocked && (
+              <Link href={`/dashboard/${tenantId}/quotes/${id}/edit`} className="kb-pill kb-pill-ghost text-xs">Edit</Link>
+            )}
         {quote.status === "DRAFT" && (
           <>
             <WhatsAppSendButton
@@ -188,8 +129,56 @@ export default async function QuoteDetailPage({
             View invoice &rarr;
           </Link>
         )}
+            <a href={`/portal/${portalToken}/quotes/${id}/pdf`} target="_blank" className="kb-pill kb-pill-ghost text-xs">PDF</a>
+            <a href={`/portal/${portalToken}/quotes/${id}`} target="_blank" className="kb-pill kb-pill-ghost text-xs">View online</a>
+            <Link href={`/dashboard/${tenantId}/quotes/new?duplicate=${id}`} className="kb-pill kb-pill-ghost text-xs">Duplicate</Link>
+          </div>
+        </div>
+        {unusual?.isUnusual && (
+          <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            This is {unusual.multiple.toFixed(1)}&times; what {quote.party.name} normally pays ({money(unusual.averageCents)} average) — worth a second look before sending.
+          </p>
+        )}
       </div>
 
+      <DocumentSheet
+        kind={quote.quoteKind === "PROPOSAL" ? "Proposal" : "Quote"}
+        number={docNumber}
+        status={quote.status}
+        currency={quote.currency ?? tenant.currency}
+        logoDataUrl={template?.logoDataUrl}
+        business={{
+          name: tenant.name,
+          address: tenant.businessAddress,
+          email: tenant.businessEmail,
+          phone: tenant.businessPhone,
+          vatNumber: tenant.vatNumber,
+          registrationNumber: tenant.registrationNumber,
+        }}
+        customer={quote.party}
+        issuedAt={quote.createdAt}
+        dueAt={quote.dueAt}
+        subject={quote.subject}
+        poNumber={quote.poNumber}
+        salesperson={quote.salesPersonMembership ? (quote.salesPersonMembership.user.name ?? quote.salesPersonMembership.user.email) : null}
+        introText={quote.quoteKind === "PROPOSAL" ? quote.introText : null}
+        scopeOfWork={quote.quoteKind === "PROPOSAL" ? quote.scopeOfWork : null}
+        lines={quote.itemLines.map((l) => ({
+          id: l.id,
+          name: l.item.name,
+          description: l.item.description,
+          sku: l.item.sku,
+          unit: l.item.unit,
+          quantity: l.quantity,
+          unitPriceCents: l.unitPriceCents,
+          discountPercent: l.discountPercent,
+          taxRatePercent: l.taxRatePercent,
+        }))}
+        documentDiscountPercent={quote.discountPercent ?? 0}
+        amountCents={quote.amountCents}
+      />
+
+      <div className="mx-auto max-w-[52rem] px-4 pb-10 sm:px-6">
       <div className="kb-card mt-4 p-6">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--kb-text-dim)]">
           Salesperson
@@ -282,6 +271,7 @@ export default async function QuoteDetailPage({
             {quote.nextFollowUpAt ? "Update reminder" : "Set reminder"}
           </button>
         </form>
+      </div>
       </div>
     </div>
   );

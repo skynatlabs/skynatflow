@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { computeDocumentTotal } from "@/lib/core/pricing";
+import { ProductSearch } from "@/components/dashboard/ProductSearch";
 
 // Lets an external client component (SmartEntryBox) push a fresh set of
 // rows in after this component has already mounted — initialLines only
@@ -21,6 +22,8 @@ const inputClass =
 export interface LineItemValue {
   itemId: string;
   itemName: string;
+  /** Shown under the item for a catalogue line. */
+  sku?: string | null;
   quantity: number;
   priceRand: number;
   discountPercent?: number;
@@ -37,11 +40,11 @@ function centsToRand(cents: number) {
 let nextRowKey = 1;
 
 export function LineItemsEditor({
-  products,
+  tenantId,
   initialLines,
   initialDocumentDiscountPercent,
 }: {
-  products: { id: string; name: string; unitPriceCents: number; sku?: string | null; taxRatePercent?: number | null }[];
+  tenantId: string;
   initialLines?: LineItemValue[];
   initialDocumentDiscountPercent?: number;
 }) {
@@ -66,18 +69,10 @@ export function LineItemsEditor({
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
 
-  function handleNameChange(key: number, value: string) {
-    const match = products.find((p) => p.name === value);
-    updateRow(key, {
-      itemName: value,
-      itemId: match?.id ?? "",
-      ...(match
-        ? {
-            priceRand: match.unitPriceCents / 100,
-            taxRatePercent: match.taxRatePercent ?? undefined,
-          }
-        : {}),
-    });
+  function handleType(key: number, value: string) {
+    // Typing after picking turns the line back into free text: the name no
+    // longer names the catalogue item, so it must not stay linked to it.
+    updateRow(key, { itemName: value, itemId: "", sku: null });
   }
 
   function addRow() {
@@ -116,22 +111,38 @@ export function LineItemsEditor({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const match = products.find((p) => p.id === row.itemId);
               const gross = row.quantity * Math.round(row.priceRand * 100);
               const beforeTaxCents = gross * (1 - (row.discountPercent ?? 0) / 100);
               const taxCents = beforeTaxCents * ((row.taxRatePercent ?? 0) / 100);
               return (
                 <tr key={row.key} className="border-b border-[var(--kb-panel-border)] last:border-0">
                   <td className="px-3 py-2 align-top">
-                    <input
-                      list="product-catalog"
+                    <ProductSearch
+                      tenantId={tenantId}
                       required
                       value={row.itemName}
-                      onChange={(e) => handleNameChange(row.key, e.target.value)}
-                      placeholder="Type or pick from your catalog..."
+                      selectedId={row.itemId}
+                      onType={(v) => handleType(row.key, v)}
+                      onSelect={(p) =>
+                        updateRow(row.key, {
+                          itemId: p.id,
+                          itemName: p.name,
+                          sku: p.sku,
+                          priceRand: p.unitPriceCents / 100,
+                          taxRatePercent: p.taxRatePercent ?? undefined,
+                        })
+                      }
+                      onEdited={(p) =>
+                        updateRow(row.key, {
+                          itemName: p.name,
+                          sku: p.sku,
+                          priceRand: p.unitPriceCents / 100,
+                          taxRatePercent: p.taxRatePercent ?? undefined,
+                        })
+                      }
                       className={inputClass}
                     />
-                    {match?.sku && <p className="mt-0.5 text-[10px] text-[var(--kb-text-dim)]">SKU: {match.sku}</p>}
+                    {row.sku && <p className="mt-0.5 text-[10px] text-[var(--kb-text-dim)]">SKU: {row.sku}</p>}
                   </td>
                   <td className="px-3 py-2 align-top">
                     <input
@@ -205,11 +216,6 @@ export function LineItemsEditor({
             })}
           </tbody>
         </table>
-        <datalist id="product-catalog">
-          {products.map((p) => (
-            <option key={p.id} value={p.name} />
-          ))}
-        </datalist>
       </div>
 
       <button

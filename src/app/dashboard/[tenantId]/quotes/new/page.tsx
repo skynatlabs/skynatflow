@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
 import { nicheConfig } from "@/lib/niches/config";
-import { listProducts } from "@/lib/core/catalog";
 import { listProposalTemplates } from "@/lib/core/templates";
 import { getProposalUsage } from "@/lib/ai/proposal";
 import { suggestSalesPersonForNewLead } from "@/lib/core/salesReporting";
@@ -25,7 +24,6 @@ export default async function NewQuotePage({
   const { duplicate } = await searchParams;
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
   const niche = nicheConfig(tenant.niche);
-  const products = await listProducts(tenantId);
   const templates = await listProposalTemplates(tenantId);
   const proposalUsage = await getProposalUsage(tenantId);
 
@@ -41,6 +39,7 @@ export default async function NewQuotePage({
   const initialLines = source?.itemLines.map((l) => ({
     itemId: l.itemId,
     itemName: l.item.name,
+    sku: l.item.sku,
     quantity: l.quantity,
     priceRand: l.unitPriceCents / 100,
     discountPercent: l.discountPercent ?? 0,
@@ -143,13 +142,7 @@ export default async function NewQuotePage({
           </div>
         </div>
         <LineItemsEditor
-          products={products.map((p) => ({
-            id: p.id,
-            name: p.name,
-            unitPriceCents: p.unitPriceCents,
-            sku: p.sku,
-            taxRatePercent: p.taxRatePercent,
-          }))}
+          tenantId={tenantId}
           initialLines={initialLines}
           initialDocumentDiscountPercent={source?.discountPercent ?? 0}
         />

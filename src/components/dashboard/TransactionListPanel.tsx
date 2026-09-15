@@ -7,6 +7,7 @@
 // searchParams, and this needs to update without losing the selection).
 
 import { useEffect, useState } from "react";
+import { formatMoney } from "@/lib/format/money";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { StatusPill } from "./StatusPill";
@@ -23,7 +24,7 @@ interface Row {
 }
 
 function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
+  return formatMoney(cents, "ZAR", { decimals: true });
 }
 
 export function TransactionListPanel({
