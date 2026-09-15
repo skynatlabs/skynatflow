@@ -88,6 +88,16 @@ import {
 } from "@/lib/core/people";
 import { buildHandoverPack } from "@/lib/core/handover";
 import {
+  createAgreement,
+  previewClaim,
+  raiseClaim,
+  agreementPositions,
+  retentionHeld,
+} from "@/lib/core/progressBilling";
+import { compareBranches, listBranches, createBranch } from "@/lib/core/branches";
+import { DOCUMENT_LANGUAGES } from "@/lib/core/documentLanguage";
+import { exportTenant } from "@/lib/core/portability";
+import {
   proposeMatches,
   acceptMatch,
   ignoreLine,
@@ -447,6 +457,121 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
             })),
           };
         },
+      }),
+  },
+
+  retentionHeld: {
+    build: (ctx) =>
+      tool({
+        description:
+          "How much of this business's money customers are holding back as retention on progress " +
+          "jobs, and how much of that is on work already finished. Almost no operator can answer " +
+          "this and it is frequently more than a month's profit.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [held, positions] = await Promise.all([
+            retentionHeld(ctx.tenantId),
+            agreementPositions(ctx.tenantId),
+          ]);
+          return {
+            summary: held.summary,
+            totalHeld: held.totalHeldCents / 100,
+            onFinishedJobs: held.onCompleteJobsCents / 100,
+            jobs: positions.map((p) => ({
+              agreementId: p.agreementId,
+              title: p.title,
+              customer: p.customer,
+              totalValue: p.totalValueCents / 100,
+              percentComplete: p.percentComplete,
+              stillToClaim: p.remainingCents / 100,
+              retentionHeld: p.retentionHeldCents / 100,
+              status: p.status,
+            })),
+          };
+        },
+      }),
+  },
+
+  previewProgressClaim: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Work out what the next claim on a progress job is worth, without raising it. Claims " +
+          "state cumulative completion — 60% means the job is 60% done in total, not 60% more " +
+          "since last time — and this shows the resulting slice, the retention withheld and the " +
+          "net to invoice.",
+        inputSchema: z.object({
+          agreementId: z.string(),
+          percentComplete: z.number().min(0).max(100),
+        }),
+        execute: async ({ agreementId, percentComplete }) => {
+          const b = await previewClaim({ tenantId: ctx.tenantId, agreementId, percentComplete });
+          return {
+            claimNumber: b.sequence,
+            thisClaim: b.grossCents / 100,
+            retentionWithheld: b.retentionCents / 100,
+            toInvoiceNow: b.netCents / 100,
+            retentionHeldAfterThis: b.retentionHeldToDateCents / 100,
+          };
+        },
+      }),
+  },
+
+  compareBranches: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Profit by branch over a period, with people and assets per branch. Money nobody has " +
+          "tagged to a branch is reported on its own rather than spread — mention that figure, " +
+          "because until it is assigned each branch's number is a floor rather than a total.",
+        inputSchema: z.object({
+          from: z.string().optional().describe("YYYY-MM-DD"),
+          to: z.string().optional().describe("YYYY-MM-DD"),
+        }),
+        execute: async ({ from, to }) => {
+          const c = await compareBranches(ctx.tenantId, {
+            from: from ? new Date(`${from}T00:00:00.000Z`) : undefined,
+            to: to ? new Date(`${to}T23:59:59.999Z`) : undefined,
+          });
+          const strip = (b: (typeof c.branches)[number]) => ({
+            name: b.name,
+            income: b.incomeCents / 100,
+            grossProfit: b.grossProfitCents / 100,
+            overheads: b.expensesCents / 100,
+            netProfit: b.netProfitCents / 100,
+            people: b.people,
+            assets: b.assets,
+          });
+          return {
+            summary: c.summary,
+            branches: c.branches.map(strip),
+            notAssigned: c.unassigned ? strip(c.unassigned) : null,
+            caveats: c.caveats,
+          };
+        },
+      }),
+  },
+
+  listBranches: {
+    build: (ctx) =>
+      tool({
+        description: "The branches on this workspace.",
+        inputSchema: z.object({}),
+        execute: async () => ({ branches: await listBranches(ctx.tenantId) }),
+      }),
+  },
+
+  customerLanguages: {
+    build: () =>
+      tool({
+        description:
+          "The languages documents and messages can go out in. Use when a customer would be " +
+          "better served in their own language — set it on the customer and every quote, invoice " +
+          "and statement to them follows.",
+        inputSchema: z.object({}),
+        execute: async () => ({
+          languages: Object.entries(DOCUMENT_LANGUAGES).map(([code, name]) => ({ code, name })),
+        }),
       }),
   },
 
@@ -1662,6 +1787,99 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
         inputSchema: z.object({ bankAccountId: z.string(), csv: z.string() }),
         execute: async ({ bankAccountId, csv }) =>
           importStatement({ tenantId: ctx.tenantId, bankAccountId, csv }),
+      }),
+  },
+
+  createProgressAgreement: {
+    capability: "invoice:create",
+    build: (ctx) =>
+      tool({
+        description:
+          "Set up a job that will be billed in stages — a total value, and the percentage the " +
+          "customer holds back from each claim until the defects period ends.",
+        inputSchema: z.object({
+          customerId: z.string(),
+          title: z.string(),
+          totalValue: z.number().positive().describe("The whole job, in rands."),
+          retentionPercent: z.number().min(0).max(99).optional(),
+          retentionDueOn: z
+            .string()
+            .optional()
+            .describe("When the defects period ends, YYYY-MM-DD."),
+        }),
+        execute: async ({ customerId, totalValue, retentionDueOn, ...rest }) => {
+          const a = await createAgreement({
+            ...rest,
+            tenantId: ctx.tenantId,
+            partyId: customerId,
+            totalValueCents: Math.round(totalValue * 100),
+            retentionDueAt: retentionDueOn ? new Date(`${retentionDueOn}T12:00:00.000Z`) : null,
+          });
+          return { agreementId: a.id };
+        },
+      }),
+  },
+
+  raiseProgressClaim: {
+    capability: "invoice:create",
+    build: (ctx) =>
+      tool({
+        description:
+          "Raise a claim against a progress job. Show the owner previewProgressClaim first — " +
+          "this is a figure a quantity surveyor will check, and it should be agreed before it is " +
+          "recorded. When a claim takes the job to 100%, the retention becomes a dated obligation " +
+          "so it gets chased rather than forgotten.",
+        inputSchema: z.object({
+          agreementId: z.string(),
+          percentComplete: z.number().min(0).max(100),
+          invoiceId: z.string().optional(),
+        }),
+        execute: async (input) => {
+          const r = await raiseClaim({ ...input, tenantId: ctx.tenantId });
+          return {
+            claimId: r.claimId,
+            toInvoiceNow: r.breakdown.netCents / 100,
+            retentionWithheld: r.breakdown.retentionCents / 100,
+            retentionNowTracked: r.retentionObligationId !== null,
+          };
+        },
+      }),
+  },
+
+  createBranch: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description: "Add a branch, so profit, people and equipment can be reported per location.",
+        inputSchema: z.object({ name: z.string(), code: z.string().optional() }),
+        execute: async (input) => {
+          const b = await createBranch({ ...input, tenantId: ctx.tenantId });
+          return { branchId: b.id };
+        },
+      }),
+  },
+
+  exportEverything: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Produce a complete export of this workspace's data — every table, with a manifest. " +
+          "Integration credentials are deliberately left out. Returns a summary rather than the " +
+          "whole file, which would be far too large for a conversation; point the owner at " +
+          "Settings for the download.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const { manifest } = await exportTenant(ctx.tenantId);
+          return {
+            businessName: manifest.businessName,
+            totalRows: manifest.totalRows,
+            tables: manifest.tables
+              .filter((t) => t.rows > 0)
+              .map((t) => ({ table: t.label, rows: t.rows })),
+            notes: manifest.notes,
+          };
+        },
       }),
   },
 

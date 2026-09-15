@@ -224,6 +224,10 @@ model Tenant {
   holidays          Holiday[]
   employmentRecords EmploymentRecord[]
 
+  progressAgreements ProgressAgreement[]
+
+  branches Branch[]
+
   @@map("tenants")
 }
 
@@ -284,6 +288,10 @@ model Membership {
   assetsHeld        Asset[]            @relation("AssetHolder")
   leaveRequests     LeaveRequest[]     @relation("LeaveTaker")
   employmentRecords EmploymentRecord[] @relation("EmploymentSubject")
+
+  // Where this person normally works.
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id])
 
   @@unique([userId, tenantId])
   @@index([tenantId])
@@ -378,6 +386,13 @@ model Party {
   jobCards                 JobCard[]
 
   obligations Obligation[]
+
+  progressAgreements ProgressAgreement[]
+
+  // The language this customer's documents and messages go out in. Null means
+  // the workspace default. An ISO 639-1 code rather than an enum, because a
+  // fixed list of languages is the same mistake as a fixed list of countries.
+  language String?
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -575,6 +590,10 @@ model Transaction {
   jobCards         JobCard[]
 
   obligations Obligation[]
+
+  // Which branch this was sold from. Null on a single-site business.
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id])
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -1011,6 +1030,9 @@ model Expense {
   isOwnerDrawing  Boolean?
   approvedById    String?
   createdAt       DateTime      @default(now())
+
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id])
 
   @@index([tenantId, status])
   @@map("expenses")
@@ -1600,6 +1622,10 @@ model JournalEntry {
 
   bankLines BankTransaction[]
 
+  // Carried onto the ledger so a profit and loss can be filtered by branch.
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id])
+
   @@index([tenantId, entryDate])
   @@index([tenantId, sourceType, sourceId])
   @@map("journal_entries")
@@ -1639,6 +1665,133 @@ model AccountingPeriod {
   @@unique([tenantId, year, month])
   @@index([tenantId])
   @@map("accounting_periods")
+}
+
+// ---------------------------------------------------------------------
+// Branches.
+//
+// A dimension, not a hierarchy. The question a multi-site business cannot
+// answer is "which branch actually makes money", and averaging them together
+// is how a profitable one carries a loss-making one for years unnoticed.
+//
+// Deliberately optional everywhere. A single-site business should never see
+// a branch field, and every row with a null branch stays perfectly valid —
+// which is also what makes this safe to add to a system already full of data.
+// ---------------------------------------------------------------------
+
+model Branch {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  code      String? // short label for documents and reports
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  transactions   Transaction[]
+  expenses       Expense[]
+  memberships    Membership[]
+  assets         Asset[]
+  journalEntries JournalEntry[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("branches")
+}
+
+// ---------------------------------------------------------------------
+// Progress billing and retention.
+//
+// Trades and construction do not invoice once at the end. They agree a total,
+// bill a percentage as work completes, and the customer holds back a slice —
+// the retention — until a defects period expires months later. No small
+// business tool models this, so operators run it on a spreadsheet and lose
+// track of the retention, which is pure profit sitting uncollected.
+//
+// Two ideas carry it:
+//
+//   CLAIMS ARE CUMULATIVE. A claim states the percentage of the whole job
+//   complete to date, not the slice since last time. That is how the industry
+//   works and how disputes are settled, and deriving the slice from it is
+//   arithmetic we can do rather than a subtraction somebody gets wrong.
+//
+//   RETENTION IS AN OBLIGATION. Money held back is money owed on a future
+//   date, which is exactly what the obligation engine already chases. So
+//   releasing it becomes a dated thing with a consequence rather than a
+//   number in a column nobody revisits.
+// ---------------------------------------------------------------------
+
+enum AgreementStatus {
+  ACTIVE
+  COMPLETE // all work claimed; retention may still be outstanding
+  SETTLED // retention released too — genuinely finished
+  CANCELLED
+}
+
+model ProgressAgreement {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  partyId  String
+  party    Party  @relation(fields: [partyId], references: [id])
+
+  title            String
+  totalValueCents  Int
+  /**
+   * Percentage of every claim the customer withholds, typically 5 or 10.
+   */
+  retentionPercent Float     @default(0)
+  /**
+   * When the defects period ends and retention becomes payable.
+   */
+  retentionDueAt   DateTime?
+
+  status    AgreementStatus @default(ACTIVE)
+  notes     String?
+  createdAt DateTime        @default(now())
+
+  claims ProgressClaim[]
+
+  @@index([tenantId, status])
+  @@map("progress_agreements")
+}
+
+model ProgressClaim {
+  id          String            @id @default(cuid())
+  tenantId    String
+  agreementId String
+  agreement   ProgressAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+
+  /**
+   * Claim 1, 2, 3 — the number the customer and the QS both refer to.
+   */
+  sequence        Int
+  /**
+   * Cumulative completion this claim asserts, 0-100.
+   */
+  percentComplete Float
+  /**
+   * This claim's own value, derived from the cumulative percentage.
+   */
+  grossCents      Int
+  /**
+   * Withheld from this claim.
+   */
+  retentionCents  Int
+  /**
+   * Actually invoiced now: gross less retention.
+   */
+  netCents        Int
+
+  /**
+   * The invoice raised for the net. Null until it is issued.
+   */
+  invoiceId String?
+  claimedAt DateTime @default(now())
+
+  @@unique([agreementId, sequence])
+  @@index([tenantId])
+  @@map("progress_claims")
 }
 
 // ---------------------------------------------------------------------
@@ -1688,6 +1841,9 @@ model Asset {
   createdAt DateTime @default(now())
 
   movements AssetMovement[]
+
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id])
 
   @@index([tenantId, status])
   @@index([tenantId, holderId])

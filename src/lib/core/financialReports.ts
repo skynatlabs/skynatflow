@@ -36,11 +36,29 @@ const DEBIT_NATURED: ReadonlySet<AccountType> = new Set<AccountType>(["ASSET", "
  * `from` means "since the business began", which is what a balance sheet
  * wants.
  */
+export interface BalanceScope {
+  from?: Date;
+  to?: Date;
+  /** Limit to one branch. */
+  branchId?: string | null;
+  /** Limit to entries carrying no branch at all. Distinct from branchId: null. */
+  onlyUnassigned?: boolean;
+}
+
 export async function accountBalances(
   tenantId: string,
-  opts: { from?: Date; to?: Date } = {}
+  opts: BalanceScope = {}
 ): Promise<AccountBalance[]> {
   const to = opts.to ?? new Date();
+
+  // Three different questions, and conflating them is how a branch report
+  // ends up double-counting: everything, one branch, or the entries nobody
+  // has assigned yet.
+  const branchWhere = opts.onlyUnassigned
+    ? { branchId: null }
+    : opts.branchId
+      ? { branchId: opts.branchId }
+      : {};
 
   const [accounts, sums] = await Promise.all([
     prisma.account.findMany({ where: { tenantId }, orderBy: { code: "asc" } }),
@@ -49,6 +67,7 @@ export async function accountBalances(
       where: {
         entry: {
           tenantId,
+          ...branchWhere,
           entryDate: { ...(opts.from ? { gte: opts.from } : {}), lte: to },
         },
       },
@@ -167,12 +186,12 @@ export interface ProfitAndLoss {
  */
 export async function profitAndLoss(
   tenantId: string,
-  opts: { from?: Date; to?: Date } = {}
+  opts: BalanceScope = {}
 ): Promise<ProfitAndLoss> {
   const to = opts.to ?? new Date();
   const from = opts.from ?? new Date(Date.UTC(to.getUTCFullYear(), 0, 1));
 
-  const balances = await accountBalances(tenantId, { from, to });
+  const balances = await accountBalances(tenantId, { ...opts, from, to });
   const nonZero = balances.filter((b) => b.balanceCents !== 0);
 
   const incomeRows = nonZero.filter((b) => b.type === "INCOME");
