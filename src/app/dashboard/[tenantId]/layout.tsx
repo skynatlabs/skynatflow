@@ -87,6 +87,7 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}/statements`, label: "Statements", icon: SignatureIcon },
     { href: `/dashboard/${tenantId}/cash-forecast`, label: "Cash forecast", icon: SignatureIcon },
     { href: `/dashboard/${tenantId}/books`, label: "The books", icon: QuoteIcon },
+    { href: `/dashboard/${tenantId}/banking`, label: "Bank & reconciliation", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/margins`, label: "Margins & suppliers", icon: BoxIcon },
     { href: `/dashboard/${tenantId}/this-week`, label: "This Week", icon: SignatureIcon },
     ...(niche.skin === "MEDICAL" || niche.skin === "SERVICES" ? [{ href: `/dashboard/${tenantId}/appointments`, label: "Appointments", icon: SignatureIcon }] : []),
