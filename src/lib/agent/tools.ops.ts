@@ -58,6 +58,16 @@ import { researchJurisdiction, readObligationFromDocument } from "@/lib/ai/juris
 import { findCostRises, applySuggestedPrice } from "@/lib/core/repricing";
 import { supplierPerformance } from "@/lib/core/supplierPerformance";
 import { spendSplit, unclassifiedExpenses, classifyExpense } from "@/lib/core/expenses";
+import {
+  closePeriod,
+  ensureChartOfAccounts,
+  listAccounts,
+  listClosedPeriods,
+  postEntry,
+  reverseEntry,
+} from "@/lib/core/ledger";
+import { balanceSheet, profitAndLoss, trialBalance } from "@/lib/core/financialReports";
+import { backfillLedger, ledgerCoverage } from "@/lib/core/ledgerBackfill";
 
 export interface OpsToolDef {
   capability?: Capability;
@@ -175,6 +185,142 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
               priceDriftPercent: s.priceDriftPercent,
               flags: s.flags,
             })),
+          };
+        },
+      }),
+  },
+
+  // The reads the agent has never been able to do. Until the ledger existed
+  // it could say who owed what; it could not say whether the business made
+  // anything, which is the question owners actually ask.
+  profitAndLoss: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Whether the business made money over a period: income, cost of sales, gross margin, " +
+          "overheads and what was left. Use for any question about profit, whether they can " +
+          "afford something, how a month or year went, or why it went that way.",
+        inputSchema: z.object({
+          from: z.string().optional().describe("Start of the period, YYYY-MM-DD. Defaults to 1 January this year."),
+          to: z.string().optional().describe("End of the period, YYYY-MM-DD. Defaults to today."),
+        }),
+        execute: async ({ from, to }) => {
+          const pl = await profitAndLoss(ctx.tenantId, {
+            from: from ? new Date(`${from}T00:00:00.000Z`) : undefined,
+            to: to ? new Date(`${to}T23:59:59.999Z`) : undefined,
+          });
+          const rands = (c: number) => c / 100;
+          return {
+            summary: pl.summary,
+            from: pl.from.toISOString().slice(0, 10),
+            to: pl.to.toISOString().slice(0, 10),
+            income: rands(pl.income.totalCents),
+            costOfSales: rands(pl.costOfSales.totalCents),
+            grossProfit: rands(pl.grossProfitCents),
+            grossMarginPercent: pl.grossMarginPercent,
+            overheads: rands(pl.expenses.totalCents),
+            netProfit: rands(pl.netProfitCents),
+            biggestExpenses: pl.expenses.rows
+              .slice()
+              .sort((a, b) => b.balanceCents - a.balanceCents)
+              .slice(0, 8)
+              .map((r) => ({ account: r.name, amount: rands(r.balanceCents) })),
+          };
+        },
+      }),
+  },
+
+  balanceSheet: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What the business owns and owes at a moment, and the owner's stake. Use for questions " +
+          "about net worth, solvency, what is owed to and by the business, or before advising on " +
+          "borrowing.",
+        inputSchema: z.object({ at: z.string().optional().describe("Date, YYYY-MM-DD. Defaults to today.") }),
+        execute: async ({ at }) => {
+          const bs = await balanceSheet(
+            ctx.tenantId,
+            at ? new Date(`${at}T23:59:59.999Z`) : undefined
+          );
+          return {
+            at: bs.to.toISOString().slice(0, 10),
+            owns: bs.totalAssetsCents / 100,
+            owes: bs.totalLiabilitiesCents / 100,
+            ownersStake: bs.totalEquityCents / 100,
+            profitThisYear: bs.retainedThisYearCents / 100,
+            // Reported rather than assumed. If this is ever false something
+            // wrote to the tables behind the application.
+            balanced: bs.balanced,
+            assets: bs.assets.rows.map((r) => ({ account: r.name, amount: r.balanceCents / 100 })),
+            liabilities: bs.liabilities.rows.map((r) => ({ account: r.name, amount: r.balanceCents / 100 })),
+          };
+        },
+      }),
+  },
+
+  trialBalance: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Every account with a balance, in debit and credit columns. This is what a bookkeeper " +
+          "or accountant asks for. Use when preparing a handover or checking the books add up.",
+        inputSchema: z.object({ at: z.string().optional() }),
+        execute: async ({ at }) => {
+          const tb = await trialBalance(ctx.tenantId, at ? new Date(`${at}T23:59:59.999Z`) : undefined);
+          return {
+            balanced: tb.balanced,
+            totalDebits: tb.totalDebitCents / 100,
+            totalCredits: tb.totalCreditCents / 100,
+            rows: tb.rows.map((r) => ({
+              code: r.code,
+              account: r.name,
+              debit: r.debitBalanceCents / 100,
+              credit: r.creditBalanceCents / 100,
+            })),
+          };
+        },
+      }),
+  },
+
+  chartOfAccounts: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The accounts this business posts to. Read this before posting a journal entry so the " +
+          "right account codes are used rather than invented.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const accounts = await listAccounts(ctx.tenantId, { activeOnly: true });
+          return {
+            count: accounts.length,
+            accounts: accounts.map((a) => ({
+              code: a.code,
+              name: a.name,
+              type: a.type,
+              subtype: a.subtype,
+            })),
+          };
+        },
+      }),
+  },
+
+  booksCoverage: {
+    build: (ctx) =>
+      tool({
+        description:
+          "How much of the business has actually reached the books, and what has not been posted " +
+          "yet. Check this before quoting a profit figure — a profit and loss built on half the " +
+          "invoices is worse than no figure at all.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [coverage, closed] = await Promise.all([
+            ledgerCoverage(ctx.tenantId),
+            listClosedPeriods(ctx.tenantId),
+          ]);
+          return {
+            ...coverage,
+            closedMonths: closed.map((p) => `${p.year}-${String(p.month).padStart(2, "0")}`),
           };
         },
       }),
@@ -1065,6 +1211,110 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
         execute: async ({ obligationId, reason }) => {
           await waiveObligation({ tenantId: ctx.tenantId, obligationId, reason });
           return { ok: true };
+        },
+      }),
+  },
+
+  postJournalEntry: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Post a balanced journal entry. Debits must equal credits exactly or it is refused, " +
+          "and nothing can be posted into a month that has been closed. Read chartOfAccounts " +
+          "first and use real account codes. Prefer describing what happened to the owner over " +
+          "posting speculative entries — a wrong entry is corrected by a reversal, never an edit.",
+        inputSchema: z.object({
+          on: z.string().describe("The date the thing happened, YYYY-MM-DD — not today's date unless it happened today."),
+          memo: z.string().describe("What this entry is for, in plain language."),
+          lines: z
+            .array(
+              z.object({
+                accountCode: z.string(),
+                debit: z.number().nonnegative().optional().describe("Amount in rands, not cents."),
+                credit: z.number().nonnegative().optional(),
+                memo: z.string().optional(),
+              })
+            )
+            .min(2),
+        }),
+        execute: async ({ on, memo, lines }) => {
+          const entry = await postEntry({
+            tenantId: ctx.tenantId,
+            entryDate: new Date(`${on}T12:00:00.000Z`),
+            memo,
+            byAgent: true,
+            createdById: ctx.userId,
+            lines: lines.map((l) => ({
+              accountCode: l.accountCode,
+              debitCents: l.debit ? Math.round(l.debit * 100) : 0,
+              creditCents: l.credit ? Math.round(l.credit * 100) : 0,
+              memo: l.memo,
+            })),
+          });
+          return { entryId: entry.id };
+        },
+      }),
+  },
+
+  reverseJournalEntry: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Undo a posted entry by posting its mirror image. The original stays visible — entries " +
+          "are never edited or deleted, so what was believed and when it was corrected both " +
+          "survive.",
+        inputSchema: z.object({ entryId: z.string(), reason: z.string().optional() }),
+        execute: async ({ entryId, reason }) => {
+          const entry = await reverseEntry({
+            tenantId: ctx.tenantId,
+            entryId,
+            memo: reason,
+            createdById: ctx.userId,
+          });
+          return { reversalEntryId: entry.id };
+        },
+      }),
+  },
+
+  postHistoryToBooks: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Post the invoices, payments and expenses this business already has into the books, so " +
+          "reports are about their real trading rather than an empty ledger. Safe to run more " +
+          "than once: anything already posted is skipped, and anything in a closed month is left " +
+          "alone.",
+        inputSchema: z.object({
+          from: z.string().optional().describe("Only post things from this date onward, YYYY-MM-DD."),
+        }),
+        execute: async ({ from }) => {
+          await ensureChartOfAccounts(ctx.tenantId);
+          return backfillLedger(ctx.tenantId, {
+            from: from ? new Date(`${from}T00:00:00.000Z`) : undefined,
+          });
+        },
+      }),
+  },
+
+  closeAccountingPeriod: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Close a month so nothing more can be posted into it — by anyone, including you. Do " +
+          "this only when the owner has explicitly asked and the month is genuinely finished, " +
+          "because reopening it is deliberately not something you can do.",
+        inputSchema: z.object({
+          year: z.number().int(),
+          month: z.number().int().min(1).max(12),
+          note: z.string().optional(),
+        }),
+        execute: async ({ year, month, note }) => {
+          await closePeriod({ tenantId: ctx.tenantId, year, month, closedBy: ctx.userId, note });
+          return { ok: true, closed: `${year}-${String(month).padStart(2, "0")}` };
         },
       }),
   },

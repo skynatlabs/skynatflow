@@ -212,6 +212,10 @@ model Tenant {
 
   obligations Obligation[]
 
+  accounts          Account[]
+  journalEntries    JournalEntry[]
+  accountingPeriods AccountingPeriod[]
+
   @@map("tenants")
 }
 
@@ -1467,6 +1471,150 @@ model Obligation {
   @@index([tenantId, kind])
   @@index([tenantId, blocksWork, status])
   @@map("obligations")
+}
+
+// ---------------------------------------------------------------------
+// The books.
+//
+// Until now this app had a sales ledger — quotes, invoices, payments — and
+// called it money. That tells you what you invoiced and what you spent, which
+// is not the same as knowing whether you made anything, and it cannot be
+// reconciled against a bank statement or handed to an accountant.
+//
+// Two invariants carry the whole design, and both exist to make the agent
+// safe rather than to satisfy bookkeeping convention:
+//
+//   BALANCE. An entry whose debits and credits differ cannot be written. The
+//   check lives in the code that creates entries, so no caller — a person, a
+//   server action or an agent tool — has a path around it. An agent that
+//   posts something wrong produces a wrong-but-balanced book, which is
+//   correctable; one that could post something unbalanced produces a book
+//   nobody can trust again.
+//
+//   IRREVERSIBILITY. A posted entry is never edited or deleted. A mistake is
+//   corrected by a reversing entry that points back at it, so the history of
+//   what was believed and when survives. This is what makes "the agent did
+//   this" auditable rather than a claim.
+// ---------------------------------------------------------------------
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+model Account {
+  id       String      @id @default(cuid())
+  tenantId String
+  tenant   Tenant      @relation(fields: [tenantId], references: [id])
+  // Numeric code by convention: 1xxx asset, 2xxx liability, 3xxx equity,
+  // 4xxx income, 5xxx expense. Kept as a string because real charts use
+  // things like "1000.10" once a business grows a second branch.
+  code     String
+  name     String
+  type     AccountType
+  // Free text, because the useful subdivisions differ by trade and an enum
+  // here would be the same mistake as hardcoding a country's tax filings.
+  subtype  String?
+  isActive Boolean     @default(true)
+  // Accounts the system posts to automatically. Protected from deletion,
+  // because losing the one that invoices post to breaks every future
+  // invoice rather than just this screen.
+  isSystem Boolean     @default(false)
+  parentId String?
+  parent   Account?    @relation("AccountTree", fields: [parentId], references: [id])
+  children Account[]   @relation("AccountTree")
+
+  lines     JournalLine[]
+  createdAt DateTime      @default(now())
+
+  @@unique([tenantId, code])
+  @@index([tenantId, type])
+  @@map("accounts")
+}
+
+// Where an entry came from. A journal full of rows nobody can trace back to
+// a document is a journal nobody trusts.
+enum JournalSource {
+  INVOICE
+  PAYMENT
+  REFUND
+  EXPENSE
+  OPENING_BALANCE
+  MANUAL
+  REVERSAL
+}
+
+model JournalEntry {
+  id         String        @id @default(cuid())
+  tenantId   String
+  tenant     Tenant        @relation(fields: [tenantId], references: [id])
+  // The date the event happened, which is not the date it was captured —
+  // a January invoice entered in March belongs in January.
+  entryDate  DateTime
+  memo       String?
+  source     JournalSource @default(MANUAL)
+  // The document this came from, when it came from one. Deliberately a bare
+  // id plus a type rather than four nullable foreign keys: the journal
+  // should not gain a column every time something new becomes postable.
+  sourceType String?
+  sourceId   String?
+
+  lines JournalLine[]
+
+  // Set when this entry undoes another. Corrections are new entries, never
+  // edits, so both the mistake and the fix stay visible.
+  reversesId String?       @unique
+  reverses   JournalEntry? @relation("Reversal", fields: [reversesId], references: [id])
+  reversedBy JournalEntry? @relation("Reversal")
+
+  createdById String?
+  // True when an agent posted this rather than a person. Every automated
+  // posting is identifiable without reading the memo.
+  byAgent     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, entryDate])
+  @@index([tenantId, sourceType, sourceId])
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id          String       @id @default(cuid())
+  entryId     String
+  entry       JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     Account      @relation(fields: [accountId], references: [id])
+  // Exactly one of these is non-zero on any given line. Two columns rather
+  // than one signed amount because every accountant, export and report in
+  // the world expects debit and credit as separate quantities.
+  debitCents  Int          @default(0)
+  creditCents Int          @default(0)
+  memo        String?
+
+  @@index([entryId])
+  @@index([accountId])
+  @@map("journal_lines")
+}
+
+// A month that has been closed. Nothing may be posted into it afterwards —
+// not by a person and not by the agent. This is the invariant that makes
+// raising the agent's autonomy a setting rather than an act of courage.
+model AccountingPeriod {
+  id       String   @id @default(cuid())
+  tenantId String
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  year     Int
+  month    Int
+  closedAt DateTime @default(now())
+  closedBy String?
+  note     String?
+
+  @@unique([tenantId, year, month])
+  @@index([tenantId])
+  @@map("accounting_periods")
 }
 
 // ---------------------------------------------------------------------

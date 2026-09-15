@@ -48,6 +48,7 @@ export function buildAdminaNav(params: {
         { href: `${d}/statements`, label: "Statements" },
         { href: `${d}/cash-forecast`, label: "Cash forecast" },
         { href: `${d}/expenses`, label: "Expenses" },
+        { href: `${d}/books`, label: "The books" },
         { href: `${d}/margins`, label: "Margins & suppliers" },
         { href: `${d}/disputes`, label: "Reports" },
       ],
