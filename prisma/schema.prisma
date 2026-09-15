@@ -1478,7 +1478,8 @@ model ValueEntry {
   tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   officer  Officer
   kind     ValueKind
-  cents    Int
+  /// Whole cents, stored wide for the same reason as Observation.moneyCents.
+  cents    Float
   at       DateTime  @default(now())
 
   observationId String?
@@ -2122,7 +2123,11 @@ model Observation {
   /// What it is worth, in cents. The primary ranking signal — an assistant
   /// that cannot rank by money ends up ranking by recency, which is how
   /// trivia crowds out the thing that mattered.
-  moneyCents Int?
+  ///
+  /// Whole cents, stored wide: a finding about a year of invoices can pass
+  /// R21.4 million, the most a 32-bit integer holds. A double is exact for
+  /// whole numbers far beyond any business this serves; writers round.
+  moneyCents Float?
   /// 0-100. Low confidence does not mean do not raise; it means say so.
   confidence Int       @default(50)
   /// After this, acting is pointless rather than merely late.

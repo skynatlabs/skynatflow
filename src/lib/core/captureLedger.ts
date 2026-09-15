@@ -47,10 +47,9 @@ export async function captureLedger(
 ): Promise<CaptureLedger> {
   const to = opts.to ?? new Date();
   const from = opts.from ?? new Date(to.getTime() - 30 * 86_400_000);
-  const currency = await tenantCurrency(tenantId);
-  const money = (c: number) => formatMoney(c, currency);
-
-  const [expenses, bankAccounts, unexplained] = await Promise.all([
+  // Every read at once: none of them depends on another's answer.
+  const [currency, expenses, bankAccounts, unexplained, movedAssets, fuelledAssets, assetNames, noDistance] = await Promise.all([
+    tenantCurrency(tenantId),
     prisma.expense.findMany({
       where: { tenantId, status: SPENT, spentOn: { gte: from, lte: to }, isOwnerDrawing: { not: true } },
       select: { amountCents: true, source: true, assetId: true, tripId: true, jobCardId: true, transactionId: true },
@@ -61,7 +60,23 @@ export async function captureLedger(
       _sum: { amountCents: true },
       _count: true,
     }),
+    prisma.trip.groupBy({
+      by: ["assetId"],
+      where: { tenantId, status: "DONE", startedAt: { gte: from, lte: to }, assetId: { not: null } },
+      _sum: { distanceKm: true },
+      _count: true,
+    }),
+    prisma.expense.findMany({
+      where: { tenantId, status: SPENT, spentOn: { gte: from, lte: to }, assetId: { not: null } },
+      select: { assetId: true },
+      distinct: ["assetId"],
+    }),
+    prisma.asset.findMany({ where: { tenantId }, select: { id: true, name: true } }),
+    // Trips that ended without a distance are kilometres that exist and are
+    // divided by nothing.
+    prisma.trip.count({ where: { tenantId, status: "DONE", startedAt: { gte: from, lte: to }, distanceKm: null } }),
   ]);
+  const money = (c: number) => formatMoney(c, currency);
 
   const recordedCents = expenses.reduce((s, e) => s + e.amountCents, 0);
   const unexplainedCents = Math.abs(unexplained._sum.amountCents ?? 0);
@@ -97,35 +112,9 @@ export async function captureLedger(
 
   // Vehicles that moved and never fuelled — the classic sign of slips in a
   // glovebox rather than in the books.
-  const movedAssets = await prisma.trip.groupBy({
-    by: ["assetId"],
-    where: { tenantId, status: "DONE", startedAt: { gte: from, lte: to }, assetId: { not: null } },
-    _sum: { distanceKm: true },
-    _count: true,
-  });
   if (movedAssets.length > 0) {
-    const fuelled = new Set(
-      (
-        await prisma.expense.findMany({
-          where: {
-            tenantId,
-            status: SPENT,
-            spentOn: { gte: from, lte: to },
-            assetId: { in: movedAssets.map((m) => m.assetId!).filter(Boolean) },
-          },
-          select: { assetId: true },
-          distinct: ["assetId"],
-        })
-      ).map((e) => e.assetId)
-    );
-    const names = new Map(
-      (
-        await prisma.asset.findMany({
-          where: { id: { in: movedAssets.map((m) => m.assetId!) } },
-          select: { id: true, name: true },
-        })
-      ).map((a) => [a.id, a.name])
-    );
+    const fuelled = new Set(fuelledAssets.map((e) => e.assetId));
+    const names = new Map(assetNames.map((a) => [a.id, a.name]));
     for (const m of movedAssets) {
       if (!m.assetId || fuelled.has(m.assetId)) continue;
       const km = Math.round(m._sum.distanceKm ?? 0);
@@ -139,11 +128,6 @@ export async function captureLedger(
     }
   }
 
-  // Trips that ended without a distance are kilometres that exist and are
-  // divided by nothing.
-  const noDistance = await prisma.trip.count({
-    where: { tenantId, status: "DONE", startedAt: { gte: from, lte: to }, distanceKm: null },
-  });
   if (noDistance > 0) {
     gaps.push({
       kind: "TRIP_NO_DISTANCE",

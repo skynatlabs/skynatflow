@@ -39,10 +39,27 @@ export default async function TodayPage({
   const { tenantId } = await params;
   const plan = await getTodayPlan(tenantId);
 
-  const kindCounts = [...plan.timed, ...plan.untimed].reduce<Record<string, number>>((acc, item) => {
+  // Counted over everything found, not only what is listed below.
+  const kindCounts = plan.timed.reduce<Record<string, number>>((acc, item) => {
     acc[item.kind] = (acc[item.kind] ?? 0) + 1;
     return acc;
   }, {});
+  for (const [kind, n] of Object.entries(plan.untimedByKind)) {
+    if (n > 0) kindCounts[kind] = (kindCounts[kind] ?? 0) + n;
+  }
+  const leftOut = plan.untimedTotal - plan.untimed.length;
+  const shownByReason = plan.untimed.reduce<Record<string, number>>((acc, item) => {
+    acc[item.reason] = (acc[item.reason] ?? 0) + 1;
+    return acc;
+  }, {});
+  const rest = [
+    { reason: "overdue_invoice", label: "overdue invoices", href: `/dashboard/${tenantId}/overdue` },
+    { reason: "follow_up_due", label: "follow-ups due", href: `/dashboard/${tenantId}/this-week` },
+    { reason: "stale", label: "quotes and invoices gone quiet", href: `/dashboard/${tenantId}/this-week` },
+    { reason: "unscheduled_job_card", label: "unscheduled jobs", href: `/dashboard/${tenantId}/job-cards` },
+  ]
+    .map((r) => ({ ...r, count: plan.untimedByReason[r.reason as keyof typeof plan.untimedByReason] - (shownByReason[r.reason] ?? 0) }))
+    .filter((r) => r.count > 0);
   const barData = Object.entries(kindCounts).map(([kind, count]) => ({
     name: KIND_LABEL[kind] ?? kind,
     value: count,
@@ -115,6 +132,20 @@ export default async function TodayPage({
               </li>
             ))}
           </ul>
+        )}
+        {leftOut > 0 && (
+          <p className="mt-3 text-sm text-[var(--kb-text-dim)]">
+            The {plan.untimed.length} most urgent of {plan.untimedTotal.toLocaleString("en-US")}. Also waiting:{" "}
+            {rest.map((r, i) => (
+              <span key={r.reason}>
+                {i > 0 ? ", " : ""}
+                <Link href={r.href} className="font-medium text-[var(--kb-accent-a)] hover:underline">
+                  {r.count.toLocaleString("en-US")} {r.label}
+                </Link>
+              </span>
+            ))}
+            .
+          </p>
         )}
       </section>
     </main>

@@ -443,8 +443,12 @@ export async function recurringSpend(tenantId: string, now = new Date()): Promis
 }
 
 /** Two recurring payments that appear to do one job. */
-export async function subscriptionOverlaps(tenantId: string, now = new Date()): Promise<Saving[]> {
-  const [items, currency] = await Promise.all([recurringSpend(tenantId, now), tenantCurrency(tenantId)]);
+export async function subscriptionOverlaps(
+  tenantId: string,
+  now = new Date(),
+  recurring?: Promise<RecurringItem[]>
+): Promise<Saving[]> {
+  const [items, currency] = await Promise.all([recurring ?? recurringSpend(tenantId, now), tenantCurrency(tenantId)]);
   const money = (c: number) => formatMoney(c, currency);
   const out: Saving[] = [];
   const seen = new Set<string>();
@@ -622,31 +626,37 @@ export async function consolidationReport(
   const now = opts.now ?? new Date();
   const period: Period = { from: new Date(now.getTime() - (opts.days ?? 90) * 86_400_000), to: now };
 
+  // Worked out once: the recurring list is both a section of the report and
+  // what subscription overlaps are found in.
+  const recurringP = recurringSpend(tenantId, now);
   const sources: Array<{ name: string; run: () => Promise<Saving[]> }> = [
     { name: "suppliers", run: () => supplierConsolidation(tenantId, period) },
     { name: "trips", run: () => tripConsolidation(tenantId, period) },
-    { name: "subscriptions", run: () => subscriptionOverlaps(tenantId, now) },
+    { name: "subscriptions", run: () => subscriptionOverlaps(tenantId, now, recurringP) },
     { name: "timing", run: () => purchaseTiming(tenantId, now) },
     { name: "insurance", run: () => insuranceConsolidation(tenantId) },
   ];
 
+  // The sources are independent, so they run together; each still fails on
+  // its own and is reported by name.
+  const settled = await Promise.allSettled([...sources.map((s) => s.run()), recurringP]);
   const savings: Saving[] = [];
   const failed: string[] = [];
-  for (const s of sources) {
-    try {
-      savings.push(...(await s.run()));
-    } catch (err) {
+  sources.forEach((s, i) => {
+    const r = settled[i];
+    if (r.status === "fulfilled") savings.push(...(r.value as Saving[]));
+    else {
       failed.push(s.name);
-      console.error(`[consolidation] ${s.name} failed for ${tenantId}:`, err instanceof Error ? err.message : err);
+      console.error(`[consolidation] ${s.name} failed for ${tenantId}:`, r.reason instanceof Error ? r.reason.message : r.reason);
     }
-  }
+  });
 
   let recurring: RecurringItem[] = [];
-  try {
-    recurring = await recurringSpend(tenantId, now);
-  } catch (err) {
+  const rec = settled[sources.length];
+  if (rec.status === "fulfilled") recurring = rec.value as RecurringItem[];
+  else {
     failed.push("recurring");
-    console.error(`[consolidation] recurring failed for ${tenantId}:`, err instanceof Error ? err.message : err);
+    console.error(`[consolidation] recurring failed for ${tenantId}:`, rec.reason instanceof Error ? rec.reason.message : rec.reason);
   }
 
   savings.sort((a, b) => b.annualCents * b.confidence - a.annualCents * a.confidence);

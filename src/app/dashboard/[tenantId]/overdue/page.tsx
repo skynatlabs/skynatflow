@@ -1,19 +1,30 @@
 import { getOverdueInvoices } from "@/lib/core/collections";
 import { applyLateFeeAction } from "./actions";
 import { BreakdownBarChart } from "@/components/dashboard/MiniCharts";
+import { Pagination } from "@/components/dashboard/Pagination";
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
 }
 
+// Each row carries its own late-fee form, so a thousand overdue invoices on
+// one page is megabytes on a phone. The totals and the chart still count all.
+const PAGE_SIZE = 50;
+
 export default async function OverduePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantId: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { tenantId } = await params;
+  const { page: pageParam } = await searchParams;
   const overdue = await getOverdueInvoices(tenantId);
   const totalOwed = overdue.reduce((sum, i) => sum + i.amountCents, 0);
+  const pageCount = Math.max(1, Math.ceil(overdue.length / PAGE_SIZE));
+  const page = Math.min(pageCount, Math.max(1, Number(pageParam) || 1));
+  const shown = overdue.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const buckets = [
     { name: "0-7d", test: (d: number) => d <= 7, color: "#f0a3ac" },
@@ -46,7 +57,7 @@ export default async function OverduePage({
         </div>
       ) : (
         <ul className="kb-card mt-6 divide-y divide-[var(--kb-panel-border)]">
-          {overdue.map((inv) => (
+          {shown.map((inv) => (
             <li key={inv.id} className="flex items-center justify-between px-5 py-4">
               <div>
                 <p className="font-medium text-[var(--kb-text)]">{inv.partyName}</p>
@@ -66,6 +77,7 @@ export default async function OverduePage({
           ))}
         </ul>
       )}
+      <Pagination page={page} pageCount={pageCount} />
     </main>
   );
 }

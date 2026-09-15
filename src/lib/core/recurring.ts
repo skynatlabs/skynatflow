@@ -46,9 +46,9 @@ export async function setRecurringInvoiceActive(id: string, isActive: boolean) {
   return prisma.recurringInvoice.update({ where: { id }, data: { isActive } });
 }
 
-export async function listRecurringInvoices(tenantId: string) {
+export async function listRecurringInvoices(tenantId: string, opts: { partyId?: string } = {}) {
   return prisma.recurringInvoice.findMany({
-    where: { tenantId },
+    where: { tenantId, ...(opts.partyId ? { partyId: opts.partyId } : {}) },
     include: { party: true },
     orderBy: { nextRunAt: "asc" },
   });

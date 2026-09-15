@@ -72,7 +72,6 @@ export default async function TenantHomePage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
-  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
 
   // Async Server Component: this runs once per request on the server, so a
   // per-request timestamp is intended, not impure client rendering.
@@ -87,24 +86,33 @@ export default async function TenantHomePage({
   // eslint-disable-next-line react-hooks/purity
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000);
 
+  // Every read the page makes, started together — the dashboard is the first
+  // screen after signing in, and nothing on it waits on anything else.
   const [
+    tenant,
     stale,
     customerCount,
     openInvoices,
-    quotes,
+    quoteStatuses,
     thisWeek,
     revenueTx,
     tasks,
     items,
     notifications,
     newCustomers,
+    readiness,
+    lowStock,
+    [runningRuns, awaitingRuns, lastRun, activeAgents, unsentQuotes, openTasks],
   ] = await Promise.all([
+    prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } }),
     findStaleTransactions({ tenantId, staleAfterDays: 3 }),
     prisma.party.count({ where: { tenantId, role: { in: ["CUSTOMER", "PATIENT"] } } }),
-    prisma.transaction.findMany({
+    prisma.transaction.aggregate({
       where: { tenantId, type: "INVOICE", status: { in: ["SENT", "PARTIALLY_PAID"] } },
+      _sum: { amountCents: true },
+      _count: true,
     }),
-    prisma.transaction.findMany({ where: { tenantId, type: "QUOTE" } }),
+    prisma.transaction.groupBy({ by: ["status"], where: { tenantId, type: "QUOTE" }, _count: true, orderBy: { status: "asc" } }),
     listThisWeekFollowUps(tenantId),
     prisma.transaction.findMany({
       where: { tenantId, type: { in: ["QUOTE", "INVOICE"] }, createdAt: { gte: twelveWeeksAgo } },
@@ -120,20 +128,30 @@ export default async function TenantHomePage({
       where: { tenantId, role: { in: ["CUSTOMER", "PATIENT"] }, createdAt: { gte: sixMonthsAgo } },
       select: { createdAt: true },
     }),
+    // Read off real rows rather than a stored "onboarding step", so it ticks
+    // itself off as ordinary work happens and can never disagree with reality.
+    getReadiness(tenantId),
+    getReorderSuggestions(tenantId),
+    // Live agent state for the status strip and the shortcut counts.
+    Promise.all([
+      prisma.agentRun.count({ where: { tenantId, status: "RUNNING" } }),
+      prisma.agentRun.count({ where: { tenantId, status: "AWAITING_APPROVAL" } }),
+      prisma.agentRun.findFirst({
+        where: { tenantId, status: { in: ["DONE", "APPROVED", "AWAITING_APPROVAL"] } },
+        orderBy: { createdAt: "desc" },
+        select: { reply: true, createdAt: true },
+      }),
+      prisma.agentDefinition.count({ where: { tenantId, isActive: true } }),
+      prisma.transaction.count({ where: { tenantId, type: "QUOTE", status: "DRAFT" } }),
+      prisma.task.count({ where: { tenantId, status: { not: "DONE" } } }),
+    ]),
   ]);
 
-  // Read off real rows rather than a stored "onboarding step", so it ticks
-  // itself off as ordinary work happens and can never disagree with reality.
-  const readiness = await getReadiness(tenantId);
-
   const staleTotalCents = stale.reduce((sum, t) => sum + t.amountCents, 0);
-  const outstandingCents = openInvoices.reduce((sum, t) => sum + t.amountCents, 0);
+  const outstandingCents = openInvoices._sum.amountCents ?? 0;
 
   // Quote pipeline donut data
-  const statusCounts = quotes.reduce<Record<string, number>>((acc, q) => {
-    acc[q.status] = (acc[q.status] ?? 0) + 1;
-    return acc;
-  }, {});
+  const statusCounts = Object.fromEntries(quoteStatuses.map((q) => [q.status, q._count]));
   const pipelineData = Object.entries(statusCounts).map(([status, count]) => ({
     name: status.replace("_", " "),
     value: count,
@@ -176,8 +194,6 @@ export default async function TenantHomePage({
     else if (it.reorderPoint != null && it.stockQty <= it.reorderPoint) low++;
     else healthy++;
   }
-  const lowStock = await getReorderSuggestions(tenantId);
-
   // Notifications by type
   const notifCounts = notifications.reduce<Record<string, number>>((acc, n) => {
     acc[n.type] = (acc[n.type] ?? 0) + 1;
@@ -230,21 +246,6 @@ export default async function TenantHomePage({
     briefingParts.push("Nothing urgent is waiting on you right now.");
   }
   const briefingText = briefingParts.join(" ");
-
-  // --- live agent state for the status strip and the shortcut counts -------
-  const [runningRuns, awaitingRuns, lastRun, activeAgents, unsentQuotes, openTasks] =
-    await Promise.all([
-      prisma.agentRun.count({ where: { tenantId, status: "RUNNING" } }),
-      prisma.agentRun.count({ where: { tenantId, status: "AWAITING_APPROVAL" } }),
-      prisma.agentRun.findFirst({
-        where: { tenantId, status: { in: ["DONE", "APPROVED", "AWAITING_APPROVAL"] } },
-        orderBy: { createdAt: "desc" },
-        select: { reply: true, createdAt: true },
-      }),
-      prisma.agentDefinition.count({ where: { tenantId, isActive: true } }),
-      prisma.transaction.count({ where: { tenantId, type: "QUOTE", status: "DRAFT" } }),
-      prisma.task.count({ where: { tenantId, status: { not: "DONE" } } }),
-    ]);
 
   const quickActions: QuickAction[] = [
     {
@@ -373,7 +374,7 @@ export default async function TenantHomePage({
           <p className="mt-2 truncate text-xl font-extrabold" style={{ color: "var(--kb-accent-b)" }}>
             {moneyCompact(outstandingCents)}
           </p>
-          <p className="mt-1 text-xs text-[var(--kb-text-dim)]">{openInvoices.length} open invoice{openInvoices.length === 1 ? "" : "s"}</p>
+          <p className="mt-1 text-xs text-[var(--kb-text-dim)]">{openInvoices._count} open invoice{openInvoices._count === 1 ? "" : "s"}</p>
         </div>
 
         <div className="lg:row-span-2">

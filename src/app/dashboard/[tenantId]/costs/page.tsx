@@ -14,7 +14,7 @@ import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/core/currency";
 import { captureLedger } from "@/lib/core/captureLedger";
-import { assetCosts, customerMargins, fleetCost, jobMargins, laneMargins, lastDays } from "@/lib/core/costing";
+import { assetCosts, costRates, customerMargins, fleetCost, jobMargins, laneMargins, lastDays, ratesFrom } from "@/lib/core/costing";
 import { PageHeader } from "../PageHeader";
 import { Figure } from "@/components/dashboard/Figure";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
@@ -42,20 +42,22 @@ export default async function CostsPage({
   const access = await requireTenantAccess(tenantId);
   const owner = access.role === "OWNER";
 
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true } });
-  if (!tenant) notFound();
-  const money = (c: number) => formatMoney(c, tenant.currency);
-
   const days = sp.days === "90" ? 90 : sp.days === "365" ? 365 : 30;
   const by = sp.by === "job" ? "job" : sp.by === "lane" ? "lane" : "customer";
   const period = lastDays(days);
-  const marginPeriod = lastDays(Math.max(days, 90));
+  // Margins need at least a quarter to mean anything. When the chosen period
+  // is already that long they share its vehicle costs rather than pricing
+  // the fleet again.
+  const marginPeriod = days >= 90 ? period : lastDays(90, period.to);
+  const assetsP = assetCosts(tenantId, period);
+  const rates = days >= 90 ? assetsP.then(ratesFrom) : costRates(tenantId, marginPeriod);
 
-  const [capture, fleet, assets, margins, team, allAssets] = await Promise.all([
+  const [tenant, capture, fleet, assets, margins, team, allAssets] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true } }),
     captureLedger(tenantId, period),
-    fleetCost(tenantId, period),
-    assetCosts(tenantId, period),
-    by === "job" ? jobMargins(tenantId, marginPeriod) : by === "lane" ? laneMargins(tenantId, marginPeriod) : customerMargins(tenantId, marginPeriod),
+    fleetCost(tenantId, period, assetsP),
+    assetsP,
+    by === "job" ? jobMargins(tenantId, marginPeriod, { rates }) : by === "lane" ? laneMargins(tenantId, marginPeriod, { rates }) : customerMargins(tenantId, marginPeriod, { rates }),
     owner
       ? prisma.membership.findMany({ where: { tenantId }, select: { id: true, costRateCents: true, user: { select: { name: true, email: true } } }, orderBy: { createdAt: "asc" } })
       : Promise.resolve([]),
@@ -63,6 +65,8 @@ export default async function CostsPage({
       ? prisma.asset.findMany({ where: { tenantId, status: { notIn: ["LOST", "RETIRED"] } }, select: { id: true, name: true, capacityUnit: true, registration: true }, orderBy: { name: "asc" } })
       : Promise.resolve([]),
   ]);
+  if (!tenant) notFound();
+  const money = (c: number) => formatMoney(c, tenant.currency);
 
   const href = (q: { days?: number; by?: string }) =>
     `/dashboard/${tenantId}/costs?days=${q.days ?? days}&by=${q.by ?? by}`;

@@ -36,12 +36,10 @@ function Section({ title, hint, children, empty }: { title: string; hint: string
 export default async function FleetPage({ params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
   const access = await requireTenantAccess(tenantId);
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true, detentionRateCents: true, detentionFreeMinutes: true } });
-  if (!tenant) notFound();
-  const money = (c: number) => formatMoney(c, tenant.currency);
   const owner = access.role === "OWNER";
 
-  const [detention, recoverables, empty, fuel, service, consumables, overloads, subs, deviations, incidents, vehicles] = await Promise.all([
+  const [tenant, detention, recoverables, empty, fuel, service, consumables, overloads, subs, deviations, incidents, vehicles] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true, detentionRateCents: true, detentionFreeMinutes: true } }),
     detentionOwed(tenantId), unbilledRecoverables(tenantId), emptyRunning(tenantId), fuelConsumption(tenantId),
     maintenanceDue(tenantId, 5_000), consumablesByAsset(tenantId), overloadedTrips(tenantId), subcontractorsAtRisk(tenantId),
     routeDeviations(tenantId), listIncidents(tenantId, 10),
@@ -51,6 +49,8 @@ export default async function FleetPage({ params }: { params: Promise<{ tenantId
       orderBy: { name: "asc" },
     }),
   ]);
+  if (!tenant) notFound();
+  const money = (c: number) => formatMoney(c, tenant.currency);
 
   const unbilledDetention = detention.filter((d) => !d.billed);
   const recoverableByCustomer = new Map<string, { name: string; cents: number; count: number }>();

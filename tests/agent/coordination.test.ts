@@ -26,6 +26,8 @@ import {
 } from "../../src/lib/agent/chiefOfStaff";
 import {
   getCeiling,
+  getCeilings,
+  reaches,
   setCeiling,
   may,
   assertMay,
@@ -94,6 +96,19 @@ describe("the autonomy ladder", () => {
   it("throws something a person can act on", async () => {
     await expect(assertMay(tenantId, "CEO", "ACT")).rejects.toThrow(RungRefusedError);
     await expect(assertMay(tenantId, "CEO", "ACT")).rejects.toThrow(/Raise it in settings/);
+  });
+
+  it("reads every officer's ceiling at once exactly as it reads each one alone", async () => {
+    await setCeiling({ tenantId, officer: "CFO", ceiling: "PROPOSE" });
+    await setCeiling({ tenantId, officer: "EFFICIENCY", ceiling: "OBSERVE" });
+    await prisma.officerAutonomy.create({ data: { tenantId, officer: "SALES", ceiling: "WHATEVER" } });
+
+    const ceilingOf = await getCeilings(tenantId);
+    for (const officer of ["CEO", "CFO", "COO", "LEGAL", "SALES", "EFFICIENCY", "SYSTEM"] as const) {
+      expect(ceilingOf(officer)).toBe(await getCeiling(tenantId, officer));
+    }
+    expect(reaches(ceilingOf("CFO"), "PROPOSE")).toBe(true);
+    expect(reaches(ceilingOf("EFFICIENCY"), "SUGGEST")).toBe(false);
   });
 
   it("reports which officers are capped", async () => {

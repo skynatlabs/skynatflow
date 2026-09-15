@@ -21,6 +21,7 @@ import { setManager, setDepartment } from "../../src/lib/core/org";
 import { markNoShowAndRebook } from "../../src/lib/core/reminders";
 import { returnRental, markItemRentable } from "../../src/lib/core/rentals";
 import { openTill, closeTill } from "../../src/lib/core/pos";
+import { recordBatch } from "../../src/lib/core/inventory";
 
 // tenant A = the attacker's own workspace; tenant B = the victim's.
 let tenantA: string;
@@ -230,6 +231,16 @@ describe("acting on another tenant's records is refused", () => {
 
     const after = await prisma.rental.findUnique({ where: { id: rental.id } });
     expect(after?.status).toBe("ACTIVE");
+  });
+
+  it("won't log a stock batch against another tenant's product", async () => {
+    await expect(recordBatch({ tenantId: tenantA, itemId: itemB, quantity: 5 })).rejects.toThrow(/catalogue/i);
+    expect(await prisma.itemBatch.count({ where: { itemId: itemB } })).toBe(0);
+
+    // Its own product, it may.
+    const batch = await recordBatch({ tenantId: tenantA, itemId: itemA, quantity: 5 });
+    expect(batch.itemId).toBe(itemA);
+    await prisma.itemBatch.delete({ where: { id: batch.id } });
   });
 });
 

@@ -14,7 +14,12 @@ import {
   recordResponse,
   convertToInvoice,
   recordPayment,
+  recordRefund,
+  totalPaid,
+  totalRefunded,
+  netPaidByInvoice,
   customerBalance,
+  customerBalances,
   findStaleTransactions,
   checkUnusualAmount,
 } from "../../src/lib/core/money";
@@ -95,6 +100,28 @@ describe("quote -> invoice -> payment ledger", () => {
     expect(afterFinal.status).toBe("PAID");
   });
 
+  it("adds up paid less refunded for many invoices at once, the same as one at a time", async () => {
+    const make = async () => {
+      const q = await createQuote({ tenantId, partyId: customerId, lines: [{ itemId, quantity: 1, unitPriceCents: 100_000 }] });
+      await recordResponse(q.id, "ACCEPTED");
+      return convertToInvoice({ quoteId: q.id });
+    };
+    const a = await make();
+    const b = await make();
+    const untouched = await make();
+    await recordPayment({ invoiceId: a.id, amountCents: 60_000 });
+    await recordPayment({ invoiceId: a.id, amountCents: 40_000 });
+    await recordRefund({ invoiceId: a.id, amountCents: 15_000 });
+    await recordPayment({ invoiceId: b.id, amountCents: 25_000 });
+
+    const net = await netPaidByInvoice([a.id, b.id, untouched.id]);
+    for (const inv of [a, b, untouched]) {
+      expect(net.get(inv.id)).toBe((await totalPaid(inv.id)) - (await totalRefunded(inv.id)));
+    }
+    expect(net.get(a.id)).toBe(85_000);
+    expect(net.get(untouched.id)).toBe(0);
+  });
+
   it("customer balance reflects only what remains unpaid", async () => {
     const balanceBefore = await customerBalance(tenantId, customerId);
 
@@ -112,6 +139,28 @@ describe("quote -> invoice -> payment ledger", () => {
     await recordPayment({ invoiceId: invoice.id, amountCents: 1000000 });
     const balanceAfterPayment = await customerBalance(tenantId, customerId);
     expect(balanceAfterPayment).toBe(balanceBefore);
+  });
+
+  it("gives every customer's balance at once, matching each one's own, and ignores what was cancelled", async () => {
+    const other = await prisma.party.create({ data: { tenantId, role: PartyRole.CUSTOMER, name: "Second Customer" } });
+    const invoiceFor = async (partyId: string, cents: number) => {
+      const q = await createQuote({ tenantId, partyId, lines: [{ itemId, quantity: 1, unitPriceCents: cents }] });
+      await recordResponse(q.id, "ACCEPTED");
+      return convertToInvoice({ quoteId: q.id });
+    };
+    const owed = await invoiceFor(other.id, 300_000);
+    await recordPayment({ invoiceId: owed.id, amountCents: 120_000 });
+    const cancelled = await invoiceFor(other.id, 999_000);
+    await prisma.transaction.update({ where: { id: cancelled.id }, data: { status: "CANCELLED" } });
+
+    const all = await customerBalances(tenantId);
+    expect(all.get(other.id)).toBe(180_000);
+    expect(all.get(other.id)).toBe(await customerBalance(tenantId, other.id));
+    expect(all.get(customerId)).toBe(await customerBalance(tenantId, customerId));
+    // Another workspace's customers are never in the list.
+    const elsewhere = await prisma.tenant.create({ data: { name: "Elsewhere", niche: "SERVICES" } });
+    expect((await customerBalances(elsewhere.id)).size).toBe(0);
+    await prisma.tenant.delete({ where: { id: elsewhere.id } });
   });
 
   it("flags a sent quote with no response as stale — the leakage-engine query", async () => {

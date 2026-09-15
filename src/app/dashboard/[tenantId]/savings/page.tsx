@@ -26,11 +26,12 @@ const KIND: Record<SavingKind, { label: string; bg: string; ink: string }> = {
 export default async function SavingsPage({ params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
   await requireTenantAccess(tenantId);
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true } });
+  const [tenant, report] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true } }),
+    consolidationReport(tenantId),
+  ]);
   if (!tenant) notFound();
   const money = (c: number) => formatMoney(c, tenant.currency);
-
-  const report = await consolidationReport(tenantId);
 
   return (
     <div className="pb-10">

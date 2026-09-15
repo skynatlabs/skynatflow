@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PartyRole, TransactionType, TransactionStatus } from "@prisma/client";
 import { prisma } from "../../src/lib/db";
-import { getReadiness } from "../../src/lib/core/readiness";
+import { getReadiness, quietPages } from "../../src/lib/core/readiness";
 
 let tenantId: string;
 let partyId: string;
@@ -117,5 +117,58 @@ describe("retiring", () => {
     // paid is operational whether or not it invited a teammate, and nagging
     // past that point is how a checklist becomes furniture.
     expect(r.doneCount).toBeLessThan(r.total);
+  });
+});
+
+// The rail folds away pages with nothing in them. It is asked on every page
+// of the dashboard, so it is one statement against the database — and a
+// statement written by hand is one the type checker cannot see into, which
+// is what this is for.
+describe("pages with nothing in them", () => {
+  let quietTenant: string;
+  const userIds: string[] = [];
+
+  beforeAll(async () => {
+    quietTenant = (await prisma.tenant.create({ data: { name: "Quiet Co", niche: "LOGISTICS" } })).id;
+  });
+
+  afterAll(async () => {
+    await prisma.membership.updateMany({ where: { tenantId: quietTenant }, data: { managerId: null } });
+    await prisma.membership.deleteMany({ where: { tenantId: quietTenant } });
+    await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    await prisma.trip.deleteMany({ where: { tenantId: quietTenant } });
+    await prisma.item.deleteMany({ where: { tenantId: quietTenant } });
+    await prisma.goal.deleteMany({ where: { tenantId: quietTenant } });
+    await prisma.tenant.delete({ where: { id: quietTenant } });
+  });
+
+  it("folds away every page with nothing in it on a new workspace", async () => {
+    const quiet = await quietPages(quietTenant);
+    for (const key of ["goals", "disputes", "trips", "fleet", "inventory", "pos", "cash-sale", "rentals", "properties", "connections", "attendance", "org", "team-performance"]) {
+      expect(quiet.has(key)).toBe(true);
+    }
+  });
+
+  it("brings a page back the moment it has something in it, and leaves the rest folded", async () => {
+    await prisma.goal.create({ data: { tenantId: quietTenant, title: "Grow", metricLabel: "Revenue", targetValue: 100 } });
+    await prisma.trip.create({ data: { tenantId: quietTenant, purpose: "DELIVERY", status: "PLANNED" } });
+    await prisma.item.create({ data: { tenantId: quietTenant, name: "Pallet wrap", unitPriceCents: 9_900, stockQty: 4 } });
+    const members = [];
+    for (let i = 0; i < 3; i++) {
+      const u = await prisma.user.create({ data: { email: `quiet-${quietTenant}-${i}@test.local` } });
+      userIds.push(u.id);
+      members.push(await prisma.membership.create({ data: { tenantId: quietTenant, userId: u.id, role: i === 0 ? "OWNER" : "STAFF" } }));
+    }
+
+    let quiet = await quietPages(quietTenant);
+    for (const key of ["goals", "trips", "fleet", "inventory", "team-performance"]) expect(quiet.has(key)).toBe(false);
+    // Three people, but nobody reports to anybody yet.
+    expect(quiet.has("org")).toBe(true);
+    expect(quiet.has("pos")).toBe(true);
+    expect(quiet.has("rentals")).toBe(true);
+
+    await prisma.membership.update({ where: { id: members[1].id }, data: { managerId: members[0].id } });
+    quiet = await quietPages(quietTenant);
+    expect(quiet.has("org")).toBe(false);
   });
 });

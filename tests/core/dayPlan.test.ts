@@ -7,7 +7,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PartyRole } from "@prisma/client";
 import { prisma } from "../../src/lib/db";
 import { createQuote, recordResponse, convertToInvoice } from "../../src/lib/core/money";
-import { getTodayPlan } from "../../src/lib/core/dayPlan";
+import { getTodayPlan, TODAY_LIMIT } from "../../src/lib/core/dayPlan";
 
 let tenantId: string;
 let itemId: string;
@@ -104,5 +104,30 @@ describe("getTodayPlan", () => {
     const plan = await getTodayPlan(tenantId);
     expect(plan.timed.some((t) => t.id === jobCard.id)).toBe(true);
     expect(plan.untimed.some((u) => u.id === jobCard.id)).toBe(false);
+  });
+
+  // Last: it fills the plan past its limit for everything after it.
+  it("carries the most urgent items a day can hold, and says how many more are waiting", async () => {
+    const customer = await prisma.party.create({ data: { tenantId, role: PartyRole.CUSTOMER, name: "Backlog Customer" } });
+    const backlog = TODAY_LIMIT + 15;
+    const now = Date.now();
+    await prisma.transaction.createMany({
+      data: Array.from({ length: backlog }, (_, i) => ({
+        tenantId,
+        partyId: customer.id,
+        type: "INVOICE" as const,
+        status: "SENT" as const,
+        amountCents: 50_000,
+        dueAt: new Date(now - (i + 1) * 86_400_000),
+      })),
+    });
+
+    const plan = await getTodayPlan(tenantId);
+    expect(plan.untimed).toHaveLength(TODAY_LIMIT);
+    expect(plan.untimedByReason.overdue_invoice).toBeGreaterThanOrEqual(backlog);
+    // Nothing is lost from the counts, only from the list.
+    expect(Object.values(plan.untimedByReason).reduce((s, n) => s + n, 0)).toBe(plan.untimedTotal);
+    // The longest overdue leads.
+    expect(plan.untimed[0].detail).toBe(`${backlog} days overdue`);
   });
 });

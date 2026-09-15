@@ -57,11 +57,8 @@ export default async function ExpensesPage({
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? 1));
 
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true } });
-  if (!tenant) notFound();
-  const money = (cents: number) => formatMoney(cents, tenant.currency, { decimals: true });
-
-  const [{ items: expenses, pageCount }, split, duplicates, vehicles, trips, jobs] = await Promise.all([
+  const [tenant, { items: expenses, pageCount }, split, duplicates, vehicles, trips, jobs] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true } }),
     listExpenses(tenantId, undefined, page),
     spendSplit(tenantId),
     possibleDuplicates(tenantId),
@@ -83,6 +80,8 @@ export default async function ExpensesPage({
       select: { id: true, title: true, party: { select: { name: true } } },
     }),
   ]);
+  if (!tenant) notFound();
+  const money = (cents: number) => formatMoney(cents, tenant.currency, { decimals: true });
 
   const canManage = access.role === "OWNER";
   const readSlip = readSlipAction.bind(null, tenantId);

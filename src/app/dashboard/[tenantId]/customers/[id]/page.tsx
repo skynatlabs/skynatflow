@@ -6,7 +6,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { customerHistory, getOrCreatePortalToken } from "@/lib/core/parties";
-import { totalPaid, totalRefunded } from "@/lib/core/money";
+import { netPaidByInvoice as netPaidFor } from "@/lib/core/money";
 import { listRecurringInvoices } from "@/lib/core/recurring";
 import { listComments } from "@/lib/core/comments";
 import { prisma } from "@/lib/db";
@@ -48,27 +48,22 @@ export default async function CustomerHistoryPage({
   if (!history) notFound();
   const { party, transactions, events } = history;
 
-  const [portalToken, allRecurring, comments, memberships, margins, tenantRow] = await Promise.all([
-    getOrCreatePortalToken(id),
-    listRecurringInvoices(tenantId),
+  const invoiceIds = transactions.filter((t) => t.type === "INVOICE").map((t) => t.id);
+  const [portalToken, recurringForCustomer, comments, memberships, margins, tenantRow, netPaidByInvoice] = await Promise.all([
+    party.portalToken ?? getOrCreatePortalToken(id),
+    listRecurringInvoices(tenantId, { partyId: id }),
     listComments(tenantId, "Party", id),
     prisma.membership.findMany({ where: { tenantId }, include: { user: true } }),
-    customerMargins(tenantId, lastDays(365)),
+    customerMargins(tenantId, lastDays(365), { partyId: id }),
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true } }),
+    netPaidFor(invoiceIds),
   ]);
   const margin = margins.find((m) => m.partyId === id);
   const cur = tenantRow?.currency ?? "ZAR";
-  const recurringForCustomer = allRecurring.filter((r) => r.partyId === id);
 
   const invoicedQuoteIds = new Set(
     transactions.filter((t) => t.type === "INVOICE" && t.parentId).map((t) => t.parentId as string)
   );
-  const invoiceIds = transactions.filter((t) => t.type === "INVOICE").map((t) => t.id);
-  const netPaidByInvoice = new Map<string, number>();
-  for (const invoiceId of invoiceIds) {
-    const [paid, refunded] = await Promise.all([totalPaid(invoiceId), totalRefunded(invoiceId)]);
-    netPaidByInvoice.set(invoiceId, paid - refunded);
-  }
 
   return (
     <main className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">

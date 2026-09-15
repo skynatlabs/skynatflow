@@ -51,11 +51,8 @@ export default async function TripsPage({ params }: { params: Promise<{ tenantId
   const { tenantId } = await params;
   const access = await requireTenantAccess(tenantId);
 
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true } });
-  if (!tenant) notFound();
-  const money = (c: number) => formatMoney(c, tenant.currency);
-
-  const [trips, vehicles, drivers, customers, me, rates] = await Promise.all([
+  const [tenant, trips, vehicles, drivers, customers, me, rates] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true } }),
     listTrips(tenantId, { since: lastDays(30).from, take: 60 }),
     prisma.asset.findMany({
       where: { tenantId, status: { notIn: ["LOST", "RETIRED"] }, OR: [{ capacityUnit: { not: null } }, { category: { contains: "vehicle", mode: "insensitive" } }] },
@@ -78,6 +75,8 @@ export default async function TripsPage({ params }: { params: Promise<{ tenantId
       : null,
     costRates(tenantId, lastDays(90)),
   ]);
+  if (!tenant) notFound();
+  const money = (c: number) => formatMoney(c, tenant.currency);
 
   const underway = trips.filter((t) => t.status === "UNDERWAY");
   const mine = underway.find((t) => t.driver?.id === access.membershipId) ?? underway[0] ?? null;

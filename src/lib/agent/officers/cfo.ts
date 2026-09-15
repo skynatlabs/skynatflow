@@ -61,13 +61,6 @@ async function booksBehind(tenantId: string): Promise<Finding | null> {
     coverage.unpostedInvoices + coverage.unpostedPayments + coverage.unpostedExpenses;
   if (missing === 0) return null;
 
-  // What the unposted invoices are actually worth — the money the reports are
-  // currently blind to.
-  const unposted = await prisma.transaction.aggregate({
-    where: { tenantId, type: "INVOICE", status: { notIn: ["DRAFT", "CANCELLED"] } },
-    _sum: { amountCents: true },
-  });
-
   const evidence: EvidenceItem[] = [
     { label: "Invoices not posted", value: String(coverage.unpostedInvoices) },
     { label: "Payments not posted", value: String(coverage.unpostedPayments) },
@@ -78,7 +71,9 @@ async function booksBehind(tenantId: string): Promise<Finding | null> {
     headline: `${missing} thing${missing === 1 ? "" : "s"} never reached the books, so every figure I produce is missing them.`,
     detail:
       "Until these are posted the profit and loss, the balance sheet and the margin figures are all understated.",
-    moneyCents: unposted._sum.amountCents ?? null,
+    // What the unposted invoices are worth — the money the reports are blind
+    // to. Only those: the ones already in the books are not missing.
+    moneyCents: coverage.unpostedInvoiceCents || null,
     confidence: 100,
     dedupeKey: "cfo:books-behind",
     evidence,

@@ -52,28 +52,32 @@ export default async function TenantShellLayout({
     throw err;
   }
 
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+  // Everything the shell shows, read at once: this runs on every page, and
+  // none of these waits on another.
+  const [tenant, viewer, unread, awaitingApproval, cookieStore, skin, accent, quiet] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: tenantId } }),
+    prisma.user.findUnique({
+      where: { id: access.userId },
+      select: { name: true, email: true },
+    }),
+    unreadCount(tenantId),
+    // Held actions, counted once for the whole shell: the assistant button
+    // carries the badge on every page, so a queued approval is visible from
+    // wherever you happen to be rather than only on the home dashboard.
+    prisma.agentRun.count({
+      where: { tenantId, status: "AWAITING_APPROVAL" },
+    }),
+    cookies(),
+    getPlatformColorSkin(),
+    // A person's own accent, which follows them between workspaces.
+    getAccentForUser(access.userId),
+    quietPages(tenantId),
+  ]);
   if (!tenant) notFound();
 
   const niche = nicheConfig(tenant.niche);
-
-  const viewer = await prisma.user.findUnique({
-    where: { id: access.userId },
-    select: { name: true, email: true },
-  });
   const viewerName = viewer?.name ?? viewer?.email ?? "You";
-  const unread = await unreadCount(tenantId);
-  // Held actions, counted once for the whole shell: the assistant button
-  // carries the badge on every page, so a queued approval is visible from
-  // wherever you happen to be rather than only on the home dashboard.
-  const awaitingApproval = await prisma.agentRun.count({
-    where: { tenantId, status: "AWAITING_APPROVAL" },
-  });
-  const cookieStore = await cookies();
   const theme = cookieStore.get("kb-theme")?.value === "dark" ? "dark" : "light";
-  const skin = await getPlatformColorSkin();
-  // A person's own accent, which follows them between workspaces.
-  const accent = await getAccentForUser(access.userId);
 
   const nav = [
     { href: `/dashboard/${tenantId}`, label: "Home", icon: HomeIcon },
@@ -210,7 +214,7 @@ export default async function TenantShellLayout({
             skin: niche.skin,
             customerLabel: niche.customerLabel,
             unread,
-            quiet: await quietPages(tenantId),
+            quiet,
           })}
           brand={<FlowMark size={28} />}
           workspaceName={tenant.name}

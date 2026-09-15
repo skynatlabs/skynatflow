@@ -1,7 +1,13 @@
 import { getDemandHeatmap, getReorderSuggestions, getExpiryRisk } from "@/lib/core/inventory";
-import { listProducts } from "@/lib/core/catalog";
 import { recordBatchAction } from "./actions";
+import { BatchItemField } from "./BatchItemField";
 import { BreakdownDonut } from "@/components/dashboard/MiniCharts";
+import { Pagination } from "@/components/dashboard/Pagination";
+
+// A catalogue of thousands, ranked, is read from the top: one page of the
+// heatmap at a time, and the reorder list's most urgent first.
+const HEATMAP_PAGE = 50;
+const REORDERS_SHOWN = 50;
 
 const CLASS_LABEL: Record<string, { label: string; tint: string }> = {
   fast: { label: "Fast mover", tint: "kb-tint-mint" },
@@ -19,18 +25,23 @@ const CLASS_COLOR: Record<string, string> = {
 
 export default async function InventoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantId: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { tenantId } = await params;
-  const [heatmap, reorders, expiring, products] = await Promise.all([
+  const { page: pageParam } = await searchParams;
+  const [heatmap, reorders, expiring] = await Promise.all([
     getDemandHeatmap(tenantId),
     getReorderSuggestions(tenantId),
     getExpiryRisk(tenantId),
-    listProducts(tenantId),
   ]);
 
   const stockTracked = heatmap.filter((r) => r.stockQty != null);
+  const heatmapPages = Math.max(1, Math.ceil(heatmap.length / HEATMAP_PAGE));
+  const page = Math.min(heatmapPages, Math.max(1, Number(pageParam) || 1));
+  const heatmapShown = heatmap.slice((page - 1) * HEATMAP_PAGE, page * HEATMAP_PAGE);
 
   const classCounts = heatmap.reduce<Record<string, number>>((acc, r) => {
     acc[r.demandClass] = (acc[r.demandClass] ?? 0) + 1;
@@ -76,7 +87,7 @@ export default async function InventoryPage({
           </div>
         ) : (
           <ul className="kb-card mt-3 divide-y divide-[var(--kb-panel-border)]">
-            {reorders.map((r) => (
+            {reorders.slice(0, REORDERS_SHOWN).map((r) => (
               <li key={r.itemId} className="flex items-center justify-between px-5 py-3">
                 <div>
                   <p className="font-medium text-[var(--kb-text)]">{r.name}</p>
@@ -89,6 +100,11 @@ export default async function InventoryPage({
                 </span>
               </li>
             ))}
+            {reorders.length > REORDERS_SHOWN && (
+              <li className="px-5 py-3 text-xs text-[var(--kb-text-dim)]">
+                and {(reorders.length - REORDERS_SHOWN).toLocaleString("en-US")} more at or below their reorder point
+              </li>
+            )}
           </ul>
         )}
       </section>
@@ -123,11 +139,7 @@ export default async function InventoryPage({
           <input type="hidden" name="tenantId" value={tenantId} />
           <label className="text-xs">
             <span className="block font-medium text-[var(--kb-text-dim)]">Item</span>
-            <select name="itemId" required className="mt-1 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm">
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+            <BatchItemField tenantId={tenantId} />
           </label>
           <label className="text-xs">
             <span className="block font-medium text-[var(--kb-text-dim)]">Quantity</span>
@@ -153,7 +165,7 @@ export default async function InventoryPage({
           </div>
         ) : (
           <ul className="kb-card mt-3 divide-y divide-[var(--kb-panel-border)]">
-            {heatmap.map((row) => {
+            {heatmapShown.map((row) => {
               const cls = CLASS_LABEL[row.demandClass];
               const trending = row.unitsPerWeek - row.trendUnitsPerWeek;
               return (
@@ -178,6 +190,7 @@ export default async function InventoryPage({
             })}
           </ul>
         )}
+        <Pagination page={page} pageCount={heatmapPages} />
       </section>
     </main>
   );

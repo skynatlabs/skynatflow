@@ -4,6 +4,8 @@ import { PageHeader } from "../PageHeader";
 
 export const dynamic = "force-dynamic";
 
+const LINES_PER_WEEK = 8;
+
 function money(cents: number) {
   const sign = cents < 0 ? "-" : "";
   return `${sign}R${Math.abs(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -185,14 +187,22 @@ export default async function CashForecastPage({
           {forecast.weeks
             .filter((w) => w.inflows.length > 0 || w.outflows.length > 0)
             .slice(0, 6)
-            .map((week) => (
-              <div key={week.index} className="kb-card p-3">
-                <p className="text-xs font-semibold text-[var(--kb-text)]">
-                  Week {week.index + 1} · {week.weekStart.slice(5)}
-                </p>
-                <ul className="mt-2 space-y-1.5">
-                  {[...week.inflows, ...week.outflows.map((o) => ({ ...o, out: true }))].map(
-                    (line, i) => (
+            .map((week) => {
+              // The largest lines explain a week; a business with two thousand
+              // open invoices would otherwise send every one of them to the phone.
+              const lines = [...week.inflows, ...week.outflows.map((o) => ({ ...o, out: true }))].sort(
+                (a, b) => b.amountCents - a.amountCents
+              );
+              const shown = lines.slice(0, LINES_PER_WEEK);
+              const rest = lines.slice(LINES_PER_WEEK);
+              const restNet = rest.reduce((s, l) => s + ("out" in l ? -l.amountCents : l.amountCents), 0);
+              return (
+                <div key={week.index} className="kb-card p-3">
+                  <p className="text-xs font-semibold text-[var(--kb-text)]">
+                    Week {week.index + 1} · {week.weekStart.slice(5)}
+                  </p>
+                  <ul className="mt-2 space-y-1.5">
+                    {shown.map((line, i) => (
                       <li key={i} className="text-[11px] leading-snug">
                         <span className="font-medium text-[var(--kb-text)]">
                           {"out" in line ? "−" : "+"}
@@ -203,11 +213,17 @@ export default async function CashForecastPage({
                           {line.basis} · {line.confidence}
                         </span>
                       </li>
-                    )
+                    ))}
+                  </ul>
+                  {rest.length > 0 && (
+                    <p className="mt-2 text-[11px] text-[var(--kb-text-dim)]">
+                      and {rest.length.toLocaleString("en-US")} smaller line{rest.length === 1 ? "" : "s"}, {restNet < 0 ? "−" : "+"}
+                      {money(Math.abs(restNet))} together
+                    </p>
                   )}
-                </ul>
-              </div>
-            ))}
+                </div>
+              );
+            })}
         </div>
       </section>
 

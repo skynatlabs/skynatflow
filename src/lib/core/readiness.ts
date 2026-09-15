@@ -176,32 +176,36 @@ export async function getReadiness(tenantId: string): Promise<Readiness> {
  * other people's features. Show only what applies; hide nothing for good.
  */
 export async function quietPages(tenantId: string): Promise<Set<string>> {
-  const [goals, disputes, trips, assetsKm, stock, pos, rentals, properties, connections, attendance, managers, perf] = await Promise.all([
-    prisma.goal.count({ where: { tenantId } }),
-    prisma.dispute.count({ where: { tenantId } }),
-    prisma.trip.count({ where: { tenantId } }),
-    prisma.asset.count({ where: { tenantId, capacityUnit: "KM" } }),
-    prisma.item.count({ where: { tenantId, stockQty: { not: null } } }),
-    prisma.tillSession.count({ where: { tenantId } }),
-    prisma.rental.count({ where: { tenantId } }),
-    prisma.property.count({ where: { tenantId } }),
-    prisma.wholesaleConnection.count({ where: { OR: [{ supplierTenantId: tenantId }, { buyerTenantId: tenantId }] } }),
-    prisma.timeEntry.count({ where: { tenantId } }),
-    prisma.membership.count({ where: { tenantId, managerId: { not: null } } }),
-    prisma.membership.count({ where: { tenantId } }),
-  ]);
+  // Asked on every page of the dashboard, so it is one statement: whether any
+  // row exists stops at the first one, where a count reads them all, and one
+  // round trip beats twelve queued on a connection pool of ten.
+  const [has] = await prisma.$queryRaw<Array<Record<string, boolean>>>`
+    SELECT
+      EXISTS (SELECT 1 FROM goals WHERE "tenantId" = ${tenantId}) AS goals,
+      EXISTS (SELECT 1 FROM disputes WHERE "tenantId" = ${tenantId}) AS disputes,
+      EXISTS (SELECT 1 FROM trips WHERE "tenantId" = ${tenantId}) AS trips,
+      EXISTS (SELECT 1 FROM assets WHERE "tenantId" = ${tenantId} AND "capacityUnit" = 'KM') AS "assetsKm",
+      EXISTS (SELECT 1 FROM items WHERE "tenantId" = ${tenantId} AND "stockQty" IS NOT NULL) AS stock,
+      EXISTS (SELECT 1 FROM till_sessions WHERE "tenantId" = ${tenantId}) AS pos,
+      EXISTS (SELECT 1 FROM rentals WHERE "tenantId" = ${tenantId}) AS rentals,
+      EXISTS (SELECT 1 FROM properties WHERE "tenantId" = ${tenantId}) AS properties,
+      EXISTS (SELECT 1 FROM wholesale_connections WHERE "supplierTenantId" = ${tenantId} OR "buyerTenantId" = ${tenantId}) AS connections,
+      EXISTS (SELECT 1 FROM time_entries WHERE "tenantId" = ${tenantId}) AS attendance,
+      EXISTS (SELECT 1 FROM memberships WHERE "tenantId" = ${tenantId} AND "managerId" IS NOT NULL) AS managers,
+      EXISTS (SELECT 1 FROM memberships WHERE "tenantId" = ${tenantId} OFFSET 2) AS "threeMembers"
+  `;
   const quiet = new Set<string>();
-  if (goals === 0) quiet.add("goals");
-  if (disputes === 0) quiet.add("disputes");
-  if (trips === 0) quiet.add("trips");
-  if (assetsKm === 0 && trips === 0) quiet.add("fleet");
-  if (stock === 0) quiet.add("inventory");
-  if (pos === 0) { quiet.add("pos"); quiet.add("cash-sale"); }
-  if (rentals === 0) quiet.add("rentals");
-  if (properties === 0) quiet.add("properties");
-  if (connections === 0) quiet.add("connections");
-  if (attendance === 0) quiet.add("attendance");
-  if (managers === 0) quiet.add("org");
-  if (perf < 3) quiet.add("team-performance");
+  if (!has.goals) quiet.add("goals");
+  if (!has.disputes) quiet.add("disputes");
+  if (!has.trips) quiet.add("trips");
+  if (!has.assetsKm && !has.trips) quiet.add("fleet");
+  if (!has.stock) quiet.add("inventory");
+  if (!has.pos) { quiet.add("pos"); quiet.add("cash-sale"); }
+  if (!has.rentals) quiet.add("rentals");
+  if (!has.properties) quiet.add("properties");
+  if (!has.connections) quiet.add("connections");
+  if (!has.attendance) quiet.add("attendance");
+  if (!has.managers) quiet.add("org");
+  if (!has.threeMembers) quiet.add("team-performance");
   return quiet;
 }

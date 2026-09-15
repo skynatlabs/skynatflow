@@ -33,7 +33,27 @@ export const API_KEY_REGISTRY: ApiKeyMeta[] = [
 
 const REGISTRY_KEYS = new Set(API_KEY_REGISTRY.map((k) => k.key));
 
+// Held for a short while per server instance. Sign-in reads the Google
+// credentials on every page view, and a database round trip for a value that
+// changes a few times a year is most of what a page waits for. Saving or
+// clearing a key here drops it at once; another warm instance picks the change
+// up within SECRET_TTL_MS.
+const SECRET_TTL_MS = 30_000;
+const secretCache = new Map<string, { value: Promise<string | null>; at: number }>();
+
 export async function getPlatformSecret(key: string): Promise<string | null> {
+  const hit = secretCache.get(key);
+  if (hit && Date.now() - hit.at < SECRET_TTL_MS) return hit.value;
+  const value = readPlatformSecret(key);
+  secretCache.set(key, { value, at: Date.now() });
+  // A failed read is not remembered: the next call tries again.
+  value.catch(() => {
+    if (secretCache.get(key)?.value === value) secretCache.delete(key);
+  });
+  return value;
+}
+
+async function readPlatformSecret(key: string): Promise<string | null> {
   const row = await prisma.platformApiKey.findUnique({ where: { key } });
   if (row) {
     try {
@@ -77,8 +97,10 @@ export async function setPlatformSecret(key: string, value: string): Promise<voi
     create: { key, valueEnc: encryptSecret(value) },
     update: { valueEnc: encryptSecret(value) },
   });
+  secretCache.delete(key);
 }
 
 export async function clearPlatformSecret(key: string): Promise<void> {
   await prisma.platformApiKey.deleteMany({ where: { key } });
+  secretCache.delete(key);
 }

@@ -126,8 +126,10 @@ export async function runNamedAgent(params: {
   agentId: string;
   userPresent?: boolean;
   actor?: { userId: string; membershipId?: string | null };
+  /** A scheduled run's time limit; see runAgent. */
+  abortSignal?: AbortSignal;
 }) {
-  const { tenantId, agentId, userPresent = false, actor } = params;
+  const { tenantId, agentId, userPresent = false, actor, abortSignal } = params;
 
   const agent = await prisma.agentDefinition.findFirst({
     where: { id: agentId, tenantId },
@@ -160,6 +162,7 @@ export async function runNamedAgent(params: {
     trigger: "AGENT",
     userPresent,
     agentId: agent.id,
+    abortSignal,
   });
 
   await prisma.agentDefinition.update({

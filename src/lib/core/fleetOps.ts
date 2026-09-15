@@ -19,7 +19,7 @@
 import { TransactionType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { SPENT } from "./expenses";
-import { blockingObligationsFor, WorkBlockedError } from "./obligations";
+import { blockingObligationsFor, daysBetween, WorkBlockedError, type BlockingObligation } from "./obligations";
 import { haversineKm } from "./trips";
 
 const DAY = 86_400_000;
@@ -303,12 +303,28 @@ export async function fuelConsumption(tenantId: string): Promise<ConsumptionRow[
 // ------------------------------------------------------------------ 147
 
 export async function currentOdometer(tenantId: string, assetId: string): Promise<number | null> {
-  const [e, t] = await Promise.all([
-    prisma.expense.findFirst({ where: { tenantId, assetId, odometerKm: { not: null } }, orderBy: { odometerKm: "desc" }, select: { odometerKm: true } }),
-    prisma.trip.findFirst({ where: { tenantId, assetId, odometerEndKm: { not: null } }, orderBy: { odometerEndKm: "desc" }, select: { odometerEndKm: true } }),
+  return (await currentOdometers(tenantId, [assetId])).get(assetId) ?? null;
+}
+
+/**
+ * The highest reading each vehicle has shown, on a slip or at the end of a
+ * trip — for a whole fleet in two queries rather than two per vehicle, which
+ * is the difference between a fleet page that opens and one that waits.
+ */
+export async function currentOdometers(tenantId: string, assetIds?: string[]): Promise<Map<string, number>> {
+  const scope = assetIds ? { in: assetIds } : { not: null };
+  const [slips, trips] = await Promise.all([
+    prisma.expense.groupBy({ by: ["assetId"], where: { tenantId, assetId: scope, odometerKm: { not: null } }, _max: { odometerKm: true } }),
+    prisma.trip.groupBy({ by: ["assetId"], where: { tenantId, assetId: scope, odometerEndKm: { not: null } }, _max: { odometerEndKm: true } }),
   ]);
-  const readings = [e?.odometerKm, t?.odometerEndKm].filter((x): x is number => typeof x === "number");
-  return readings.length ? Math.max(...readings) : null;
+  const out = new Map<string, number>();
+  const take = (assetId: string | null, km: number | null) => {
+    if (!assetId || typeof km !== "number") return;
+    out.set(assetId, Math.max(out.get(assetId) ?? km, km));
+  };
+  for (const s of slips) take(s.assetId, s._max.odometerKm);
+  for (const t of trips) take(t.assetId, t._max.odometerEndKm);
+  return out;
 }
 
 export interface ServiceDue {
@@ -322,22 +338,27 @@ export interface ServiceDue {
 }
 
 export async function maintenanceDue(tenantId: string, withinKm = 2_000): Promise<ServiceDue[]> {
-  const assets = await prisma.asset.findMany({
-    where: { tenantId, serviceIntervalKm: { not: null }, status: { notIn: ["LOST", "RETIRED"] } },
-    select: { id: true, name: true, serviceIntervalKm: true, lastServiceKm: true },
-  });
+  const [assets, odometers, recent] = await Promise.all([
+    prisma.asset.findMany({
+      where: { tenantId, serviceIntervalKm: { not: null }, status: { notIn: ["LOST", "RETIRED"] } },
+      select: { id: true, name: true, serviceIntervalKm: true, lastServiceKm: true },
+    }),
+    currentOdometers(tenantId),
+    prisma.trip.groupBy({
+      by: ["assetId"],
+      where: { tenantId, assetId: { not: null }, status: "DONE", startedAt: { gte: new Date(Date.now() - 30 * DAY) } },
+      _sum: { distanceKm: true },
+    }),
+  ]);
+  const recentKm = new Map(recent.map((r) => [r.assetId, r._sum.distanceKm ?? 0]));
   const out: ServiceDue[] = [];
   for (const a of assets) {
-    const odo = await currentOdometer(tenantId, a.id);
-    if (odo === null) continue;
+    const odo = odometers.get(a.id);
+    if (odo === undefined) continue;
     const dueAt = (a.lastServiceKm ?? 0) + a.serviceIntervalKm!;
     const remaining = dueAt - odo;
     if (remaining > withinKm) continue;
-    const recent = await prisma.trip.aggregate({
-      where: { tenantId, assetId: a.id, status: "DONE", startedAt: { gte: new Date(Date.now() - 30 * DAY) } },
-      _sum: { distanceKm: true },
-    });
-    const perDay = (recent._sum.distanceKm ?? 0) / 30;
+    const perDay = (recentKm.get(a.id) ?? 0) / 30;
     out.push({ assetId: a.id, assetName: a.name, odometerKm: odo, dueAtKm: dueAt, kmRemaining: remaining, daysRemaining: perDay > 0 ? Math.max(0, Math.floor(remaining / perDay)) : null });
   }
   return out.sort((x, y) => x.kmRemaining - y.kmRemaining);
@@ -397,10 +418,11 @@ export async function consumablesByAsset(tenantId: string): Promise<ConsumableRo
     if (r.odometerKm) g.readings.push(r.odometerKm);
     groups.set(key, g);
   }
+  const odometers = groups.size > 0 ? await currentOdometers(tenantId) : new Map<string, number>();
   const out: ConsumableRow[] = [];
   for (const [key, g] of groups) {
     const assetId = key.split("|")[0];
-    const odo = await currentOdometer(tenantId, assetId);
+    const odo = odometers.get(assetId) ?? null;
     const first = g.readings.length ? Math.min(...g.readings) : null;
     const km = first !== null && odo !== null && odo > first ? odo - first : null;
     out.push({ assetId, assetName: g.name, kind: g.kind, fitted: g.fitted, spentCents: g.spent, kmCovered: km, centsPerKm: km ? Math.round((g.spent / km) * 100) / 100 : null });
@@ -426,12 +448,23 @@ export interface LoadCheck {
  * the heaviest point against what the vehicle may weigh loaded. Checked
  * before dispatch, not at the weighbridge.
  */
+const LOAD_SELECT = {
+  id: true,
+  asset: { select: { name: true, tareKg: true, maxGrossKg: true } },
+  stops: { orderBy: { sequence: "asc" as const }, select: { loadKg: true } },
+};
+
 export async function checkLoad(tenantId: string, tripId: string): Promise<LoadCheck | null> {
-  const trip = await prisma.trip.findFirst({
-    where: { id: tripId, tenantId },
-    select: { id: true, asset: { select: { name: true, tareKg: true, maxGrossKg: true } }, stops: { orderBy: { sequence: "asc" }, select: { loadKg: true } } },
-  });
-  if (!trip?.asset?.tareKg || !trip.asset.maxGrossKg) return null;
+  const trip = await prisma.trip.findFirst({ where: { id: tripId, tenantId }, select: LOAD_SELECT });
+  return trip ? loadFor(trip) : null;
+}
+
+function loadFor(trip: {
+  id: string;
+  asset: { name: string; tareKg: number | null; maxGrossKg: number | null } | null;
+  stops: Array<{ loadKg: number | null }>;
+}): LoadCheck | null {
+  if (!trip.asset?.tareKg || !trip.asset.maxGrossKg) return null;
   // What was on board leaving the depot is the least that keeps the payload
   // from ever going negative: goods picked up and dropped on the same run are
   // not on board at the start, but anything dropped before it is picked up is.
@@ -461,13 +494,11 @@ export async function checkLoad(tenantId: string, tripId: string): Promise<LoadC
 }
 
 export async function overloadedTrips(tenantId: string): Promise<LoadCheck[]> {
-  const trips = await prisma.trip.findMany({ where: { tenantId, status: { in: ["PLANNED", "UNDERWAY"] }, asset: { tareKg: { not: null }, maxGrossKg: { not: null } } }, select: { id: true } });
-  const out: LoadCheck[] = [];
-  for (const t of trips) {
-    const c = await checkLoad(tenantId, t.id);
-    if (c && !c.ok) out.push(c);
-  }
-  return out;
+  const trips = await prisma.trip.findMany({
+    where: { tenantId, status: { in: ["PLANNED", "UNDERWAY"] }, asset: { tareKg: { not: null }, maxGrossKg: { not: null } } },
+    select: LOAD_SELECT,
+  });
+  return trips.map(loadFor).filter((c): c is LoadCheck => c !== null && !c.ok);
 }
 
 export async function setStopLoad(tenantId: string, stopId: string, loadKg: number | null) {
@@ -488,13 +519,23 @@ export async function assertSubcontractorClear(tenantId: string, partyId: string
 
 export async function subcontractorsAtRisk(tenantId: string, now = new Date()) {
   const subs = await prisma.party.findMany({ where: { tenantId, role: "SUBCONTRACTOR" }, select: { id: true, name: true } });
-  const out: Array<{ partyId: string; name: string; lapsed: Awaited<ReturnType<typeof blockingObligationsFor>>; missingCover: boolean }> = [];
+  if (subs.length === 0) return [];
+  const ids = subs.map((s) => s.id);
+  // Every subcontractor's open cover in one read; the lapsed ones are the
+  // same rows blockingObligationsFor would return for each of them.
+  const open = await prisma.obligation.findMany({
+    where: { tenantId, partyId: { in: ids }, status: "OPEN" },
+    select: { id: true, partyId: true, title: true, kind: true, dueAt: true, consequence: true, blocksWork: true },
+    orderBy: { dueAt: "asc" },
+  });
+  const out: Array<{ partyId: string; name: string; lapsed: BlockingObligation[]; missingCover: boolean }> = [];
   for (const s of subs) {
-    const [lapsed, anyCover] = await Promise.all([
-      blockingObligationsFor(tenantId, { partyId: s.id }, now),
-      prisma.obligation.count({ where: { tenantId, partyId: s.id, kind: { in: ["INSURANCE", "DOCUMENT", "LICENCE"] }, status: "OPEN" } }),
-    ]);
-    if (lapsed.length > 0 || anyCover === 0) out.push({ partyId: s.id, name: s.name, lapsed, missingCover: anyCover === 0 });
+    const mine = open.filter((o) => o.partyId === s.id);
+    const lapsed = mine
+      .filter((o) => o.blocksWork && o.dueAt < now)
+      .map((o) => ({ id: o.id, title: o.title, kind: o.kind, dueAt: o.dueAt, daysOverdue: Math.abs(daysBetween(now, o.dueAt)), consequence: o.consequence }));
+    const anyCover = mine.some((o) => o.kind === "INSURANCE" || o.kind === "DOCUMENT" || o.kind === "LICENCE");
+    if (lapsed.length > 0 || !anyCover) out.push({ partyId: s.id, name: s.name, lapsed, missingCover: !anyCover });
   }
   return out;
 }

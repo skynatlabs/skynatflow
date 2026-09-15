@@ -161,6 +161,8 @@ export async function runAgent(params: {
   /** Called as each tool starts and finishes, for the live view. */
   onProgress?: (event: AgentProgress) => void;
   now?: Date;
+  /** Gives up on the model when this fires — a scheduled run's time limit. */
+  abortSignal?: AbortSignal;
 }): Promise<AgentResult> {
   const {
     ctx,
@@ -174,6 +176,7 @@ export async function runAgent(params: {
     page = null,
     onProgress,
     now = new Date(),
+    abortSignal,
   } = params;
 
   const tenant = await prisma.tenant.findUniqueOrThrow({
@@ -299,6 +302,7 @@ export async function runAgent(params: {
       // the model never sees what the call returned — exactly the limitation
       // the old classifier had.
       stopWhen: stepCountIs(MAX_STEPS),
+      abortSignal,
     });
 
     const steps: AgentStep[] = [];

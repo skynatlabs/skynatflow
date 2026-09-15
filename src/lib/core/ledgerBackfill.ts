@@ -342,6 +342,8 @@ export interface LedgerCoverage {
   postedEntries: number;
   /** Documents that exist but have never reached the journal. */
   unpostedInvoices: number;
+  /** What those invoices come to — the revenue the reports cannot see. */
+  unpostedInvoiceCents: number;
   unpostedPayments: number;
   unpostedExpenses: number;
   upToDate: boolean;
@@ -355,39 +357,46 @@ export interface LedgerCoverage {
  * matching reality. This is the number that makes that visible.
  */
 export async function ledgerCoverage(tenantId: string): Promise<LedgerCoverage> {
-  const [postedEntries, invoiceIds, paymentIds, expenseIds, posted] = await Promise.all([
-    prisma.journalEntry.count({ where: { tenantId } }),
-    prisma.transaction.findMany({
-      where: { tenantId, type: "INVOICE", status: { notIn: ["DRAFT", "CANCELLED"] } },
-      select: { id: true },
-    }),
-    prisma.transaction.findMany({
-      where: { tenantId, type: "PAYMENT", status: { not: "CANCELLED" } },
-      select: { id: true },
-    }),
-    prisma.expense.findMany({
-      where: { tenantId, status: { notIn: ["REJECTED", "DUPLICATE"] } },
-      select: { id: true },
-    }),
-    prisma.journalEntry.findMany({
-      where: { tenantId, sourceId: { not: null } },
-      select: { sourceType: true, sourceId: true },
-    }),
-  ]);
-
-  const postedKeys = new Set(posted.map((p) => `${p.sourceType}:${p.sourceId}`));
-  const count = (ids: Array<{ id: string }>, type: string) =>
-    ids.filter((r) => !postedKeys.has(`${type}:${r.id}`)).length;
-
-  const unpostedInvoices = count(invoiceIds, "invoice");
-  const unpostedPayments = count(paymentIds, "payment");
-  const unpostedExpenses = count(expenseIds, "expense");
+  // One statement, and the database does the matching: reading every
+  // document id and every posted key into memory to compare them grows with
+  // the whole history of the business, on a page opened every day.
+  const [row] = await prisma.$queryRaw<
+    Array<{
+      postedEntries: number;
+      unpostedInvoices: number;
+      unpostedInvoiceCents: number;
+      unpostedPayments: number;
+      unpostedExpenses: number;
+    }>
+  >`
+    WITH unposted_invoices AS (
+      SELECT t."amountCents" FROM transactions t
+      WHERE t."tenantId" = ${tenantId} AND t.type = 'INVOICE' AND t.status NOT IN ('DRAFT', 'CANCELLED')
+        AND NOT EXISTS (
+          SELECT 1 FROM journal_entries j
+          WHERE j."tenantId" = ${tenantId} AND j."sourceType" = 'invoice' AND j."sourceId" = t.id
+        )
+    )
+    SELECT
+      (SELECT count(*) FROM journal_entries WHERE "tenantId" = ${tenantId})::int AS "postedEntries",
+      (SELECT count(*) FROM unposted_invoices)::int AS "unpostedInvoices",
+      (SELECT coalesce(sum("amountCents"), 0) FROM unposted_invoices)::float8 AS "unpostedInvoiceCents",
+      (SELECT count(*) FROM transactions t
+        WHERE t."tenantId" = ${tenantId} AND t.type = 'PAYMENT' AND t.status <> 'CANCELLED'
+          AND NOT EXISTS (
+            SELECT 1 FROM journal_entries j
+            WHERE j."tenantId" = ${tenantId} AND j."sourceType" = 'payment' AND j."sourceId" = t.id
+          ))::int AS "unpostedPayments",
+      (SELECT count(*) FROM expenses e
+        WHERE e."tenantId" = ${tenantId} AND e.status NOT IN ('REJECTED', 'DUPLICATE')
+          AND NOT EXISTS (
+            SELECT 1 FROM journal_entries j
+            WHERE j."tenantId" = ${tenantId} AND j."sourceType" = 'expense' AND j."sourceId" = e.id
+          ))::int AS "unpostedExpenses"
+  `;
 
   return {
-    postedEntries,
-    unpostedInvoices,
-    unpostedPayments,
-    unpostedExpenses,
-    upToDate: unpostedInvoices + unpostedPayments + unpostedExpenses === 0,
+    ...row,
+    upToDate: row.unpostedInvoices + row.unpostedPayments + row.unpostedExpenses === 0,
   };
 }

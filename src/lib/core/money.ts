@@ -8,7 +8,7 @@
 //
 // Money-logic tests in tests/core/money.test.ts assert against this file.
 
-import { QuoteKind, TransactionStatus, TransactionType } from "@prisma/client";
+import { Prisma, QuoteKind, TransactionStatus, TransactionType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { emitEvent } from "@/lib/agent/events";
 import { computeDocumentTotal } from "./pricing";
@@ -347,6 +347,26 @@ export async function totalPaid(invoiceId: string): Promise<number> {
   return payments.reduce((sum, p) => sum + p.amountCents, 0);
 }
 
+/**
+ * Paid less refunded, for many invoices in one query — the same sums
+ * totalPaid and totalRefunded give one at a time.
+ */
+export async function netPaidByInvoice(invoiceIds: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>(invoiceIds.map((id) => [id, 0]));
+  if (invoiceIds.length === 0) return out;
+  const sums = await prisma.transaction.groupBy({
+    by: ["parentId", "type"],
+    where: { parentId: { in: invoiceIds }, type: { in: [TransactionType.PAYMENT, TransactionType.REFUND] } },
+    _sum: { amountCents: true },
+  });
+  for (const s of sums) {
+    if (!s.parentId) continue;
+    const cents = s._sum.amountCents ?? 0;
+    out.set(s.parentId, (out.get(s.parentId) ?? 0) + (s.type === TransactionType.REFUND ? -cents : cents));
+  }
+  return out;
+}
+
 export async function totalRefunded(invoiceId: string): Promise<number> {
   const refunds = await prisma.transaction.findMany({
     where: { parentId: invoiceId, type: TransactionType.REFUND },
@@ -408,17 +428,30 @@ export async function customerBalance(
   tenantId: string,
   partyId: string
 ): Promise<number> {
-  const invoices = await prisma.transaction.findMany({
-    where: { tenantId, partyId, type: TransactionType.INVOICE },
-  });
+  return (await customerBalances(tenantId, partyId)).get(partyId) ?? 0;
+}
 
-  let balance = 0;
-  for (const inv of invoices) {
-    if (inv.status === TransactionStatus.CANCELLED) continue;
-    const paid = await totalPaid(inv.id);
-    balance += inv.amountCents - paid;
-  }
-  return balance;
+/**
+ * What customers owe — every invoice that was not cancelled, less what was
+ * paid against it — for one customer or all of them, in one statement.
+ * Worked out invoice by invoice this was a query per invoice, which is fine
+ * for one customer and thousands of queries for a statements page.
+ */
+export async function customerBalances(tenantId: string, partyId?: string): Promise<Map<string, number>> {
+  const rows = await prisma.$queryRaw<Array<{ partyId: string; balance: number }>>`
+    SELECT i."partyId", (sum(i."amountCents") - coalesce(sum(p.paid), 0))::float8 AS balance
+    FROM transactions i
+    LEFT JOIN (
+      SELECT "parentId", sum("amountCents") AS paid
+      FROM transactions
+      WHERE "tenantId" = ${tenantId} AND type = 'PAYMENT' AND "parentId" IS NOT NULL
+      GROUP BY "parentId"
+    ) p ON p."parentId" = i.id
+    WHERE i."tenantId" = ${tenantId} AND i.type = 'INVOICE' AND i.status <> 'CANCELLED'
+      ${partyId ? Prisma.sql`AND i."partyId" = ${partyId}` : Prisma.empty}
+    GROUP BY i."partyId"
+  `;
+  return new Map(rows.map((r) => [r.partyId, r.balance]));
 }
 
 // Powers the leakage report (strategic report, Section 10): every quote and

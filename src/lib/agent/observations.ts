@@ -145,7 +145,9 @@ export async function observe(params: ObserveParams): Promise<Observation | null
         officer: params.officer,
         headline: params.headline.trim(),
         detail,
-        moneyCents: params.moneyCents ?? null,
+        // Whole cents: the column is wide enough for any business, and a
+        // fraction of a cent is arithmetic noise rather than money.
+        moneyCents: params.moneyCents == null || !Number.isFinite(params.moneyCents) ? null : Math.round(params.moneyCents),
         confidence,
         urgentBy: params.urgentBy ?? null,
         dedupeKey: params.dedupeKey,

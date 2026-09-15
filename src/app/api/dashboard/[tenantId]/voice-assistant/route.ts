@@ -36,24 +36,38 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     return NextResponse.json({ answer: "I can't check that right now — no AI provider is configured." });
   }
 
-  const [tenant, stale, thisWeek, openInvoices, customerCount, quotes, recentEmails, todayPlan] = await Promise.all([
+  const [tenant, stale, thisWeek, openInvoices, customerCount, quotes, acceptedQuotes, recentEmails, todayPlan] = await Promise.all([
     prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } }),
     findStaleTransactions({ tenantId, staleAfterDays: 3 }),
     listThisWeekFollowUps(tenantId),
-    prisma.transaction.findMany({ where: { tenantId, type: "INVOICE", status: { in: ["SENT", "PARTIALLY_PAID"] } } }),
+    prisma.transaction.aggregate({
+      where: { tenantId, type: "INVOICE", status: { in: ["SENT", "PARTIALLY_PAID"] } },
+      _sum: { amountCents: true },
+      _count: true,
+    }),
     prisma.party.count({ where: { tenantId, role: { in: ["CUSTOMER", "PATIENT"] } } }),
-    prisma.transaction.findMany({ where: { tenantId, type: "QUOTE" } }),
+    prisma.transaction.aggregate({ where: { tenantId, type: "QUOTE" }, _sum: { amountCents: true }, _count: true }),
+    prisma.transaction.count({ where: { tenantId, type: "QUOTE", status: "ACCEPTED" } }),
     getRecentEmailsForPa(tenantId),
     getTodayPlan(tenantId),
   ]);
 
+  // Named lists are capped: the answer is spoken, and a busy business's whole
+  // backlog pasted into the prompt costs a great deal and helps nobody. The
+  // count stays whole, so "how many" is still answered exactly.
+  const LISTED = 15;
+  const listed = <T,>(rows: T[], line: (row: T) => string, sep: string) =>
+    rows.length === 0
+      ? ""
+      : " — " + rows.slice(0, LISTED).map(line).join(sep) + (rows.length > LISTED ? `${sep}and ${rows.length - LISTED} more` : "");
+
   const context = [
     `Business: ${tenant.name}`,
-    `Open invoices owed to the business: ${openInvoices.length}, totaling ${money(openInvoices.reduce((s, t) => s + t.amountCents, 0))}.`,
-    `Quotes/invoices gone quiet needing a follow-up: ${stale.length}${stale.length ? " — " + stale.map((t) => `${t.party.name} (${money(t.amountCents)})`).join(", ") : ""}.`,
-    `Reminders due this week: ${thisWeek.length}${thisWeek.length ? " — " + thisWeek.map((t) => `${t.party.name} on ${t.nextFollowUpAt?.toLocaleDateString()}${t.followUpNote ? ` (${t.followUpNote})` : ""}`).join("; ") : ""}.`,
+    `Open invoices owed to the business: ${openInvoices._count}, totaling ${money(openInvoices._sum.amountCents ?? 0)}.`,
+    `Quotes/invoices gone quiet needing a follow-up: ${stale.length}${listed(stale, (t) => `${t.party.name} (${money(t.amountCents)})`, ", ")}.`,
+    `Reminders due this week: ${thisWeek.length}${listed(thisWeek, (t) => `${t.party.name} on ${t.nextFollowUpAt?.toLocaleDateString()}${t.followUpNote ? ` (${t.followUpNote})` : ""}`, "; ")}.`,
     `Total customers on file: ${customerCount}.`,
-    `Total quotes ever sent: ${quotes.length}, total value ${money(quotes.reduce((s, t) => s + t.amountCents, 0))}, accepted: ${quotes.filter((q) => q.status === "ACCEPTED").length}.`,
+    `Total quotes ever sent: ${quotes._count}, total value ${money(quotes._sum.amountCents ?? 0)}, accepted: ${acceptedQuotes}.`,
     recentEmails.length
       ? `Recent emails (most recent/important first):\n${recentEmails
           .map((e) => `- From ${e.fromLabel}, "${e.subject}" (${e.category}${e.isImportant ? ", IMPORTANT" : ""}, ${e.receivedAt.toLocaleDateString()}): ${e.summary}`)
@@ -65,7 +79,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         : "- Nothing booked at a specific time today."
     }\nToday's plan — needs attention, no fixed time (most urgent first):\n${
       todayPlan.untimed.length
-        ? todayPlan.untimed.map((u) => `- ${u.title} — ${u.partyName} (${u.detail})`).join("\n")
+        ? todayPlan.untimed.map((u) => `- ${u.title} — ${u.partyName} (${u.detail})`).join("\n") +
+          (todayPlan.untimedTotal > todayPlan.untimed.length
+            ? `\n- …the ${todayPlan.untimed.length} most urgent of ${todayPlan.untimedTotal} in all.`
+            : "")
         : "- Nothing else outstanding right now."
     }`,
   ].join("\n");

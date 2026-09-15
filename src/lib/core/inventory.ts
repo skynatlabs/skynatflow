@@ -126,6 +126,16 @@ export async function recordBatch(params: {
   quantity: number;
   expiresAt?: Date | null;
 }) {
+  // The item id arrives from a form, so it is checked against the workspace:
+  // a batch must never hang off another business's product.
+  const item = await prisma.item.findFirst({
+    where: { id: params.itemId, tenantId: params.tenantId },
+    select: { id: true },
+  });
+  if (!item) throw new Error("Choose a product from your catalogue.");
+  if (!Number.isFinite(params.quantity) || params.quantity <= 0) {
+    throw new Error("A batch needs a quantity above zero.");
+  }
   return prisma.itemBatch.create({
     data: {
       tenantId: params.tenantId,

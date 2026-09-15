@@ -38,11 +38,12 @@ const KIND_LABEL: Record<string, string> = {
 export default async function ValuePage({ params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
   const access = await requireTenantAccess(tenantId);
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true, monthlyFeeCents: true } });
+  const [tenant, v] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true, monthlyFeeCents: true } }),
+    valueSummary(tenantId, { months: 3 }),
+  ]);
   if (!tenant) notFound();
   const money = (c: number) => formatMoney(c, tenant.currency);
-
-  const v = await valueSummary(tenantId, { months: 3 });
 
   return (
     <div className="pb-10">

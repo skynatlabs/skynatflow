@@ -83,12 +83,31 @@ export async function getCeiling(tenantId: string, officer: Officer): Promise<Ru
     where: { tenantId, officer },
     select: { ceiling: true },
   });
+  return resolveCeiling(officer, row?.ceiling);
+}
 
-  const chosen: Rung = row ? (RUNGS[rungIndex(row.ceiling)] ?? "OBSERVE") : DEFAULT_CEILINGS[officer];
+/** Every officer's ceiling in one read, for code that asks about all of them at once. */
+export async function getCeilings(tenantId: string): Promise<(officer: Officer) => Rung> {
+  const rows = await prisma.officerAutonomy.findMany({
+    where: { tenantId },
+    select: { officer: true, ceiling: true },
+  });
+  // One row per officer at most (unique on tenant and officer).
+  const stored = new Map(rows.map((r) => [r.officer, r.ceiling]));
+  return (officer) => resolveCeiling(officer, stored.get(officer));
+}
+
+function resolveCeiling(officer: Officer, stored: string | undefined): Rung {
+  const chosen: Rung = stored !== undefined ? (RUNGS[rungIndex(stored)] ?? "OBSERVE") : DEFAULT_CEILINGS[officer];
   const cap = HARD_CAPS[officer];
   if (!cap) return chosen;
 
   return rungIndex(chosen) > rungIndex(cap) ? cap : chosen;
+}
+
+/** Whether a ceiling reaches a rung — may() for a ceiling already read. */
+export function reaches(ceiling: Rung, rung: Rung): boolean {
+  return rungIndex(rung) <= rungIndex(ceiling);
 }
 
 export async function setCeiling(params: {
@@ -171,17 +190,16 @@ export interface OfficerSetting {
 
 export async function listCeilings(tenantId: string): Promise<OfficerSetting[]> {
   const officers = Object.keys(DEFAULT_CEILINGS) as Officer[];
-  return Promise.all(
-    officers.map(async (officer) => {
-      const ceiling = await getCeiling(tenantId, officer);
-      const cap = HARD_CAPS[officer] ?? "ACT";
-      return {
-        officer,
-        ceiling,
-        label: RUNG_LABELS[ceiling],
-        maxAllowed: cap,
-        capped: cap !== "ACT",
-      };
-    })
-  );
+  const ceilingOf = await getCeilings(tenantId);
+  return officers.map((officer) => {
+    const ceiling = ceilingOf(officer);
+    const cap = HARD_CAPS[officer] ?? "ACT";
+    return {
+      officer,
+      ceiling,
+      label: RUNG_LABELS[ceiling],
+      maxAllowed: cap,
+      capped: cap !== "ACT",
+    };
+  });
 }

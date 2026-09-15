@@ -31,9 +31,23 @@ export interface UntimedPlanItem {
   detail: string; // human-readable "why this is here"
 }
 
+/**
+ * The most untimed items a day's plan carries. A business with two thousand
+ * quiet invoices does not have two thousand things to do today; past this,
+ * a plan is the whole backlog, a page that takes seconds to open, and — for
+ * the voice assistant and the agent, which read the same plan — a prompt
+ * with the entire ledger pasted into it.
+ */
+export const TODAY_LIMIT = 25;
+
 export interface DayPlan {
   timed: TimedPlanItem[];
+  /** The most urgent untimed items, at most TODAY_LIMIT. */
   untimed: UntimedPlanItem[];
+  /** Every untimed item found, shown or not, so what was left out is said rather than hidden. */
+  untimedTotal: number;
+  untimedByReason: Record<UntimedReason, number>;
+  untimedByKind: Record<UntimedPlanItem["kind"], number>;
 }
 
 function startOfToday() {
@@ -133,5 +147,12 @@ export async function getTodayPlan(tenantId: string): Promise<DayPlan> {
 
   untimed.sort((a, b) => a.urgencyRank - b.urgencyRank);
 
-  return { timed, untimed };
+  const untimedByReason: DayPlan["untimedByReason"] = { overdue_invoice: 0, follow_up_due: 0, stale: 0, unscheduled_job_card: 0 };
+  const untimedByKind: DayPlan["untimedByKind"] = { quote: 0, invoice: 0, job_card: 0 };
+  for (const u of untimed) {
+    untimedByReason[u.reason] += 1;
+    untimedByKind[u.kind] += 1;
+  }
+
+  return { timed, untimed: untimed.slice(0, TODAY_LIMIT), untimedTotal: untimed.length, untimedByReason, untimedByKind };
 }

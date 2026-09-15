@@ -205,6 +205,10 @@ async function phrase(fact: Fact, currency: string, allowed: boolean): Promise<F
   try {
     const { object } = await generateObject({
       model,
+      // Wording is a nicety over a finding that is already complete. A slow
+      // or failing provider gets one short try, then the template stands.
+      abortSignal: AbortSignal.timeout(20_000),
+      maxRetries: 1,
       schema: Phrasing,
       prompt:
         `You are the chief executive of a small business, reporting to its owner. Currency: ${currency}.\n` +

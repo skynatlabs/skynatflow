@@ -109,11 +109,20 @@ export async function assetCosts(tenantId: string, period: Period): Promise<Asse
     }),
   ]);
 
+  const byAsset = <T extends { assetId: string | null }>(rows: T[]) => {
+    const m = new Map<string, T[]>();
+    for (const r of rows) if (r.assetId) m.set(r.assetId, [...(m.get(r.assetId) ?? []), r]);
+    return m;
+  };
+  const expensesByAsset = byAsset(expenses);
+  const tripsByAsset = byAsset(trips);
+  const obligationsByAsset = byAsset(obligations);
+
   const out: AssetCost[] = [];
   for (const a of assets) {
-    const mine = expenses.filter((e) => e.assetId === a.id);
-    const myTrips = trips.filter((t) => t.assetId === a.id);
-    const myObligations = obligations.filter((o) => o.assetId === a.id);
+    const mine = expensesByAsset.get(a.id) ?? [];
+    const myTrips = tripsByAsset.get(a.id) ?? [];
+    const myObligations = obligationsByAsset.get(a.id) ?? [];
 
     const directCents = mine.reduce((s, e) => s + e.amountCents, 0);
     const obligationCents = Math.round(
@@ -207,8 +216,20 @@ export interface CostRates {
   fleetPerKmCents: number | null;
 }
 
-export async function costRates(tenantId: string, period: Period): Promise<CostRates> {
-  const assets = await assetCosts(tenantId, period);
+/**
+ * Per-kilometre rates for the period. Pass asset costs already computed for
+ * the same period and they are used rather than worked out again — a page
+ * showing costs and margins together otherwise prices the fleet three times.
+ */
+export async function costRates(
+  tenantId: string,
+  period: Period,
+  assets?: AssetCost[] | Promise<AssetCost[]>
+): Promise<CostRates> {
+  return ratesFrom(await (assets ?? assetCosts(tenantId, period)));
+}
+
+export function ratesFrom(assets: AssetCost[]): CostRates {
   const perKmByAsset = new Map<string, number>();
   let km = 0;
   let cents = 0;
@@ -281,38 +302,50 @@ function netRevenue(t: {
   return Math.max(0, t.amountCents - totals.taxCents);
 }
 
-export async function jobMargins(tenantId: string, period: Period): Promise<JobMargin[]> {
-  const invoices = await prisma.transaction.findMany({
-    where: { tenantId, type: "INVOICE", status: BILLED, createdAt: { gte: period.from, lte: period.to } },
-    select: {
-      id: true, partyId: true, amountCents: true, discountPercent: true, createdAt: true,
-      party: { select: { name: true } },
-      itemLines: {
-        select: {
-          quantity: true, unitPriceCents: true, discountPercent: true, taxRatePercent: true,
-          item: { select: { costCents: true } },
+export interface MarginOptions {
+  /** One customer's jobs only — a customer's own page needs nobody else's. */
+  partyId?: string;
+  /** Rates already worked out for the same period. */
+  rates?: CostRates | Promise<CostRates>;
+}
+
+export async function jobMargins(tenantId: string, period: Period, opts: MarginOptions = {}): Promise<JobMargin[]> {
+  const billed = {
+    tenantId, type: "INVOICE" as const, status: BILLED, createdAt: { gte: period.from, lte: period.to },
+    ...(opts.partyId ? { partyId: opts.partyId } : {}),
+  };
+  // Nothing below waits on anything else: the costs tagged to the invoices
+  // and the trips that served them are found through the invoices' own
+  // filter rather than a list of their ids read first.
+  const [invoices, direct, stops, rates] = await Promise.all([
+    prisma.transaction.findMany({
+      where: billed,
+      select: {
+        id: true, partyId: true, amountCents: true, discountPercent: true, createdAt: true,
+        party: { select: { name: true } },
+        itemLines: {
+          select: {
+            quantity: true, unitPriceCents: true, discountPercent: true, taxRatePercent: true,
+            item: { select: { costCents: true } },
+          },
         },
       },
-    },
-  });
-  if (invoices.length === 0) return [];
-  const ids = invoices.map((i) => i.id);
-
-  const [direct, stops, rates] = await Promise.all([
+    }),
     prisma.expense.groupBy({
       by: ["transactionId"],
-      where: { tenantId, status: SPENT, transactionId: { in: ids }, isOwnerDrawing: { not: true } },
+      where: { tenantId, status: SPENT, transactionId: { not: null }, isOwnerDrawing: { not: true }, transaction: billed },
       _sum: { amountCents: true },
     }),
     prisma.tripStop.findMany({
-      where: { tenantId, transactionId: { in: ids }, trip: { status: "DONE" } },
+      where: { tenantId, transactionId: { not: null }, transaction: billed, trip: { status: "DONE" } },
       select: {
         transactionId: true,
         trip: { select: { id: true, assetId: true, distanceKm: true, _count: { select: { stops: true } } } },
       },
     }),
-    costRates(tenantId, period),
+    opts.rates ?? costRates(tenantId, period),
   ]);
+  if (invoices.length === 0) return [];
 
   const directById = new Map(direct.map((d) => [d.transactionId!, d._sum.amountCents ?? 0]));
   const travelById = new Map<string, { cents: number; priced: boolean; any: boolean }>();
@@ -364,8 +397,8 @@ export interface CustomerMargin {
   travelPriced: boolean;
 }
 
-export async function customerMargins(tenantId: string, period: Period): Promise<CustomerMargin[]> {
-  const jobs = await jobMargins(tenantId, period);
+export async function customerMargins(tenantId: string, period: Period, opts: MarginOptions = {}): Promise<CustomerMargin[]> {
+  const jobs = await jobMargins(tenantId, period, opts);
   const by = new Map<string, CustomerMargin>();
   for (const j of jobs) {
     const cur = by.get(j.partyId) ?? {
@@ -404,27 +437,30 @@ export interface LaneMargin {
  * came to — split across a document's stops when one document was served by
  * several — and cost is every run's fully loaded distance cost.
  */
-export async function laneMargins(tenantId: string, period: Period): Promise<LaneMargin[]> {
-  const [trips, rates] = await Promise.all([
-    prisma.trip.findMany({
-      where: { tenantId, status: "DONE", laneKey: { not: null }, startedAt: { gte: period.from, lte: period.to } },
+export async function laneMargins(tenantId: string, period: Period, opts: Pick<MarginOptions, "rates"> = {}): Promise<LaneMargin[]> {
+  const onLane = { tenantId, status: "DONE" as const, laneKey: { not: null }, startedAt: { gte: period.from, lte: period.to } };
+  // Trips, their stops and the documents on them are read side by side and
+  // joined here, rather than as a chain where each waits for the last.
+  const [tripRows, stopRows, docs, rates] = await Promise.all([
+    prisma.trip.findMany({ where: onLane, select: { id: true, laneKey: true, assetId: true, distanceKm: true } }),
+    prisma.tripStop.findMany({ where: { tenantId, trip: onLane }, select: { tripId: true, transactionId: true } }),
+    prisma.transaction.findMany({
+      where: { tenantId, tripStops: { some: { trip: onLane } } },
       select: {
-        laneKey: true, assetId: true, distanceKm: true,
-        stops: {
-          select: {
-            transactionId: true,
-            transaction: {
-              select: {
-                id: true, amountCents: true, discountPercent: true, type: true, status: true,
-                itemLines: { select: { quantity: true, unitPriceCents: true, discountPercent: true, taxRatePercent: true } },
-              },
-            },
-          },
-        },
+        id: true, amountCents: true, discountPercent: true, type: true, status: true,
+        itemLines: { select: { quantity: true, unitPriceCents: true, discountPercent: true, taxRatePercent: true } },
       },
     }),
-    costRates(tenantId, period),
+    opts.rates ?? costRates(tenantId, period),
   ]);
+  const docById = new Map(docs.map((d) => [d.id, d]));
+  const stopsByTrip = new Map<string, Array<{ transactionId: string | null; transaction: (typeof docs)[number] | null }>>();
+  for (const s of stopRows) {
+    const list = stopsByTrip.get(s.tripId) ?? [];
+    list.push({ transactionId: s.transactionId, transaction: s.transactionId ? docById.get(s.transactionId) ?? null : null });
+    stopsByTrip.set(s.tripId, list);
+  }
+  const trips = tripRows.map((t) => ({ ...t, stops: stopsByTrip.get(t.id) ?? [] }));
 
   // A document served by three stops counts a third at each.
   const stopsPerDoc = new Map<string, number>();
@@ -477,9 +513,13 @@ export interface FleetCost {
  * as one that moves. An electrician driving to four jobs a day has a fleet
  * cost; this is where they find out what it is.
  */
-export async function fleetCost(tenantId: string, period: Period): Promise<FleetCost> {
+export async function fleetCost(
+  tenantId: string,
+  period: Period,
+  precomputed?: AssetCost[] | Promise<AssetCost[]>
+): Promise<FleetCost> {
   const [assets, revenue] = await Promise.all([
-    assetCosts(tenantId, period),
+    precomputed ?? assetCosts(tenantId, period),
     prisma.transaction.findMany({
       where: { tenantId, type: "INVOICE", status: BILLED, createdAt: { gte: period.from, lte: period.to } },
       select: {

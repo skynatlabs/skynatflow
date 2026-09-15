@@ -90,6 +90,35 @@ describe("the CFO", () => {
     expect(after).toHaveLength(0);
   });
 
+  it("puts only the unposted invoices' value on the finding, not every invoice ever raised", async () => {
+    await prisma.transaction.create({
+      data: { tenantId, partyId, type: "INVOICE", status: "PAID", amountCents: 500_000_00 },
+    });
+    await backfillLedger(tenantId);
+    // One more after the books were caught up: this is all they are missing.
+    await prisma.transaction.create({
+      data: { tenantId, partyId, type: "INVOICE", status: "SENT", amountCents: 12_000_00 },
+    });
+
+    await runCFO(tenantId);
+    const found = (await listOpen(tenantId)).find((o) => o.dedupeKey === "cfo:books-behind");
+    expect(found!.moneyCents).toBe(12_000_00);
+  });
+
+  it("records a finding worth more than a 32-bit integer can hold", async () => {
+    // A year of a mid-sized haulier's invoices, never posted: R165 million.
+    for (let i = 0; i < 8; i++) {
+      await prisma.transaction.create({
+        data: { tenantId, partyId, type: "INVOICE", status: "SENT", amountCents: 2_065_000_000 },
+      });
+    }
+
+    const run = await runCFO(tenantId);
+    expect(run.failed).toEqual([]);
+    const found = (await listOpen(tenantId)).find((o) => o.dedupeKey === "cfo:books-behind");
+    expect(found!.moneyCents).toBe(16_520_000_000);
+  });
+
   it("names the largest overdue customer rather than reporting a count", async () => {
     const big = await prisma.party.create({
       data: { tenantId, name: "Big Debtor Ltd", role: "CUSTOMER" },

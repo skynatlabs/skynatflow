@@ -23,7 +23,7 @@
 
 import { prisma } from "@/lib/db";
 import { Officer, ObservationStatus, type Observation } from "@prisma/client";
-import { may } from "./ladder";
+import { getCeilings, reaches } from "./ladder";
 import { expireStale, markRaised } from "./observations";
 import type { EvidenceItem } from "./observations";
 import { weightFor } from "@/lib/core/industryPacks";
@@ -122,13 +122,14 @@ async function rank(
   statuses: ObservationStatus[],
   now: Date
 ): Promise<RankedItem[]> {
-  const [open, tenant] = await Promise.all([
+  const [open, tenant, ceilingOf] = await Promise.all([
     prisma.observation.findMany({
       where: { tenantId, status: { in: statuses } },
       orderBy: { createdAt: "desc" },
       take: 300,
     }),
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { niche: true, turnaroundMode: true } }),
+    getCeilings(tenantId),
   ]);
   // The trade pack lifts what matters in this trade; turnaround mode puts
   // cash first. Both multiply the score, so they reorder without hiding.
@@ -137,13 +138,7 @@ async function rank(
 
   // An officer below SUGGEST watches quietly: it may write, and nothing it
   // writes reaches anybody. That is a real setting somebody might choose.
-  const allowed: Observation[] = [];
-  const speaks = new Map<Officer, boolean>();
-  for (const o of open) {
-    const officer = o.handedTo ?? o.officer;
-    if (!speaks.has(officer)) speaks.set(officer, await may(tenantId, officer, "SUGGEST"));
-    if (speaks.get(officer)) allowed.push(o);
-  }
+  const allowed = open.filter((o) => reaches(ceilingOf(o.handedTo ?? o.officer), "SUGGEST"));
 
   // One conversation per subject, whoever noticed it.
   const groups = new Map<string, Observation[]>();

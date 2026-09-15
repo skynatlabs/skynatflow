@@ -72,18 +72,18 @@ export default async function BriefPage({
   const { tenantId } = await params;
   await requireTenantAccess(tenantId);
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { name: true, arrivalShownAt: true, turnaroundMode: true },
-  });
-  if (!tenant) notFound();
-  // The first time anyone opens the Brief, the officers introduce themselves.
-  if (!tenant.arrivalShownAt) redirect(`/dashboard/${tenantId}/brief/welcome`);
-
-  const [brief, queue] = await Promise.all([
+  // Read together; the desk is only shown once the workspace is known.
+  const [tenant, brief, queue] = await Promise.all([
+    prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { name: true, arrivalShownAt: true, turnaroundMode: true },
+    }),
     currentBrief(tenantId),
     approvalQueue(tenantId),
   ]);
+  if (!tenant) notFound();
+  // The first time anyone opens the Brief, the officers introduce themselves.
+  if (!tenant.arrivalShownAt) redirect(`/dashboard/${tenantId}/brief/welcome`);
 
   // Observations already appear on the desk above; showing them again under
   // "waiting on you" would make one list look like two piles of work.

@@ -1,32 +1,36 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { customerBalance } from "@/lib/core/money";
+import { customerBalances } from "@/lib/core/money";
 import { BreakdownBarChart } from "@/components/dashboard/MiniCharts";
+import { Pagination } from "@/components/dashboard/Pagination";
 
 function money(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
 }
 
+const PAGE_SIZE = 48;
+
 export default async function StatementsIndexPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantId: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { tenantId } = await params;
-  // Balance is computed per-customer (not a stored/indexed column), so this
-  // can't be paginated at the DB level without first materializing every
-  // customer's balance — capping the candidate set bounds the worst case
-  // for a very large customer base until balances are cached/aggregated.
-  const customers = await prisma.party.findMany({
-    where: { tenantId },
-    orderBy: { name: "asc" },
-    take: 500,
-  });
+  const { page: pageParam } = await searchParams;
+  // Every customer's balance in one statement, so nobody is left off the
+  // list for coming late in the alphabet.
+  const balances = await customerBalances(tenantId);
+  const owingIds = [...balances].filter(([, cents]) => cents !== 0).map(([id]) => id);
+  const parties = owingIds.length
+    ? await prisma.party.findMany({ where: { tenantId, id: { in: owingIds } }, select: { id: true, name: true }, orderBy: { name: "asc" } })
+    : [];
+  const withBalance = parties.map((p) => ({ ...p, balance: balances.get(p.id) ?? 0 }));
 
-  const balances = await Promise.all(
-    customers.map(async (c) => ({ ...c, balance: await customerBalance(tenantId, c.id) }))
-  );
-  const withBalance = balances.filter((c) => c.balance !== 0);
+  const pageCount = Math.max(1, Math.ceil(withBalance.length / PAGE_SIZE));
+  const page = Math.min(pageCount, Math.max(1, Number(pageParam) || 1));
+  const shown = withBalance.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const barData = withBalance
     .filter((c) => c.balance > 0)
@@ -55,7 +59,7 @@ export default async function StatementsIndexPage({
         <p className="mt-6 text-sm text-[var(--kb-text-dim)]">No customer currently owes a balance.</p>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {withBalance.map((c) => (
+          {shown.map((c) => (
             <Link
               key={c.id}
               href={`/dashboard/${tenantId}/statements/${c.id}`}
@@ -67,6 +71,7 @@ export default async function StatementsIndexPage({
           ))}
         </div>
       )}
+      <Pagination page={page} pageCount={pageCount} />
     </main>
   );
 }

@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "observations" ALTER COLUMN "moneyCents" SET DATA TYPE DOUBLE PRECISION;
+
+-- AlterTable
+ALTER TABLE "value_entries" ALTER COLUMN "cents" SET DATA TYPE DOUBLE PRECISION;
+

@@ -19,8 +19,12 @@ export async function GET(req: NextRequest) {
   const auth = authorizeCron(req, "agent-tick");
   if (!auth.ok) return auth.response;
 
+  // Model work stops starting half a minute before the platform would stop
+  // the function, so what is cut short is left queued rather than half done.
+  const deadline = Date.now() + (maxDuration - 30) * 1000;
+
   const swept = await sweepDerivedEvents();
-  const outcomes = await tickAllTenants();
+  const outcomes = await tickAllTenants(new Date(), { deadline });
 
   return NextResponse.json({
     ok: true,
@@ -31,5 +35,6 @@ export async function GET(req: NextRequest) {
     agentsRun: outcomes.reduce((n, o) => n + o.agentsRun, 0),
     raised: outcomes.reduce((n, o) => n + o.raised, 0),
     skipped: outcomes.filter((o) => o.skipped).length,
+    deferred: outcomes.filter((o) => o.deferred).length,
   });
 }
