@@ -15,6 +15,10 @@ datasource db {
 enum PartyRole {
   CUSTOMER
   SUPPLIER
+  /// An owner-driver or contractor doing the business's work under its name.
+  /// Their lapsed cover is the business's liability, so they get the same
+  /// obligation records and the same refusal as an employee.
+  SUBCONTRACTOR
   STAFF
   PATIENT // Medical niche — appointment/visit tracking only, no clinical/health data fields
   MEMBER // Non-profit niche
@@ -140,6 +144,17 @@ model Tenant {
   // not been set, which the ledger says rather than showing a saving with no
   // cost beside it.
   monthlyFeeCents              Int?
+  // Standing time a customer gets free before detention is billable, and
+  // the rate after it. Null rate means detention is measured but not billed.
+  detentionFreeMinutes         Int             @default(60)
+  detentionRateCents           Int?
+  // Turnaround mode: cash first, everything else second. The officers
+  // reorder around survival rather than optimisation.
+  turnaroundMode               Boolean         @default(false)
+  // When the first audit was produced, so it is produced once.
+  firstAuditAt                 DateTime?
+  // Whether the six officers have introduced themselves yet.
+  arrivalShownAt               DateTime?
   regionCode                   String? // state or province, where it changes what you owe: "CA", "TX", "GP"
   // The entity type in the owner's own words — "Pty Ltd", "LLC", "Sole Trader".
   // Deliberately free text: an enum of company types is a geo-lock wearing a
@@ -244,6 +259,7 @@ model Tenant {
   trips        Trip[]
   tripStops    TripStop[]
   valueEntries ValueEntry[]
+  incidents    Incident[]
 
   @@map("tenants")
 }
@@ -573,6 +589,11 @@ model Transaction {
   // tools. amountCents already reflects this once applied; kept here too
   // so the PDF/online view can show the breakdown, not just the result.
   discountPercent         Float?            @default(0)
+  // The currency this document is in, and the rate to the workspace's own
+  // currency frozen at issue — so a paid invoice never silently restates.
+  // Null means the workspace currency at 1:1.
+  currency                String?
+  fxRateToBase            Float?
   // Free-text business fields shown on the document alongside the line
   // items — subject line and a PO/reference number, the two fields every
   // real invoicing tool has that this one didn't.
@@ -1341,6 +1362,8 @@ model Trip {
   plannedAt DateTime?
   startedAt DateTime?
   endedAt   DateTime?
+  // What the run was expected to be, so a deviation can be judged.
+  plannedKm Float?
 
   odometerStartKm Int?
   odometerEndKm   Int?
@@ -1354,9 +1377,10 @@ model Trip {
   branchId String?
   branch   Branch? @relation(fields: [branchId], references: [id])
 
-  stops    TripStop[]
-  points   TripPoint[]
-  expenses Expense[]
+  stops     TripStop[]
+  points    TripPoint[]
+  expenses  Expense[]
+  incidents Incident[]
 
   @@index([tenantId, status])
   @@index([tenantId, assetId, startedAt])
@@ -1391,6 +1415,8 @@ model TripStop {
   plannedAt  DateTime?
   arrivedAt  DateTime?
   departedAt DateTime?
+  // Weight on or off at this stop, for load planning.
+  loadKg     Int?
 
   // The delivery, site visit or install this stop produced, with its proof.
   eventId String? @unique
@@ -2323,6 +2349,13 @@ model Asset {
   // Number plate, serial on the side of the machine — whatever a slip, a
   // licence disc or an insurance schedule will name it by.
   registration String?
+  // Maintenance off the odometer: service every N km, last done at reading M.
+  serviceIntervalKm Int?
+  lastServiceKm     Int?
+  // Load planning: what it weighs empty and what it may weigh loaded.
+  tareKg       Int?
+  maxGrossKg   Int?
+  incidents    Incident[]
 
   expenses    Expense[]
   trips       Trip[]
@@ -3166,4 +3199,31 @@ model DomainEvent {
   @@index([tenantId, processedAt])
   @@index([type, createdAt])
   @@map("domain_events")
+}
+
+/// Something went wrong on the road: assembled into the insurer's pack at
+/// the scene, when the facts are still there, rather than a week later.
+model Incident {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tripId      String?
+  trip        Trip?    @relation(fields: [tripId], references: [id])
+  assetId     String?
+  asset       Asset?   @relation(fields: [assetId], references: [id])
+  driverId    String? // Membership.id
+  at          DateTime @default(now())
+  lat         Float?
+  lng         Float?
+  description String
+  otherParty  String?
+  /// Photographs, as data URLs — same pattern as receipts.
+  photos      Json     @default("[]")
+  /// What the pack still lacks, kept so the prompt is specific.
+  missing     String[] @default([])
+  status      String   @default("OPEN") // OPEN | SUBMITTED | CLOSED
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, at])
+  @@map("incidents")
 }

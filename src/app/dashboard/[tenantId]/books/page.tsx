@@ -326,6 +326,9 @@ export default async function BooksPage({
       <section className="mt-8 grid gap-3 lg:grid-cols-2">
         <div className="kb-card px-5 py-5">
           <h2 className="text-base font-semibold text-[var(--kb-text)]">Close a month</h2>
+          <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
+            Read the <a href={`/dashboard/${tenantId}/books/month-end`} className="underline">month-end pack</a> first — cash flow, tax to have ready, depreciation, and what stands in the way.
+          </p>
           <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
             Once a month is closed nothing more can be posted into it — not by you, not by the
             agent. That is what makes the figures you have already given someone stay true.

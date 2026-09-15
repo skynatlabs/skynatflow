@@ -31,6 +31,7 @@ import { profitAndLoss } from "@/lib/core/financialReports";
 import { supplierPerformance } from "@/lib/core/supplierPerformance";
 import { captureLedger } from "@/lib/core/captureLedger";
 import { possibleDuplicates } from "@/lib/core/expenses";
+import { vatSetAside } from "@/lib/core/taxProvisions";
 
 type Finding = Omit<ObserveParams, "tenantId" | "officer">;
 
@@ -379,7 +380,24 @@ async function duplicateSpend(tenantId: string): Promise<Finding | null> {
   };
 }
 
+/** Phase 123: money collected that was never the business's, already spent. */
+async function vatSpent(tenantId: string): Promise<Finding | null> {
+  const v = await vatSetAside(tenantId);
+  if (v.shortfallCents < 1_000_00) return null;
+  return {
+    headline: `${rands(v.shortfallCents)} of the tax collected on sales has already been spent.`,
+    detail: v.summary + " When the return falls due, that money has to come from somewhere else.",
+    dedupeKey: "cfo:vat-spent",
+    moneyCents: v.shortfallCents,
+    confidence: 85,
+    urgentBy: null,
+    evidence: [{ label: "Tax owed", value: rands(v.vatOwedCents) }, { label: "In the bank", value: rands(Math.max(0, v.cashCents)) }],
+    proposedAction: "Move the tax collected into a separate account as invoices are paid, so it is never available to spend.",
+  };
+}
+
 const CHECKS: Array<{ name: string; run: (t: string) => Promise<Finding | null> }> = [
+  { name: "vatSpent", run: vatSpent },
   { name: "booksBehind", run: booksBehind },
   { name: "bankUnexplained", run: bankUnexplained },
   { name: "cashGap", run: cashGap },

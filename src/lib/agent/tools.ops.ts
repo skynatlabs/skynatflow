@@ -38,6 +38,12 @@ import { travelSummary } from "@/lib/core/travelEfficiency";
 import { consolidationReport, EFFORT_LABEL } from "@/lib/core/consolidation";
 import { valueSummary } from "@/lib/core/valueLedger";
 import { submitExpense, markDuplicate, keepBoth, possibleDuplicates } from "@/lib/core/expenses";
+import { cashFlowStatement } from "@/lib/core/cashFlowStatement";
+import { accrueExpense, deferRevenue, listAccruals } from "@/lib/core/accruals";
+import { runMonthlyDepreciation, bookValues } from "@/lib/core/depreciation";
+import { setDocumentCurrency, foreignDocuments } from "@/lib/core/documentCurrency";
+import { taxProvisions, vatSetAside } from "@/lib/core/taxProvisions";
+import { monthEndPack, nextMonthToClose } from "@/lib/core/bookkeeper";
 import { listConnectionsForTenant } from "@/lib/core/connections";
 import { listThreadsForMember, sendMessage, listMessages } from "@/lib/core/messaging";
 import {
@@ -1427,6 +1433,62 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
         },
       }),
   },
+
+  // ------------------------------------------------------------ books, completed
+
+  cashFlowStatement: {
+    build: (ctx) =>
+      tool({
+        description: "Where the cash actually went: operating, investing, financing, and how profit turned into cash (or did not). Use for 'why is there no money if we made a profit'.",
+        inputSchema: z.object({ from: z.string().optional().describe("YYYY-MM-DD"), to: z.string().optional() }),
+        execute: async ({ from, to }) =>
+          cashFlowStatement(ctx.tenantId, { from: from ? new Date(from) : undefined, to: to ? new Date(to) : undefined }),
+      }),
+  },
+  taxPosition: {
+    build: (ctx) =>
+      tool({
+        description: "Tax collected that is not the business's to spend, against the bank; and provisional and payroll tax estimated from posted figures. Use for 'can we afford the VAT', 'how much tax should we be putting aside'.",
+        inputSchema: z.object({}),
+        execute: async () => ({ vat: await vatSetAside(ctx.tenantId), provisions: await taxProvisions(ctx.tenantId) }),
+      }),
+  },
+  bookValues: {
+    build: (ctx) =>
+      tool({
+        description: "Each asset's cost, what has been depreciated, and its book value, with this month's charge.",
+        inputSchema: z.object({}),
+        execute: async () => bookValues(ctx.tenantId),
+      }),
+  },
+  listAccruals: {
+    build: (ctx) =>
+      tool({
+        description: "Accruals and deferred income on the books, newest first.",
+        inputSchema: z.object({}),
+        execute: async () => listAccruals(ctx.tenantId),
+      }),
+  },
+  foreignCurrencyDocuments: {
+    build: (ctx) =>
+      tool({
+        description: "Documents issued in a currency other than the workspace's, with the rate frozen at issue and their worth in the base currency.",
+        inputSchema: z.object({}),
+        execute: async () => foreignDocuments(ctx.tenantId),
+      }),
+  },
+  monthEndPack: {
+    build: (ctx) =>
+      tool({
+        description: "The bookkeeper's month-end pack: posts what has not reached the books, runs depreciation, proposes bank matches, raises tax provisions, and says what stands between the month and being closed. Defaults to the last month not yet closed.",
+        inputSchema: z.object({ year: z.number().int().optional(), month: z.number().int().min(1).max(12).optional() }),
+        execute: async ({ year, month }) => {
+          const target = year && month ? { year, month } : await nextMonthToClose(ctx.tenantId);
+          if (!target) return { note: "Every finished month is already closed." };
+          return monthEndPack(ctx.tenantId, target.year, target.month);
+        },
+      }),
+  },
 };
 
 // ------------------------------------------------------------------ writing
@@ -2577,6 +2639,52 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
         }),
         execute: async ({ assetId, capacityUnit, registration }) => {
           await setAssetCapacity(ctx.tenantId, assetId, { capacityUnit, registration });
+          return { ok: true };
+        },
+      }),
+  },
+
+  accrueExpense: {
+    capability: "payment:record",
+    build: (ctx) =>
+      tool({
+        description: "Book a cost into this month that has not been billed yet, with its reversal on the first of next month.",
+        inputSchema: z.object({ on: z.string().describe("YYYY-MM-DD"), amountRand: z.number().positive(), accountCode: z.string(), memo: z.string() }),
+        execute: async ({ on, amountRand, accountCode, memo }) => {
+          const r = await accrueExpense({ tenantId: ctx.tenantId, on: new Date(`${on}T12:00:00Z`), amountCents: Math.round(amountRand * 100), expenseAccountCode: accountCode, memo });
+          return { entryId: r.entry.id, reversalId: r.reversal.id };
+        },
+      }),
+  },
+  deferRevenue: {
+    capability: "payment:record",
+    build: (ctx) =>
+      tool({
+        description: "Move money received in advance out of this month's sales and into the month the work is done.",
+        inputSchema: z.object({ on: z.string(), earnedOn: z.string(), amountRand: z.number().positive(), memo: z.string() }),
+        execute: async ({ on, earnedOn, amountRand, memo }) => {
+          const r = await deferRevenue({ tenantId: ctx.tenantId, on: new Date(`${on}T12:00:00Z`), earnedOn: new Date(`${earnedOn}T12:00:00Z`), amountCents: Math.round(amountRand * 100), memo });
+          return { entryId: r.entry.id, releaseId: r.release.id };
+        },
+      }),
+  },
+  runDepreciation: {
+    capability: "payment:record",
+    build: (ctx) =>
+      tool({
+        description: "Post the month's depreciation for every asset with a cost and a life. Safe to repeat — a month already charged posts nothing.",
+        inputSchema: z.object({ year: z.number().int(), month: z.number().int().min(1).max(12) }),
+        execute: async ({ year, month }) => runMonthlyDepreciation(ctx.tenantId, year, month),
+      }),
+  },
+  setDocumentCurrency: {
+    capability: "invoice:create",
+    build: (ctx) =>
+      tool({
+        description: "Issue a document in another currency at a rate frozen now. Cannot change once anything is paid against it.",
+        inputSchema: z.object({ transactionId: z.string(), currency: z.string().length(3), rateToBase: z.number().positive().describe("one unit of the document currency in the workspace currency") }),
+        execute: async ({ transactionId, currency, rateToBase }) => {
+          await setDocumentCurrency({ tenantId: ctx.tenantId, transactionId, currency, rateToBase });
           return { ok: true };
         },
       }),

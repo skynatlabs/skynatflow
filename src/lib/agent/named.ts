@@ -47,6 +47,17 @@ export const AGENT_TEMPLATES = [
     schedule: "0 7 * * 1",
   },
   {
+    name: "Bookkeeper",
+    brief:
+      "Keep the books current and hand the owner a month-end pack. Each run: post whatever " +
+      "documents have not reached the journal, run the month's depreciation, propose bank " +
+      "matches, raise the tax provisions, and list what stands between the month and being " +
+      "closed. Never close a month yourself and never post money nobody has seen — say what " +
+      "needs a decision and why.",
+    toolNames: ["monthEndPack", "cashFlowStatement", "taxPosition", "possibleDuplicateCosts", "createTask"],
+    schedule: "0 7 1 * *",
+  },
+  {
     name: "Morning brief",
     brief:
       "Give the owner one short read on the business each morning: money in and out, what " +

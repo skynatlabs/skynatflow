@@ -102,6 +102,7 @@ const EXPORTS: Array<{
   { key: "trip_points", label: "Trip positions", direct: false, fetch: (t) => prisma.tripPoint.findMany({ where: { trip: { tenantId: t } } }) },
   { key: "expense_lines", label: "Slip line items", direct: false, fetch: (t) => prisma.expenseLine.findMany({ where: { expense: { tenantId: t } } }) },
   { key: "value_entries", label: "The value ledger", direct: true, fetch: (t) => prisma.valueEntry.findMany({ where: { tenantId: t } }) },
+  { key: "incidents", label: "Incidents on the road", direct: true, fetch: (t) => prisma.incident.findMany({ where: { tenantId: t } }) },
   { key: "wholesale_connections", label: "Trading connections", direct: false, fetch: (t) => prisma.wholesaleConnection.findMany({ where: { OR: [{ supplierTenantId: t }, { buyerTenantId: t }] } }) },
 ];
 
