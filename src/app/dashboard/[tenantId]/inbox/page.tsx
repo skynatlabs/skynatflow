@@ -2,6 +2,9 @@ import Link from "next/link";
 import { listNotifications } from "@/lib/core/notifications2";
 import { listInboundEmails } from "@/lib/core/email";
 import { listSubmissions } from "@/lib/core/portal";
+import { listConversations, responseHealth } from "@/lib/core/conversations";
+import { unansweredMissedCalls } from "@/lib/core/calls";
+import { leadResponseHealth, listSubmissions as listEnquiries } from "@/lib/core/leadForms";
 import { tenantCurrency } from "@/lib/core/currency";
 import { formatMoney } from "@/lib/format/money";
 import {
@@ -41,12 +44,22 @@ export default async function InboxPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
-  const [notifications, emails, fromCustomers, currency] = await Promise.all([
-    listNotifications(tenantId),
-    listInboundEmails(tenantId),
-    listSubmissions(tenantId, { handled: false }),
-    tenantCurrency(tenantId),
-  ]);
+  const [notifications, emails, fromCustomers, currency, waiting, replyHealth, missed, enquiries, leadHealth] =
+    await Promise.all([
+      listNotifications(tenantId),
+      listInboundEmails(tenantId),
+      listSubmissions(tenantId, { handled: false }),
+      tenantCurrency(tenantId),
+      listConversations(tenantId, { status: "OPEN" }),
+      responseHealth(tenantId),
+      unansweredMissedCalls(tenantId),
+      listEnquiries(tenantId, { handled: false }),
+      leadResponseHealth(tenantId),
+    ]);
+  // Only the ones where somebody is actually waiting on an answer. An open
+  // conversation nobody is waiting on is not a thing to put in front of
+  // anybody at the top of their inbox.
+  const unanswered = waiting.filter((c) => c.waitingSince !== null);
 
   const categoryCounts = emails.reduce<Record<string, number>>((acc, e) => {
     acc[e.category] = (acc[e.category] ?? 0) + 1;
@@ -73,6 +86,77 @@ export default async function InboxPage({
           <button type="submit" className="kb-pill kb-pill-ghost text-xs">Mark all read</button>
         </form>
       </div>
+
+      {/* The three things where somebody is on the other end waiting, above
+          everything else. A missed call and an unanswered enquiry are both
+          somebody who has already gone to the next business on the list. */}
+      {(missed.length > 0 || enquiries.length > 0 || unanswered.length > 0) && (
+        <section className="mt-6 space-y-4">
+          {missed.length > 0 && (
+            <div className="kb-card p-5" style={{ background: "var(--kb-status-danger)" }}>
+              <h2 className="text-sm font-semibold text-[var(--kb-text)]">
+                {missed.length} missed {missed.length === 1 ? "call" : "calls"} nobody has answered
+              </h2>
+              <ul className="mt-2 space-y-1">
+                {missed.slice(0, 6).map((c) => (
+                  <li key={c.id} className="text-sm text-[var(--kb-text)]">
+                    {c.party ? (
+                      <Link href={`/dashboard/${tenantId}/customers/${c.partyId}`} className="hover:underline">
+                        {c.party.companyName ?? c.party.name}
+                      </Link>
+                    ) : (
+                      c.fromNumber
+                    )}
+                    <span className="ml-2 text-xs text-[var(--kb-text-dim)]">
+                      {c.startedAt.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {enquiries.length > 0 && (
+            <div className="kb-card p-5" style={{ background: "var(--kb-tint-yellow)" }}>
+              <h2 className="text-sm font-semibold text-[var(--kb-text)]">
+                {enquiries.length} {enquiries.length === 1 ? "enquiry" : "enquiries"} not answered
+              </h2>
+              <p className="mt-0.5 text-xs text-[var(--kb-text-dim)]">{leadHealth.summary}</p>
+              <ul className="mt-2 space-y-1">
+                {enquiries.slice(0, 6).map((e) => (
+                  <li key={e.id} className="text-sm text-[var(--kb-text)]">
+                    {e.answerList.name ?? e.party?.name ?? "Somebody"}
+                    {e.answerList.need ? <span className="text-[var(--kb-text-dim)]"> — {e.answerList.need.slice(0, 90)}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {unanswered.length > 0 && (
+            <div className="kb-card p-5">
+              <h2 className="text-sm font-semibold text-[var(--kb-text)]">Waiting on an answer</h2>
+              <p className="mt-0.5 text-xs text-[var(--kb-text-dim)]">{replyHealth.summary}</p>
+              <ul className="mt-2 divide-y divide-[var(--kb-panel-border)]">
+                {unanswered.slice(0, 8).map((c) => (
+                  <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <span className="text-sm text-[var(--kb-text)]">
+                      {c.customer ?? c.threadKey}
+                      {c.assignedTo ? <span className="ml-2 text-xs text-[var(--kb-text-dim)]">{c.assignedTo}</span> : null}
+                    </span>
+                    <span className="text-xs" style={{ color: (c.waitingHours ?? 0) >= 24 ? "var(--kb-status-danger-ink)" : "var(--kb-text-dim)" }}>
+                      {c.waitingHours !== null && c.waitingHours >= 24
+                        ? `${Math.floor(c.waitingHours / 24)} days`
+                        : `${c.waitingHours ?? 0} hours`}
+                      {c.assignedTo ? "" : " · nobody has it"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Customers first. Someone waiting on an answer about money they have
           already sent is the most expensive thing in this list to leave sitting. */}

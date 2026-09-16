@@ -118,6 +118,12 @@ const EXPORTS: Array<{
   { key: "vat_returns", label: "VAT returns", direct: true, fetch: (t) => prisma.vatReturn.findMany({ where: { tenantId: t } }) },
   { key: "collection_attempts", label: "Chasing history", direct: true, fetch: (t) => prisma.collectionAttempt.findMany({ where: { tenantId: t } }) },
   { key: "expense_coding_rules", label: "How you code your costs", direct: true, fetch: (t) => prisma.expenseCodingRule.findMany({ where: { tenantId: t } }) },
+  { key: "contact_consents", label: "Who said you may contact them", direct: true, fetch: (t) => prisma.contactConsent.findMany({ where: { tenantId: t } }) },
+  { key: "conversations", label: "Customer conversations and who owns them", direct: true, fetch: (t) => prisma.conversation.findMany({ where: { tenantId: t } }) },
+  { key: "call_logs", label: "Calls", direct: true, fetch: (t) => prisma.callLog.findMany({ where: { tenantId: t } }) },
+  { key: "lead_forms", label: "Enquiry forms", direct: true, fetch: (t) => prisma.leadForm.findMany({ where: { tenantId: t } }) },
+  { key: "lead_submissions", label: "Enquiries", direct: true, fetch: (t) => prisma.leadSubmission.findMany({ where: { tenantId: t } }) },
+  { key: "broadcasts", label: "Messages sent to many people at once", direct: true, fetch: (t) => prisma.broadcast.findMany({ where: { tenantId: t } }) },
   // What customers sent in from their own portal link. The attachments are
   // inline data URLs, so the proof of payment travels with the record rather
   // than pointing at a file that will not be there.
@@ -160,6 +166,7 @@ const EXCLUDED: Record<string, string> = {
   agent_messages: "Exported through their threads.",
   payment_plan_instalments: "Exported through their plans.",
   fx_rates: "Exchange rates for a day, shared by every workspace and owned by none.",
+  conversation_notes: "Exported through their conversations.",
 };
 
 export const EXPORT_EXCLUSIONS = EXCLUDED;

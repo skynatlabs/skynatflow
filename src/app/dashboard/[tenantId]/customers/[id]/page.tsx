@@ -10,6 +10,7 @@ import { netPaidByInvoice as netPaidFor } from "@/lib/core/money";
 import { listRecurringInvoices } from "@/lib/core/recurring";
 import { listComments } from "@/lib/core/comments";
 import { prisma } from "@/lib/db";
+import { customerTimeline } from "@/lib/core/timeline";
 import { addCustomerCommentAction } from "./comments-actions";
 import { PhotoEventForm } from "./PhotoEventForm";
 import { EditCustomerForm } from "./EditCustomerForm";
@@ -61,6 +62,11 @@ export default async function CustomerHistoryPage({
   const margin = margins.find((m) => m.partyId === id);
   const cur = tenantRow?.currency ?? "ZAR";
   const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com"}/portal/${portalToken}`;
+
+  // Everything that has ever happened with these people, in order — the
+  // question anybody actually has before picking up the phone, and until now
+  // six screens away.
+  const timeline = await customerTimeline(tenantId, id, { take: 40 });
 
   const invoicedQuoteIds = new Set(
     transactions.filter((t) => t.type === "INVOICE" && t.parentId).map((t) => t.parentId as string)
@@ -142,6 +148,51 @@ export default async function CustomerHistoryPage({
           )}
         </div>
       </section>
+
+      {timeline && timeline.entries.length > 0 && (
+        <section className="kb-card mt-6 p-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-xs font-medium uppercase tracking-wide text-[var(--kb-text-dim)]">Everything, in order</h2>
+            <p className="text-xs text-[var(--kb-text-dim)]">
+              {timeline.summary.quietForDays === null
+                ? "Nothing on record yet."
+                : timeline.summary.quietForDays === 0
+                  ? "Spoken to today."
+                  : `Quiet for ${timeline.summary.quietForDays} ${timeline.summary.quietForDays === 1 ? "day" : "days"}.`}
+            </p>
+          </div>
+          <ol className="mt-3 space-y-2.5">
+            {timeline.entries.map((entry) => (
+              <li key={`${entry.kind}-${entry.id}`} className="flex gap-3">
+                {/* A dot on the customer's side or the business's — which way
+                    a conversation flows is most of what a timeline is for. */}
+                <span
+                  className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                  style={{ background: entry.fromThem ? "var(--kb-accent-a)" : "var(--kb-panel-border)" }}
+                  aria-hidden
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-[var(--kb-text)]">
+                    {entry.href ? (
+                      <Link href={`/dashboard/${tenantId}${entry.href}`} className="hover:underline">
+                        {entry.title}
+                      </Link>
+                    ) : (
+                      entry.title
+                    )}
+                  </p>
+                  {entry.detail && (
+                    <p className="line-clamp-2 text-xs text-[var(--kb-text-dim)]">{entry.detail}</p>
+                  )}
+                </div>
+                <span className="shrink-0 text-[11px] whitespace-nowrap text-[var(--kb-text-dim)]">
+                  {entry.at.toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       <section className="kb-card mt-6 p-6">
         <h2 className="text-xs font-medium uppercase tracking-wide text-[var(--kb-text-dim)]">

@@ -68,6 +68,20 @@ import { applyCoding, forgetCodingRule, listCodingRules, rememberCorrection } fr
 import { workKindMargins } from "@/lib/core/workKinds";
 import { feedStatus, syncFeed } from "@/lib/core/bankFeeds";
 import { lastDays } from "@/lib/core/costing";
+import { customerTimeline } from "@/lib/core/timeline";
+import { CHANNELS, consentFor, consentSummary, mayContact, setConsent, type Channel } from "@/lib/core/consent";
+import {
+  addConversationNote,
+  assign,
+  closeConversation,
+  conversationNotes,
+  listConversations,
+  responseHealth,
+  snooze,
+} from "@/lib/core/conversations";
+import { callHealth, handleMissedCall, listCalls, logCall, markCallResponded, unansweredMissedCalls } from "@/lib/core/calls";
+import { createLeadForm, leadResponseHealth, listLeadForms, listSubmissions as listLeads, markLeadHandled } from "@/lib/core/leadForms";
+import { draftBroadcast, listBroadcasts, previewAudience } from "@/lib/core/broadcast";
 import { disputeHealth, listDisputes, resolveDispute } from "@/lib/core/disputes";
 import { inviteStaff } from "@/lib/core/staff";
 import { recordCashSale } from "@/lib/core/money";
@@ -558,6 +572,164 @@ export const EXTRA_READ_TOOLS: Record<string, ExtraToolDef> = {
             wordingStillMatchesSignature: signatureStillMatches(agreement),
           };
         },
+      }),
+  },
+
+  everythingAboutThem: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Everything that has ever happened with one customer, in order: quotes, invoices, payments, emails both " +
+          "ways, calls, what they sent from their portal, complaints, deliveries, agreements and notes. Read this " +
+          "before phoning anybody, before chasing anybody, and whenever asked what is going on with a customer — it " +
+          "is the one call that replaces six.",
+        inputSchema: z.object({ partyId: z.string(), take: z.number().int().positive().default(60) }),
+        execute: async ({ partyId, take }) => {
+          const timeline = await customerTimeline(ctx.tenantId, partyId, { take });
+          if (!timeline) throw new Error("That customer is not in this workspace.");
+          return {
+            customer: timeline.customer,
+            summary: timeline.summary,
+            entries: timeline.entries.map((e) => ({
+              when: e.at.toISOString().slice(0, 10),
+              what: e.kind,
+              title: e.title,
+              detail: e.detail,
+              amountCents: e.amountCents ?? null,
+              fromThem: Boolean(e.fromThem),
+            })),
+          };
+        },
+      }),
+  },
+
+  whoIsWaiting: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Customer conversations nobody has answered, who owns each, and how long they have been waiting. Read it " +
+          "when asked what needs doing, and before promising anybody that this business answers quickly.",
+        inputSchema: z.object({ status: z.enum(["OPEN", "SNOOZED", "CLOSED"]).optional() }),
+        execute: async ({ status }) => {
+          const [list, health] = await Promise.all([
+            listConversations(ctx.tenantId, { status }),
+            responseHealth(ctx.tenantId),
+          ]);
+          return { howItIsGoing: health, conversations: list };
+        },
+      }),
+  },
+
+  conversationNotes: {
+    build: (ctx) =>
+      tool({
+        description: "What the team has said about a conversation, as against in it. Never sent to the customer.",
+        inputSchema: z.object({ threadKey: z.string() }),
+        execute: async ({ threadKey }) => conversationNotes(ctx.tenantId, threadKey),
+      }),
+  },
+
+  mayWeContact: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Whether this business may message somebody on a channel, and why. Service messages about their own work " +
+          "need no opt-in; anything they did not ask for does. Check before sending anything that is not about their " +
+          "own invoice or job — a business that gets this wrong loses the channel.",
+        inputSchema: z.object({
+          partyId: z.string(),
+          channel: z.enum(["whatsapp", "sms", "email", "call"]),
+          purpose: z.enum(["service", "marketing"]).default("service"),
+        }),
+        execute: async ({ partyId, channel, purpose }) => {
+          const [verdict, all] = await Promise.all([
+            mayContact({ tenantId: ctx.tenantId, partyId, channel, purpose }),
+            consentFor(ctx.tenantId, partyId),
+          ]);
+          return { ...verdict, onRecord: all };
+        },
+      }),
+  },
+
+  consentAcrossTheList: {
+    build: (ctx) =>
+      tool({
+        description: "How many customers have opted in, opted out, or never been asked, per channel.",
+        inputSchema: z.object({}),
+        execute: async () => consentSummary(ctx.tenantId),
+      }),
+  },
+
+  missedCalls: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Calls that were missed and never followed up, and how often this business misses them. A missed call " +
+          "nobody answers is the most expensive thing in a small business's day.",
+        inputSchema: z.object({ days: z.number().int().positive().default(30) }),
+        execute: async ({ days }) => {
+          const [unanswered, health] = await Promise.all([
+            unansweredMissedCalls(ctx.tenantId, new Date(Date.now() - days * 86_400_000)),
+            callHealth(ctx.tenantId, days),
+          ]);
+          return {
+            howItIsGoing: health,
+            unanswered: unanswered.map((c) => ({
+              id: c.id,
+              from: c.fromNumber,
+              who: c.party?.companyName ?? c.party?.name ?? null,
+              partyId: c.partyId,
+              at: c.startedAt.toISOString(),
+            })),
+          };
+        },
+      }),
+  },
+
+  callsWith: {
+    build: (ctx) =>
+      tool({
+        description: "Every call logged with one customer, or the most recent across the workspace.",
+        inputSchema: z.object({ partyId: z.string().optional() }),
+        execute: async ({ partyId }) => listCalls(ctx.tenantId, { partyId }),
+      }),
+  },
+
+  enquiries: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Enquiries that came in through a form, and how quickly this business answers them — the number that " +
+          "decides how many turn into work.",
+        inputSchema: z.object({ onlyUnanswered: z.boolean().default(true) }),
+        execute: async ({ onlyUnanswered }) => {
+          const [rows, health, forms] = await Promise.all([
+            listLeads(ctx.tenantId, onlyUnanswered ? { handled: false } : {}),
+            leadResponseHealth(ctx.tenantId),
+            listLeadForms(ctx.tenantId),
+          ]);
+          return {
+            howItIsGoing: health,
+            forms: forms.map((f) => ({ id: f.id, slug: f.slug, title: f.title, live: f.isActive, total: f.total, unanswered: f.unhandled })),
+            enquiries: rows.map((r) => ({
+              id: r.id,
+              from: r.form.title,
+              answers: r.answerList,
+              customerId: r.partyId,
+              at: r.createdAt.toISOString(),
+              answered: Boolean(r.handledAt),
+            })),
+          };
+        },
+      }),
+  },
+
+  broadcastsSent: {
+    build: (ctx) =>
+      tool({
+        description: "Messages sent to many people at once, with who was left out of each and why.",
+        inputSchema: z.object({}),
+        execute: async () => listBroadcasts(ctx.tenantId),
       }),
   },
 
@@ -1254,6 +1426,216 @@ export const EXTRA_WRITE_TOOLS: Record<string, ExtraToolDef> = {
         execute: async ({ invoiceId, feePercent }) => {
           await applyLateFee({ invoiceId, feePercent, tenantId: ctx.tenantId });
           return { ok: true };
+        },
+      }),
+  },
+
+  assignConversation: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Put somebody's name against a customer conversation so it stops being everybody's and therefore nobody's. " +
+          "Leave the person out to unassign it.",
+        inputSchema: z.object({ threadKey: z.string(), membershipId: z.string().optional() }),
+        execute: async ({ threadKey, membershipId }) => {
+          await assign({ tenantId: ctx.tenantId, threadKey, membershipId: membershipId ?? null });
+          return { ok: true };
+        },
+      }),
+  },
+
+  snoozeConversation: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Put a conversation out of the way until a date, then bring it back. For the things that are genuinely not " +
+          "due yet — the alternative is leaving them looking urgent until they are ignored with everything else.",
+        inputSchema: z.object({ threadKey: z.string(), until: z.string().describe("YYYY-MM-DD") }),
+        execute: async ({ threadKey, until }) => {
+          await snooze({ tenantId: ctx.tenantId, threadKey, until: new Date(until) });
+          return { ok: true };
+        },
+      }),
+  },
+
+  closeConversation: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description: "Mark a customer conversation done. It reopens by itself if they write again.",
+        inputSchema: z.object({ threadKey: z.string() }),
+        execute: async ({ threadKey }) => {
+          await closeConversation({ tenantId: ctx.tenantId, threadKey, closedById: ctx.membershipId ?? null });
+          return { ok: true };
+        },
+      }),
+  },
+
+  noteOnConversation: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Say something about a conversation for whoever picks it up next. Never sent to the customer — the thing " +
+          "somebody needs to say about a customer is rarely the thing they would say to them.",
+        inputSchema: z.object({ threadKey: z.string(), body: z.string() }),
+        execute: async ({ threadKey, body }) => {
+          await addConversationNote({ tenantId: ctx.tenantId, threadKey, body, authorId: ctx.membershipId ?? null });
+          return { ok: true };
+        },
+      }),
+  },
+
+  recordConsent: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Write down that somebody agreed to be contacted on a channel, or asked not to be. Record where it came " +
+          "from — that is what makes it defensible. Always record a withdrawal immediately; it is the one that " +
+          "matters legally and the one that loses a business its number.",
+        inputSchema: z.object({
+          partyId: z.string(),
+          channel: z.enum(["whatsapp", "sms", "email", "call"]),
+          state: z.enum(["granted", "withdrawn"]),
+          source: z.string().optional().describe("Where it came from — a form, a reply, a conversation."),
+        }),
+        execute: async ({ partyId, channel, state, source }) => {
+          await setConsent({ tenantId: ctx.tenantId, partyId, channel: channel as Channel, state, source: source ?? null });
+          return { ok: true, channels: CHANNELS };
+        },
+      }),
+  },
+
+  answerMissedCall: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Work out what to send somebody whose call was missed, and check they may be messaged. It writes the " +
+          "wording and records nothing — answering within the minute is the highest-return thing a small business " +
+          "does, but the speaking is still a person's.",
+        inputSchema: z.object({ callId: z.string() }),
+        execute: async ({ callId }) => handleMissedCall({ tenantId: ctx.tenantId, callId }),
+      }),
+  },
+
+  logACall: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Write down a call that happened — who, which way, whether it was answered, and what was said. Matched to " +
+          "the customer on file by number, so it lands on their timeline.",
+        inputSchema: z.object({
+          fromNumber: z.string(),
+          toNumber: z.string(),
+          direction: z.enum(["in", "out"]),
+          status: z.enum(["answered", "missed", "voicemail"]),
+          durationSeconds: z.number().int().nonnegative().optional(),
+          summary: z.string().optional(),
+        }),
+        execute: async ({ fromNumber, toNumber, direction, status, durationSeconds, summary }) => {
+          const call = await logCall({
+            tenantId: ctx.tenantId,
+            fromNumber,
+            toNumber,
+            direction,
+            status,
+            durationSeconds: durationSeconds ?? null,
+            summary: summary ?? null,
+          });
+          return { ok: true, callId: call.id, matchedCustomer: call.partyId };
+        },
+      }),
+  },
+
+  markCallAnswered: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description: "Record that a missed call was followed up, however it was followed up.",
+        inputSchema: z.object({ callId: z.string(), how: z.string() }),
+        execute: async ({ callId, how }) => {
+          await markCallResponded({ tenantId: ctx.tenantId, callId, with: how });
+          return { ok: true };
+        },
+      }),
+  },
+
+  makeEnquiryForm: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Make a form a stranger can fill in, with an answer that goes back the second they do. Speed is most of " +
+          "why one business wins a job and the one down the road does not.",
+        inputSchema: z.object({
+          title: z.string(),
+          intro: z.string().optional(),
+          autoReply: z.string().optional().describe("What they see the moment they submit."),
+        }),
+        execute: async ({ title, intro, autoReply }) => {
+          const form = await createLeadForm({
+            tenantId: ctx.tenantId,
+            title,
+            intro: intro ?? null,
+            autoReply: autoReply ?? null,
+          });
+          const base = process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com";
+          return { ok: true, formId: form.id, link: `${base}/enquire/${ctx.tenantId}/${form.slug}` };
+        },
+      }),
+  },
+
+  markEnquiryAnswered: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description: "Mark an enquiry as dealt with, so the unanswered list means something.",
+        inputSchema: z.object({ submissionId: z.string() }),
+        execute: async ({ submissionId }) => {
+          await markLeadHandled(ctx.tenantId, submissionId);
+          return { ok: true };
+        },
+      }),
+  },
+
+  planABroadcast: {
+    capability: "quote:send",
+    build: (ctx) =>
+      tool({
+        description:
+          "Assemble a message to many people and see exactly who would receive it and who would be left out, with " +
+          "the reason for each. Nothing is sent by this — releasing a broadcast is a separate act a person takes " +
+          "after reading the skipped list.",
+        inputSchema: z.object({
+          channel: z.enum(["whatsapp", "sms", "email"]),
+          purpose: z.enum(["service", "marketing"]).default("marketing"),
+          subject: z.string().optional(),
+          body: z.string(),
+          partyIds: z.array(z.string()).optional().describe("Leave out for every customer on file."),
+        }),
+        execute: async ({ channel, purpose, subject, body, partyIds }) => {
+          const preview = await previewAudience({ tenantId: ctx.tenantId, channel, purpose, partyIds });
+          const draft = await draftBroadcast({
+            tenantId: ctx.tenantId,
+            channel,
+            purpose,
+            subject: subject ?? null,
+            body,
+            partyIds,
+            createdById: ctx.membershipId ?? null,
+          });
+          return {
+            broadcastId: draft.id,
+            summary: preview.summary,
+            willReach: preview.willReceive.length,
+            leftOut: preview.skipped.slice(0, 30),
+            note: "Nothing has been sent. Somebody has to release it after reading who is left out.",
+          };
         },
       }),
   },

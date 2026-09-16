@@ -8,6 +8,8 @@ import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import { prisma } from "@/lib/db";
 import { bareAddress, threadKeyFor } from "./mailbox";
+import { customerWrote } from "./conversations";
+import { readsAsOptOut, withdrawByReply } from "./consent";
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import { classifyInboundEmail } from "@/lib/ai/emailClassifier";
 import { createNotification, resolveOwnerPhone } from "@/lib/core/notifications2";
@@ -142,6 +144,21 @@ export async function ingestEmail(params: {
       linkedTransactionId,
     },
   });
+
+  // Somebody is now waiting on an answer. The clock starts here and stops
+  // when a reply actually sends — see mailbox.sendMail.
+  await customerWrote({
+    tenantId: params.tenantId,
+    threadKey,
+    partyId: sender?.id ?? null,
+    at: params.receivedAt,
+  }).catch(() => {});
+
+  // A one-word reply asking to stop is the message that must never be lost in
+  // a pile. It is acted on before anything else looks at this email.
+  if (readsAsOptOut(params.bodyText ?? "")) {
+    await withdrawByReply({ tenantId: params.tenantId, channel: "email", from: bareAddress(params.fromAddress) }).catch(() => {});
+  }
 
   // Proof of payment needs a human to actually verify the amount/
   // authenticity before it's marked paid — never auto-marked — but it

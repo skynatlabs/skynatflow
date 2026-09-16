@@ -283,6 +283,12 @@ model Tenant {
   vatReturns        VatReturn[]
   collectionAttempts CollectionAttempt[]
   expenseCodingRules ExpenseCodingRule[]
+  contactConsents   ContactConsent[]
+  conversations     Conversation[]
+  callLogs          CallLog[]
+  leadForms         LeadForm[]
+  leadSubmissions   LeadSubmission[]
+  broadcasts        Broadcast[]
 
   @@map("tenants")
 }
@@ -479,6 +485,10 @@ model Party {
   agreements        Agreement[]
   supplierBills     SupplierBill[]
   collectionAttempts CollectionAttempt[]
+  contactConsents   ContactConsent[]
+  conversations     Conversation[]
+  callLogs          CallLog[]
+  leadSubmissions   LeadSubmission[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -3827,4 +3837,182 @@ model ExpenseCodingRule {
   @@unique([tenantId, matchOn])
   @@index([tenantId])
   @@map("expense_coding_rules")
+}
+
+// ------------------------------------------------------------- the inbox
+// Phases 23-34: everything that happens between a business and a customer,
+// in one place, with the rules that keep it legal and the mechanics that
+// keep a shared inbox from becoming a pile nobody owns.
+
+/// Whether this person has said we may contact them on a channel.
+///
+/// POPIA and its equivalents turn this from a nicety into the thing that
+/// decides whether a broadcast is marketing or a fine. Stored per channel
+/// because somebody who is happy to get an invoice by email is not
+/// necessarily happy to get a special offer by WhatsApp.
+model ContactConsent {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  partyId   String
+  party     Party    @relation(fields: [partyId], references: [id])
+  /// whatsapp | sms | email | call
+  channel   String
+  /// granted | withdrawn
+  state     String
+  /// Where it came from — a form, a reply, a conversation. What makes it defensible.
+  source    String?
+  note      String?
+  changedAt DateTime @default(now())
+
+  @@unique([tenantId, partyId, channel])
+  @@index([tenantId, channel, state])
+  @@map("contact_consents")
+}
+
+/// A customer conversation, and who owns it.
+///
+/// The messages already exist; what did not was anybody being responsible for
+/// one. A shared inbox without assignment is a pile everybody assumes
+/// somebody else is reading, and the clock below is what makes "we get back
+/// to people quickly" a number rather than a belief.
+model Conversation {
+  id             String             @id @default(cuid())
+  tenantId       String
+  tenant         Tenant             @relation(fields: [tenantId], references: [id])
+  /// The mailbox thread key, or `party:<id>` for a conversation on another channel.
+  threadKey      String
+  partyId        String?
+  party          Party?             @relation(fields: [partyId], references: [id])
+  assignedToId   String?
+  /// OPEN | SNOOZED | CLOSED
+  status         String             @default("OPEN")
+  snoozedUntil   DateTime?
+  /// When the customer last wrote and has not been answered since. The clock.
+  waitingSince   DateTime?
+  /// How long the first answer took, kept so the average is a real measurement.
+  firstReplyMins Int?
+  closedAt       DateTime?
+  closedById     String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  notes          ConversationNote[]
+
+  @@unique([tenantId, threadKey])
+  @@index([tenantId, status])
+  @@index([tenantId, assignedToId])
+  @@map("conversations")
+}
+
+/// Something said about a conversation rather than in it. Never sent.
+model ConversationNote {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  authorId       String?
+  body           String
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@map("conversation_notes")
+}
+
+/// A phone call, in or out.
+///
+/// The single highest-return automation in this category is answering a
+/// missed call with a message within the minute, and it cannot exist without
+/// somewhere to record that the call happened.
+model CallLog {
+  id              String    @id @default(cuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  partyId         String?
+  party           Party?    @relation(fields: [partyId], references: [id])
+  fromNumber      String
+  toNumber        String
+  /// in | out
+  direction       String
+  /// answered | missed | voicemail
+  status          String
+  durationSeconds Int?
+  recordingUrl    String?
+  /// What was said, when somebody wrote it down.
+  summary         String?
+  /// Set when a missed call was answered by a message.
+  respondedAt     DateTime?
+  respondedWith   String?
+  startedAt       DateTime  @default(now())
+
+  @@index([tenantId, startedAt])
+  @@index([tenantId, status])
+  @@map("call_logs")
+}
+
+/// A form that turns a stranger into a lead.
+model LeadForm {
+  id          String           @id @default(cuid())
+  tenantId    String
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  slug        String
+  title       String
+  intro       String?
+  /// [{ name, label, type, required }] — the questions, in order.
+  fields      Json
+  /// What goes back the second it is submitted. An instant answer is most of
+  /// why one business wins a job and the one down the road does not.
+  autoReply   String?
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  submissions LeadSubmission[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@map("lead_forms")
+}
+
+model LeadSubmission {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  formId    String
+  form      LeadForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+  /// The answers as given.
+  answers   Json
+  partyId   String?
+  party     Party?   @relation(fields: [partyId], references: [id])
+  /// web | qr | widget
+  source    String?
+  handledAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, handledAt])
+  @@index([formId])
+  @@map("lead_submissions")
+}
+
+/// One message to many people, and the record of who was left out and why.
+///
+/// The skipped list is the important half. A broadcast that quietly drops
+/// people who withdrew consent looks identical to one that never checked.
+model Broadcast {
+  id           String    @id @default(cuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  /// whatsapp | sms | email
+  channel      String
+  subject      String?
+  body         String
+  /// { sent: [...], skipped: [{ partyId, name, reason }] }
+  audience     Json
+  sentCount    Int       @default(0)
+  skippedCount Int       @default(0)
+  /// DRAFT | SENT
+  status       String    @default("DRAFT")
+  sentAt       DateTime?
+  createdById  String?
+  createdAt    DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
+  @@map("broadcasts")
 }

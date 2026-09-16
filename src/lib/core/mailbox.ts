@@ -15,6 +15,7 @@
 
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/db";
+import { weAnswered } from "./conversations";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { sendEmail as sendPlatformEmail } from "@/lib/email/client";
 
@@ -301,6 +302,12 @@ export async function sendMail(params: SendMailParams): Promise<SendMailResult> 
       error,
     },
   });
+
+  // The clock on this conversation stops when somebody actually answers, and
+  // a message that did not send is not an answer — so only a real one does.
+  if (via !== "none") {
+    await weAnswered({ tenantId: params.tenantId, threadKey }).catch(() => {});
+  }
 
   return {
     ok: via !== "none",

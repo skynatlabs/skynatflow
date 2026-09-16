@@ -38,6 +38,10 @@ const ALWAYS_ASK = new Set([
   // Says out loud to a customer that they are late. The wording matters and
   // a business should see it before its name is on it.
   "recordTheChase",
+  // Assembles a message to a whole customer list. Nothing is sent by it, but
+  // the skipped list is the thing a person has to read before anything is,
+  // and a draft nobody looked at is one release away from a lost number.
+  "planABroadcast",
 ]);
 
 /**

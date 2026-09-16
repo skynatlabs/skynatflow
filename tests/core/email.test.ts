@@ -31,6 +31,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Ingesting an email now starts a conversation clock, which is a row that
+  // holds the tenant down until it goes.
+  await prisma.conversationNote.deleteMany({ where: { conversation: { tenantId } } });
+  await prisma.conversation.deleteMany({ where: { tenantId } });
+  await prisma.contactConsent.deleteMany({ where: { tenantId } });
   await prisma.inboundEmail.deleteMany({ where: { tenantId } });
   await prisma.aiDraft.deleteMany({ where: { tenantId } });
   await prisma.notification.deleteMany({ where: { tenantId } });

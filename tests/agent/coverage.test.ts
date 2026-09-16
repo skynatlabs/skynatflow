@@ -43,6 +43,10 @@ const NOT_TOOL_SURFACE = new Set([
   // The owner types the business name to close an account; an agent must
   // never be able to start that, and the copy is part of the same flow.
   "accountClosure",
+  // The hosts and ports for the mailboxes people already have, so nobody has
+  // to look up imap.gmail.com. A lookup table shown on one settings form;
+  // connecting the mailbox is the tool, and it lives on the mail module.
+  "mailProviders",
   // Reached only through accountClosure now: the whole workspace in one file,
   // offered when an owner closes the account rather than as a day-to-day
   // export. Nothing for the agent to drive.

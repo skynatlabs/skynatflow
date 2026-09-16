@@ -39,8 +39,34 @@ export async function createParty(params: {
   return party;
 }
 
+/**
+ * Somebody by their phone number, however either was written down.
+ *
+ * This used to be an exact string match, which meant "083 555 1234" and
+ * "+27 83 555 1234" were two different people — so a missed-call webhook, a
+ * booking and a WhatsApp reply all silently failed to find somebody who was
+ * plainly on file, and quietly made a second customer instead.
+ *
+ * Both sides are stripped to digits and compared on the last nine, which is
+ * the part that survives every country code and leading zero. Nine rather
+ * than ten, because a South African number written with its country code and
+ * one written without differ in exactly the leading digit.
+ */
 export async function findPartyByPhone(tenantId: string, phone: string) {
-  return prisma.party.findFirst({ where: { tenantId, phone } });
+  const digits = phone.replace(/[^0-9]/g, "");
+  if (digits.length < 7) return null;
+  const tail = digits.slice(-9);
+
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT id FROM parties
+    WHERE "tenantId" = ${tenantId}
+      AND phone IS NOT NULL
+      AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE ${"%" + tail}
+    ORDER BY "createdAt" ASC
+    LIMIT 1
+  `;
+  if (rows.length === 0) return null;
+  return prisma.party.findUnique({ where: { id: rows[0].id } });
 }
 
 export interface PartyDetailPatch {
