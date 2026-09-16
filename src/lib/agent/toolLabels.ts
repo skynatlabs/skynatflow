@@ -60,6 +60,10 @@ const EXACT: Record<string, string> = {
   whatWaitsOnWhat: "Work out what waits on what",
   handOverToSubcontractor: "Hand a job to a subcontractor",
   makeJobWaitFor: "Make one job wait for another",
+  thingsThatLookWrong: "Look for anything that looks wrong",
+  whoToAskForAReview: "Check who to ask for a review",
+  draftReviewReply: "Draft a reply to a review",
+  readTheTimingTheyGave: "Work out when they meant",
 };
 
 /**

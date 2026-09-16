@@ -95,6 +95,9 @@ import { proofPack, undefendedJobs } from "@/lib/core/proofOfWork";
 import { teamWeek, timesheet } from "@/lib/core/timesheets";
 import { handOver, subcontractMargins, subcontractorPosition } from "@/lib/core/subcontractors";
 import { chain, dependsOn } from "@/lib/core/jobChain";
+import { watchlist } from "@/lib/core/watchlist";
+import { draftReply, reputationHealth, worthAsking } from "@/lib/core/reputation";
+import { readAndPropose } from "@/lib/core/scheduleTalk";
 import { prisma } from "@/lib/db";
 import { composeQuoteFromText } from "@/lib/core/quoteComposer";
 import { buildWhatsAppShareLink, quoteWhatsAppMessage, invoiceWhatsAppMessage } from "@/lib/core/whatsappShare";
@@ -2377,6 +2380,100 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
               problem: bar.problem,
             })),
             warnings: result.warnings,
+          };
+        },
+      }),
+  },
+
+  thingsThatLookWrong: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Costs, refunds and supplier prices worth a second look — the same spend twice, a refund with nothing behind " +
+          "it, a price that crept up. Every one is a question with its innocent explanation beside it, never an accusation.",
+        inputSchema: z.object({ sinceDays: z.number().int().positive().max(730).default(180) }),
+        execute: async ({ sinceDays }) => {
+          const result = await watchlist({ tenantId: ctx.tenantId, sinceDays });
+          return {
+            findings: result.findings.map((finding) => ({
+              howUrgent: finding.severity,
+              what: finding.what,
+              couldBe: finding.couldBe,
+              whatToDo: finding.next,
+              amount: finding.amountCents === null ? null : formatMoney(finding.amountCents),
+            })),
+            note: result.note,
+            stance: result.stance,
+          };
+        },
+      }),
+  },
+
+  whoToAskForAReview: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Customers worth asking for a review right now, who was deliberately left out and why, and how often the " +
+          "business is actually asking.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [asking, health] = await Promise.all([
+            worthAsking({ tenantId: ctx.tenantId }),
+            reputationHealth(ctx.tenantId, new Date(Date.now() - 90 * 86_400_000)),
+          ]);
+          return {
+            ask: asking.candidates.map((row) => ({ who: row.name, paid: formatMoney(row.amountCents), why: row.why })),
+            leftOut: asking.skipped,
+            note: asking.note,
+            askedShare: `${health.sharePercent}%`,
+            advice: health.advice,
+          };
+        },
+      }),
+  },
+
+  draftReviewReply: {
+    build: () =>
+      tool({
+        description:
+          "A starting point for replying to a review, with advice on how to handle it. It will never write a review — " +
+          "only a reply to one.",
+        inputSchema: z.object({
+          stars: z.number().int().min(1).max(5),
+          reviewerName: z.string().optional(),
+          about: z.string().optional().describe("What the job was, if the reply should mention it."),
+        }),
+        execute: async ({ stars, reviewerName, about }) => {
+          const draft = draftReply({ stars, reviewerName, about });
+          return { reply: draft.text, advice: draft.advice, note: "Edit it before sending. A reply that reads as machine-written is worse than no reply." };
+        },
+      }),
+  },
+
+  readTheTimingTheyGave: {
+    build: (ctx) =>
+      tool({
+        description:
+          'Turn what a customer said about timing — "after month end", "call me in July", "next week" — into a date, with ' +
+          "what was assumed said out loud, and something to say back.",
+        inputSchema: z.object({
+          message: z.string().describe("What they actually wrote or said."),
+          about: z.string().optional().describe("What it is about, for the reply."),
+        }),
+        execute: async ({ message, about }) => {
+          const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { name: true } });
+          const proposal = readAndPropose({ text: message, businessName: tenant.name, what: about });
+          if (!proposal) {
+            return { found: false as const, note: "Nothing in that message says when. Better to leave it than to invent a date nobody agreed." };
+          }
+          return {
+            found: true as const,
+            theySaid: proposal.cue.phrase,
+            whichMeans: proposal.cue.when.toISOString().slice(0, 10),
+            howSure: proposal.cue.confidence,
+            assumed: proposal.cue.assumption,
+            sayBack: proposal.reply,
+            thenWhat: proposal.thenWhat,
           };
         },
       }),
