@@ -199,6 +199,8 @@ export function draftChase(params: {
   candidate: ChaseCandidate;
   businessName: string;
   currency: string;
+  /** How this business's country writes a date. Defaults to the reader's own. */
+  locale?: string;
   /** The customer's own portal link, so they can see and pay it. */
   portalUrl?: string | null;
 }): { tone: Tone; step: number; subject: string; body: string } {
@@ -215,7 +217,7 @@ export function draftChase(params: {
       subject: `${params.businessName} — ${ref}`,
       body:
         `Hi ${c.customer},\n\n` +
-        `Just a note that ${ref} for ${amount} went past its date on ${c.dueAt?.toLocaleDateString("en-ZA") ?? "its due date"}. ` +
+        `Just a note that ${ref} for ${amount} went past its date on ${c.dueAt?.toLocaleDateString(params.locale) ?? "its due date"}. ` +
         `It is probably nothing — if it has already gone out, ignore this and thank you.` +
         link +
         `\n\n${params.businessName}`,

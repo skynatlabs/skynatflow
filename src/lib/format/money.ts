@@ -9,9 +9,13 @@
 // Every figure the officers say out loud goes through here, and this is the
 // only place that knows what a currency looks like. The workspace carries its
 // currency (Tenant.currency, ISO 4217); nothing downstream may assume rands.
-// A formatter that hardcodes "R" is a geo-lock wearing a different hat, and
-// twenty of them scattered through the officers would be twenty things to
-// find on the day a business in Nairobi signs up.
+// A formatter that hardcodes "R" is a geo-lock wearing a different hat.
+//
+// That warning used to sit here above a signature reading `currency = "ZAR"`,
+// and sixty-one call sites took the default. The lesson is not that people
+// should read comments: it is that a forgiving default makes the mistake
+// invisible, and the fix is to make the compiler ask. `currency` is required
+// now, so a figure whose owner nobody thought about will not build.
 
 // The locale that writes a currency the way its own speakers expect — rands
 // with a space and a comma, dollars with a comma and a point. Falls back to
@@ -80,7 +84,7 @@ function formatter(currency: string, decimals: boolean): Intl.NumberFormat {
  */
 export function formatMoney(
   cents: number,
-  currency = "ZAR",
+  currency: string,
   opts: { decimals?: boolean } = {}
 ): string {
   // Intl writes "R 45 000"; every document this app has ever produced writes
@@ -93,7 +97,7 @@ export function formatMoney(
 }
 
 /** The bare symbol, for a field label: "Amount (R)". */
-export function currencySymbol(currency = "ZAR"): string {
+export function currencySymbol(currency: string): string {
   const parts = formatter(currency, false).formatToParts(1);
   return parts.find((p) => p.type === "currency")?.value ?? currency;
 }

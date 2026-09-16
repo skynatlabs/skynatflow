@@ -1,3 +1,5 @@
+import { WorkspaceRegionProvider } from "@/components/WorkspaceRegionProvider";
+import { regionOf } from "@/lib/regions";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
@@ -76,6 +78,7 @@ export default async function TenantShellLayout({
   if (!tenant) notFound();
 
   const niche = nicheConfig(tenant.niche);
+  const region = await regionOf(tenantId);
   const viewerName = viewer?.name ?? viewer?.email ?? "You";
   const theme = cookieStore.get("kb-theme")?.value === "dark" ? "dark" : "light";
 
@@ -288,14 +291,18 @@ export default async function TenantShellLayout({
   }
 
   return (
-    <div className="kb-shell kb-warm flex" data-theme={theme} data-skin={skin} data-accent={accent}>
-      <SidebarShell
-        sidebar={sidebarContent}
-        topbar={<TopBar tenantId={tenantId} unread={unread} customerLabel={niche.customerLabel} />}
-      >
-        {body}
-      </SidebarShell>
-      <CommandBar tenantId={tenantId} awaitingApproval={awaitingApproval} />
-    </div>
+    // Everything below here can ask what this workspace's money is called,
+    // rather than each component deciding for itself.
+    <WorkspaceRegionProvider currency={region.currency} locale={region.locale} dateOrder={region.dateOrder}>
+      <div className="kb-shell kb-warm flex" data-theme={theme} data-skin={skin} data-accent={accent}>
+        <SidebarShell
+          sidebar={sidebarContent}
+          topbar={<TopBar tenantId={tenantId} unread={unread} customerLabel={niche.customerLabel} />}
+        >
+          {body}
+        </SidebarShell>
+        <CommandBar tenantId={tenantId} awaitingApproval={awaitingApproval} />
+      </div>
+    </WorkspaceRegionProvider>
   );
 }

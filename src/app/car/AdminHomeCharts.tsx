@@ -13,6 +13,8 @@ import {
   Cell,
 } from "recharts";
 import { CardTooltip } from "@/components/dashboard/CardTooltip";
+import { formatMoney } from "@/lib/format/money";
+import { PLATFORM_CURRENCY } from "@/lib/brand";
 
 const AXIS_STYLE = { fontSize: 11, fill: "var(--kb-text-dim)" };
 
@@ -55,7 +57,7 @@ export function PlatformRevenueChart({ data }: { data: { label: string; revenue:
           <CartesianGrid vertical={false} stroke="var(--kb-panel-border)" />
           <XAxis dataKey="label" tick={AXIS_STYLE} axisLine={false} tickLine={false} />
           <YAxis tick={AXIS_STYLE} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
-          <Tooltip content={<CardTooltip formatter={(v: number) => `R${v.toLocaleString()}`} />} cursor={{ fill: "var(--kb-panel-border)", opacity: 0.3 }} />
+          <Tooltip content={<CardTooltip formatter={(v: number) => formatMoney(Math.round(v * 100), PLATFORM_CURRENCY)} />} cursor={{ fill: "var(--kb-panel-border)", opacity: 0.3 }} />
           <Bar dataKey="revenue" name="Revenue" radius={[6, 6, 0, 0]} fill="var(--kb-accent-mid)" />
         </BarChart>
       </ResponsiveContainer>
@@ -71,7 +73,7 @@ export function TopTenantsChart({ data }: { data: { name: string; value: number 
         <BarChart data={data} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
           <XAxis type="number" hide />
           <YAxis type="category" dataKey="name" tick={AXIS_STYLE} axisLine={false} tickLine={false} width={110} />
-          <Tooltip content={<CardTooltip formatter={(v: number) => `R${v.toLocaleString()}`} />} cursor={{ fill: "var(--kb-panel-border)", opacity: 0.3 }} />
+          <Tooltip content={<CardTooltip formatter={(v: number) => formatMoney(Math.round(v * 100), PLATFORM_CURRENCY)} />} cursor={{ fill: "var(--kb-panel-border)", opacity: 0.3 }} />
           <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={16}>
             {data.map((d, i) => (
               <Cell key={d.name} fill={colors[i % colors.length]} />

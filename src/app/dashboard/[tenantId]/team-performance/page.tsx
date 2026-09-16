@@ -5,10 +5,8 @@
 // commission would be calculated against.
 
 import { getTeamPerformance } from "@/lib/core/salesReporting";
+import { moneyOf } from "@/lib/regions";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 export default async function TeamPerformancePage({
   params,
@@ -16,6 +14,8 @@ export default async function TeamPerformancePage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
   const performance = await getTeamPerformance(tenantId);
 
   return (

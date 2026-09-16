@@ -6,6 +6,8 @@
 import { prisma } from "@/lib/db";
 import { InvolvementRole } from "@prisma/client";
 import { sendEmail } from "@/lib/email/client";
+import { tenantCurrency } from "./currency";
+import { formatMoney } from "@/lib/format/money";
 
 export async function startInvolvement(params: {
   tenantId: string;
@@ -94,8 +96,8 @@ export async function listActiveInvolvements(tenantId: string) {
   return involvements;
 }
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
+function money(cents: number, currency: string) {
+  return formatMoney(cents, currency, { decimals: true });
 }
 
 // PA job: a tax-ready receipt the instant a donation clears, instead of
@@ -140,6 +142,7 @@ export async function recordDonation(params: {
   ]);
 
   if (party?.email && tenant) {
+    const currency = tenant.currency;
     await sendEmail({
       to: party.email,
       subject: `Your donation receipt — ${receiptNumber}`,
@@ -148,7 +151,7 @@ export async function recordDonation(params: {
         <p>Thank you for your generous donation to <strong>${tenant.name}</strong>.</p>
         <ul>
           <li>Receipt number: <strong>${receiptNumber}</strong></li>
-          <li>Amount: <strong>${money(donation.amountCents)}</strong></li>
+          <li>Amount: <strong>${money(donation.amountCents, currency)}</strong></li>
           <li>Date: ${donatedAt.toLocaleDateString()}</li>
           ${params.designatedFund ? `<li>Designated fund: ${params.designatedFund}</li>` : ""}
         </ul>

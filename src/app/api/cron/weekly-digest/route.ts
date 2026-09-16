@@ -1,3 +1,4 @@
+import { formatMoney } from "@/lib/format/money";
 // Hit once a week (Monday morning) by Hostinger Cron Jobs — the PA job
 // "what moved, what stalled, who to watch" so an owner never has to pull
 // last week's numbers together by hand. Sent by email since it's a
@@ -9,8 +10,8 @@ import { prisma } from "@/lib/db";
 import { findStaleTransactions } from "@/lib/core/money";
 import { sendEmail } from "@/lib/email/client";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
+function money(cents: number, currency: string) {
+  return formatMoney(cents, currency, { decimals: true });
 }
 
 export async function GET(req: NextRequest) {
@@ -42,10 +43,10 @@ export async function GET(req: NextRequest) {
     const html = `
       <h2>Your week at a glance</h2>
       <ul>
-        <li><strong>${quotesThisWeek.length}</strong> quotes sent, worth ${money(quotedTotal)}</li>
-        <li><strong>${money(collectedTotal)}</strong> collected from invoices this week</li>
+        <li><strong>${quotesThisWeek.length}</strong> quotes sent, worth ${money(quotedTotal, tenant.currency)}</li>
+        <li><strong>${money(collectedTotal, tenant.currency)}</strong> collected from invoices this week</li>
         <li><strong>${newCustomers}</strong> new ${newCustomers === 1 ? "customer" : "customers"} on file</li>
-        <li><strong>${stale.length}</strong> quote${stale.length === 1 ? "" : "s"}/invoice${stale.length === 1 ? "" : "s"} gone quiet, worth ${money(stale.reduce((s, t) => s + t.amountCents, 0))}</li>
+        <li><strong>${stale.length}</strong> quote${stale.length === 1 ? "" : "s"}/invoice${stale.length === 1 ? "" : "s"} gone quiet, worth ${money(stale.reduce((s, t) => s + t.amountCents, 0), tenant.currency)}</li>
       </ul>
       <p>The follow-up engine is already chasing the quiet ones — this is just so you have the full picture without opening the dashboard.</p>
     `;

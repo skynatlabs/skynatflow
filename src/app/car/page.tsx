@@ -2,11 +2,13 @@ import Link from "next/link";
 import { listPagesForAdmin } from "@/lib/core/cms";
 import { prisma } from "@/lib/db";
 import { TenantGrowthChart, PlatformRevenueChart, TopTenantsChart } from "./AdminHomeCharts";
+import { formatMoney } from "@/lib/format/money";
+import { PLATFORM_CURRENCY } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
 function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR", maximumFractionDigits: 0 });
+  return formatMoney(cents, PLATFORM_CURRENCY);
 }
 
 async function loadPlatformStats() {

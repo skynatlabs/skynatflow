@@ -48,7 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
   const tenant = await prisma.tenant.findUniqueOrThrow({
     where: { id: tenantId },
-    select: { niche: true },
+    select: { niche: true, currency: true },
   });
   const customerLabel = nicheConfig(tenant.niche).customerLabel;
 
@@ -80,6 +80,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
         const result = await runAgent({
           ctx: {
             tenantId,
+            currency: tenant.currency,
             role: access.role,
             userId: access.userId,
             membershipId: access.membershipId,

@@ -14,6 +14,8 @@
 import { prisma } from "@/lib/db";
 import { AgreementStatus } from "@prisma/client";
 import { addObligation } from "./obligations";
+import { tenantCurrency } from "./currency";
+import { formatMoney } from "@/lib/format/money";
 
 export interface CreateAgreementParams {
   tenantId: string;
@@ -192,9 +194,7 @@ export async function raiseClaim(params: {
         leadDays: 30,
         partyId: agreement.partyId,
         consequence:
-          `R${(breakdown.retentionHeldToDateCents / 100).toLocaleString("en-ZA", {
-            maximumFractionDigits: 0,
-          })} of your money is being held. Nobody will remind you it is owed, and ` +
+          `${formatMoney(breakdown.retentionHeldToDateCents, await tenantCurrency(params.tenantId))} of your money is being held. Nobody will remind you it is owed, and ` +
           `it is usually forgotten once the site is finished.`,
       });
       retentionObligationId = obligation.id;
@@ -273,15 +273,15 @@ export async function retentionHeld(tenantId: string): Promise<RetentionSummary>
     .filter((p) => p.status === "COMPLETE")
     .reduce((s, p) => s + p.retentionHeldCents, 0);
 
-  const rands = (c: number) =>
-    `R${(c / 100).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`;
+  const currency = await tenantCurrency(tenantId);
+  const money = (c: number) => formatMoney(c, currency);
 
   let summary = "";
   if (totalHeldCents > 0) {
-    summary = `${rands(totalHeldCents)} of your money is being held as retention`;
+    summary = `${money(totalHeldCents)} of your money is being held as retention`;
     summary +=
       onCompleteJobsCents > 0
-        ? `, ${rands(onCompleteJobsCents)} of it on jobs already finished.`
+        ? `, ${money(onCompleteJobsCents)} of it on jobs already finished.`
         : ".";
   }
 

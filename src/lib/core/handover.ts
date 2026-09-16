@@ -14,6 +14,8 @@
 
 import { prisma } from "@/lib/db";
 import { assetsHeldBy } from "./assets";
+import { formatMoney } from "@/lib/format/money";
+import { tenantCurrency } from "./currency";
 
 export interface HandoverItem {
   kind: "asset" | "customer" | "job" | "quote" | "leave" | "record";
@@ -52,6 +54,8 @@ export async function buildHandoverPack(params: {
     where: { id: params.membershipId },
     include: { user: { select: { name: true, email: true } } },
   });
+  const currency = await tenantCurrency(params.tenantId);
+
   if (!membership || membership.tenantId !== params.tenantId) {
     throw new Error("Team member not found.");
   }
@@ -130,7 +134,7 @@ export async function buildHandoverPack(params: {
       kind: "quote",
       id: q.id,
       label: `Open quote — ${q.party.name}`,
-      detail: `R${(q.amountCents / 100).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}, ${q.status.toLowerCase()}`,
+      detail: `${formatMoney(q.amountCents, currency)}, ${q.status.toLowerCase()}`,
       blocking: true,
     });
   }

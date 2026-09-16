@@ -1069,7 +1069,7 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
           const base = process.env.NEXT_PUBLIC_APP_URL ?? "";
           const path = doc.type === "INVOICE" ? "invoices" : "quotes";
           const viewUrl = `${base}/portal/${doc.party.portalToken}/${path}/${doc.id}`;
-          const amountLabel = `R${(doc.amountCents / 100).toFixed(2)}`;
+          const amountLabel = formatMoney(doc.amountCents, ctx.currency, { decimals: true });
 
           const message =
             doc.type === "INVOICE"
@@ -1732,7 +1732,7 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
             reference: row.reference,
             what: row.title,
             customer: row.customer,
-            value: row.valueCents ? formatMoney(row.valueCents) : null,
+            value: row.valueCents ? formatMoney(row.valueCents, ctx.currency) : null,
             waitingDays: row.waitingDays,
             note: row.note,
           }));
@@ -1907,15 +1907,15 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
           });
 
           return {
-            toStaff: formatMoney(result.wagesCents),
-            toSars: formatMoney(result.toSarsCents),
-            total: formatMoney(result.totalCents),
+            toStaff: formatMoney(result.wagesCents, ctx.currency),
+            toSars: formatMoney(result.toSarsCents, ctx.currency),
+            total: formatMoney(result.totalCents, ctx.currency),
             sarsDueOn: result.sarsDueOn.toISOString().slice(0, 10),
             note: result.note,
             payslips: result.payslips.map((slip) => ({
               name: slip.name,
-              gross: formatMoney(slip.grossCents),
-              net: formatMoney(slip.netCents),
+              gross: formatMoney(slip.grossCents, ctx.currency),
+              net: formatMoney(slip.netCents, ctx.currency),
               warnings: slip.warnings,
             })),
           };
@@ -1935,7 +1935,7 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
           return {
             period: pack.periodLabel,
             dueOn: pack.dueOn.toISOString().slice(0, 10),
-            boxes: pack.fields.map((field) => ({ box: field.box, label: field.label, amount: formatMoney(field.valueCents), basis: field.basis })),
+            boxes: pack.fields.map((field) => ({ box: field.box, label: field.label, amount: formatMoney(field.valueCents, ctx.currency), basis: field.basis })),
             warnings: pack.warnings,
             supportingRows: pack.supporting.rows,
             where: pack.where,
@@ -1963,8 +1963,8 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
             nextOutage: next ? { startsAt: next.startsAt.toISOString(), minutesAway: next.minutesAway } : null,
             lastThirtyDays: {
               workingHoursLost: cost.workingDarkHours,
-              lostLabour: cost.lostLabourCents ? formatMoney(cost.lostLabourCents) : null,
-              generatorFuel: formatMoney(cost.generatorFuelCents),
+              lostLabour: cost.lostLabourCents ? formatMoney(cost.lostLabourCents, ctx.currency) : null,
+              generatorFuel: formatMoney(cost.generatorFuelCents, ctx.currency),
               caveats: cost.caveats,
             },
           };
@@ -1973,7 +1973,7 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
   },
 
   marketplaceMargin: {
-    build: () =>
+    build: (ctx) =>
       tool({
         description:
           "What is actually left on a line after a marketplace takes its commission and VAT comes off — the number that " +
@@ -1994,13 +1994,14 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
             category: input.category,
             shippingCents: input.shippingCents,
             vatPercent: input.vatPercent,
+            currency: ctx.currency,
           });
           const def = MARKETPLACE_BY_KEY[input.marketplace];
           return {
             commission: `${result.commissionPercent}%`,
-            commissionAmount: formatMoney(result.commissionCents),
-            leftAfterFees: formatMoney(result.netCents),
-            margin: formatMoney(result.marginCents),
+            commissionAmount: formatMoney(result.commissionCents, ctx.currency),
+            leftAfterFees: formatMoney(result.netCents, ctx.currency),
+            margin: formatMoney(result.marginCents, ctx.currency),
             marginPercent: result.marginPercent,
             verdict: result.verdict,
             otherFees: def?.otherFees ?? [],
@@ -2066,7 +2067,7 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
               ? { number: answer.registration.number, looksRight: answer.registration.plausible, kind: answer.registration.entityType, note: answer.registration.reason }
               : null,
             howTheyPay: answer.behaviour.verdict,
-            outstanding: formatMoney(answer.behaviour.outstandingCents),
+            outstanding: formatMoney(answer.behaviour.outstandingCents, ctx.currency),
             oldestUnpaidDays: answer.behaviour.oldestOutstandingDays,
             caveat: answer.behaviour.caveat,
           };
@@ -2312,7 +2313,7 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
               hours: Math.round(sheet.totalMinutes / 60),
               onJobs: Math.round(sheet.onJobMinutes / 60),
               reachedACustomer: `${sheet.billablePercent}%`,
-              cost: sheet.costCents === null ? null : formatMoney(sheet.costCents),
+              cost: sheet.costCents === null ? null : formatMoney(sheet.costCents, ctx.currency),
               jobs: sheet.jobs.map((job) => ({ what: job.title, hours: Math.round((job.minutes / 60) * 10) / 10 })),
               warnings: sheet.warnings,
             };
@@ -2345,9 +2346,9 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
             people: position.rows.map((row) => ({
               who: row.name,
               jobs: row.jobs,
-              agreed: formatMoney(row.agreedCents),
-              invoiced: formatMoney(row.invoicedCents),
-              stillToCome: formatMoney(row.outstandingCents),
+              agreed: formatMoney(row.agreedCents, ctx.currency),
+              invoiced: formatMoney(row.invoicedCents, ctx.currency),
+              stillToCome: formatMoney(row.outstandingCents, ctx.currency),
               disagreements: row.disagreements.map((item) => item.note),
             })),
             note: position.note,
@@ -2400,7 +2401,7 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
               what: finding.what,
               couldBe: finding.couldBe,
               whatToDo: finding.next,
-              amount: finding.amountCents === null ? null : formatMoney(finding.amountCents),
+              amount: finding.amountCents === null ? null : formatMoney(finding.amountCents, ctx.currency),
             })),
             note: result.note,
             stance: result.stance,
@@ -2422,7 +2423,7 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
             reputationHealth(ctx.tenantId, new Date(Date.now() - 90 * 86_400_000)),
           ]);
           return {
-            ask: asking.candidates.map((row) => ({ who: row.name, paid: formatMoney(row.amountCents), why: row.why })),
+            ask: asking.candidates.map((row) => ({ who: row.name, paid: formatMoney(row.amountCents, ctx.currency), why: row.why })),
             leftOut: asking.skipped,
             note: asking.note,
             askedShare: `${health.sharePercent}%`,
@@ -2503,7 +2504,7 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
             code: partner.code,
             clients: book.clients.map((client) => ({ name: client.name, canOpen: client.hasAccess, needsAttention: client.attention })),
             note: book.note,
-            share: { clients: earnings.clients, earningNow: earnings.earningNow, monthly: formatMoney(earnings.monthlyCents), caveat: earnings.caveat },
+            share: { clients: earnings.clients, earningNow: earnings.earningNow, monthly: formatMoney(earnings.monthlyCents, ctx.currency), caveat: earnings.caveat },
           };
         },
       }),
@@ -4156,7 +4157,7 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
             agreedCents: input.agreedCents,
             scope: input.scope,
           });
-          return { who: result.subcontractor, agreed: formatMoney(result.agreedCents), sendThem: result.portalUrl, note: result.note };
+          return { who: result.subcontractor, agreed: formatMoney(result.agreedCents, ctx.currency), sendThem: result.portalUrl, note: result.note };
         },
       }),
   },

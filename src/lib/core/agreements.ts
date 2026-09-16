@@ -416,8 +416,10 @@ function money(cents: number | null | undefined, currency: string, recurrence?: 
   }
 }
 
-function asDate(d: Date | null | undefined): string | undefined {
-  return d ? d.toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" }) : undefined;
+// The locale is the business's own, so a US contract reads "March 4, 2026"
+// and a South African one "4 March 2026".
+function asDate(d: Date | null | undefined, locale?: string): string | undefined {
+  return d ? d.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }) : undefined;
 }
 
 export async function createAgreement(params: {

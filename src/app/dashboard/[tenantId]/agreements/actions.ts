@@ -1,5 +1,7 @@
 "use server";
 
+import { regionOf } from "@/lib/regions";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { AgreementKind } from "@prisma/client";
@@ -103,7 +105,8 @@ export async function draftAgreementAction(tenantId: string, formData: FormData)
   const recurrence = String(formData.get("recurrence") ?? "").trim() || null;
   const startsAt = date(formData.get("startsAt"));
   const endsAt = date(formData.get("endsAt"));
-  const asDate = (d: Date | null) => (d ? d.toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" }) : undefined);
+  const region = await regionOf(tenantId);
+  const asDate = (d: Date | null) => (d ? d.toLocaleDateString(region.locale, { day: "numeric", month: "long", year: "numeric" }) : undefined);
 
   const draft = await draftAgreement({
     instruction,
@@ -194,7 +197,7 @@ export async function reviseAgreementAction(tenantId: string, id: string) {
     tenantId,
     partyId: existing.partyId,
     kind: existing.kind,
-    title: `${existing.title.replace(/ \(revised.*\)$/, "")} (revised ${new Date().toLocaleDateString("en-ZA")})`,
+    title: `${existing.title.replace(/ \(revised.*\)$/, "")} (revised ${new Date().toLocaleDateString((await regionOf(tenantId)).locale)})`,
     clauses: parseClauses(existing.clauses),
     valueCents: existing.valueCents,
     recurrence: existing.recurrence,

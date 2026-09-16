@@ -3,12 +3,10 @@ import { SubmitButton } from "@/components/dashboard/SubmitButton";
 import { findCostRises, type RepricingLine } from "@/lib/core/repricing";
 import { supplierPerformance, type SupplierStat } from "@/lib/core/supplierPerformance";
 import { applyPriceAction } from "./actions";
+import { moneyOf } from "@/lib/regions";
 
 export const dynamic = "force-dynamic";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString("en-ZA", { style: "currency", currency: "ZAR" });
-}
 
 function Caveats({ items }: { items: string[] }) {
   if (items.length === 0) return null;
@@ -27,7 +25,9 @@ function Caveats({ items }: { items: string[] }) {
   );
 }
 
-function MarginTile({ line, tenantId }: { line: RepricingLine; tenantId: string }) {
+// The formatter comes in as a prop. A component that formats money without
+// being told whose it is is a geo-lock waiting to happen.
+function MarginTile({ line, tenantId, money }: { line: RepricingLine; tenantId: string; money: (cents: number) => string }) {
   const accent = line.sellingAtALoss ? "var(--kb-tint-peach-ink)" : "var(--kb-tint-yellow-ink)";
 
   return (
@@ -102,7 +102,7 @@ function MarginTile({ line, tenantId }: { line: RepricingLine; tenantId: string 
   );
 }
 
-function SupplierTile({ stat }: { stat: SupplierStat }) {
+function SupplierTile({ stat, money }: { stat: SupplierStat; money: (cents: number) => string }) {
   const flagged = stat.flags.length > 0;
   const accent = flagged ? "var(--kb-tint-yellow-ink)" : "var(--kb-tint-blue-ink)";
 
@@ -165,6 +165,8 @@ export default async function MarginsPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
   const [repricing, suppliers] = await Promise.all([
     findCostRises(tenantId),
     supplierPerformance(tenantId),
@@ -205,7 +207,7 @@ export default async function MarginsPage({
           <p className="mt-0.5 max-w-prose text-sm text-[var(--kb-text-dim)]">{repricing.summary}</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {repricing.lines.map((l) => (
-              <MarginTile key={l.itemId} line={l} tenantId={tenantId} />
+              <MarginTile money={money} key={l.itemId} line={l} tenantId={tenantId} />
             ))}
           </div>
           <Caveats items={repricing.caveats} />
@@ -221,7 +223,7 @@ export default async function MarginsPage({
           <p className="mt-0.5 max-w-prose text-sm text-[var(--kb-text-dim)]">{suppliers.summary}</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {suppliers.suppliers.map((s) => (
-              <SupplierTile key={s.supplierId} stat={s} />
+              <SupplierTile money={money} key={s.supplierId} stat={s} />
             ))}
           </div>
           <Caveats items={suppliers.caveats} />

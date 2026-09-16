@@ -1,10 +1,8 @@
 import { prisma } from "@/lib/db";
 import { getFuelAnomalies } from "@/lib/core/fuel";
 import { logFuelAction } from "./actions";
+import { moneyOf } from "@/lib/regions";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 export default async function FuelPage({
   params,
@@ -12,6 +10,8 @@ export default async function FuelPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
   const [anomalies, memberships] = await Promise.all([
     getFuelAnomalies(tenantId),
     prisma.membership.findMany({ where: { tenantId }, include: { user: true } }),

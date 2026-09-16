@@ -218,7 +218,7 @@ describe("the hours the power is off", () => {
 
 describe("selling somewhere else", () => {
   it("says plainly when a line loses money at that commission", () => {
-    const bad = trueMargin({ marketplace: "takealot", category: "Clothing", sellPriceCents: 20_000, costCents: 18_000 });
+    const bad = trueMargin({ marketplace: "takealot", category: "Clothing", sellPriceCents: 20_000, costCents: 18_000, currency: "ZAR" });
     expect(bad.commissionPercent).toBe(20);
     expect(bad.marginCents).toBeLessThan(0);
     expect(bad.verdict).toMatch(/loses money/i);
@@ -227,8 +227,8 @@ describe("selling somewhere else", () => {
   });
 
   it("takes the commission off the price including VAT, which is where sellers go wrong", () => {
-    const withoutVat = trueMargin({ marketplace: "takealot", category: "Electronics", sellPriceCents: 100_000, costCents: 50_000 });
-    const withVat = trueMargin({ marketplace: "takealot", category: "Electronics", sellPriceCents: 100_000, costCents: 50_000, vatPercent: 15 });
+    const withoutVat = trueMargin({ marketplace: "takealot", category: "Electronics", sellPriceCents: 100_000, costCents: 50_000, currency: "ZAR" });
+    const withVat = trueMargin({ marketplace: "takealot", category: "Electronics", sellPriceCents: 100_000, costCents: 50_000, currency: "ZAR", vatPercent: 15 });
     expect(withVat.marginCents).toBeLessThan(withoutVat.marginCents);
   });
 

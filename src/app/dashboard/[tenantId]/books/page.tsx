@@ -1,3 +1,4 @@
+import { moneyOf } from "@/lib/regions";
 import { prisma } from "@/lib/db";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
 import { listClosedPeriods } from "@/lib/core/ledger";
@@ -17,9 +18,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString("en-ZA", { style: "currency", currency: "ZAR" });
-}
 
 function monthLabel(year: number, month: number) {
   return new Date(Date.UTC(year, month - 1, 1)).toLocaleString(undefined, {
@@ -54,7 +52,9 @@ function Figure({
   );
 }
 
-function SectionTable({ section }: { section: ReportSection }) {
+// The formatter comes in as a prop. A component that formats money without
+// being told whose it is is a geo-lock waiting to happen.
+function SectionTable({ section, money }: { section: ReportSection; money: (cents: number) => string }) {
   if (section.rows.length === 0) return null;
   return (
     <div className="mt-4">
@@ -91,6 +91,8 @@ export default async function BooksPage({
   searchParams: Promise<{ year?: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
   const { year: yearParam } = await searchParams;
 
   const accountCount = await prisma.account.count({ where: { tenantId } });
@@ -227,13 +229,13 @@ export default async function BooksPage({
           <p className="text-xs text-[var(--kb-text-dim)]">
             {from.toISOString().slice(0, 10)} to {to.toISOString().slice(0, 10)}
           </p>
-          <SectionTable section={pl.income} />
-          <SectionTable section={pl.costOfSales} />
+          <SectionTable money={money} section={pl.income} />
+          <SectionTable money={money} section={pl.costOfSales} />
           <div className="mt-3 flex justify-between border-t border-[var(--kb-panel-border)] pt-2 text-sm font-semibold text-[var(--kb-text)]">
             <span>Gross profit</span>
             <span className="tabular-nums">{money(pl.grossProfitCents)}</span>
           </div>
-          <SectionTable section={pl.expenses} />
+          <SectionTable money={money} section={pl.expenses} />
           <div className="mt-3 flex justify-between border-t-2 border-[var(--kb-text)] pt-2 text-sm font-semibold text-[var(--kb-text)]">
             <span>{pl.netProfitCents < 0 ? "Loss for the year" : "Net profit"}</span>
             <span className="tabular-nums" style={{ color: profitTone }}>
@@ -247,8 +249,8 @@ export default async function BooksPage({
           <p className="text-xs text-[var(--kb-text-dim)]">
             At {bs.to.toISOString().slice(0, 10)}
           </p>
-          <SectionTable section={bs.assets} />
-          <SectionTable section={bs.liabilities} />
+          <SectionTable money={money} section={bs.assets} />
+          <SectionTable money={money} section={bs.liabilities} />
           <div className="mt-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--kb-text-dim)]">
               {bs.equity.label}

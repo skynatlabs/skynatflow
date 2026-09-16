@@ -76,7 +76,7 @@ async function ownerContextFor(tenantId: string) {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
     select: {
-      niche: true,
+      currency: true, niche: true,
       agentProactiveEnabled: true,
       memberships: {
         where: { role: "OWNER" },
@@ -97,6 +97,7 @@ async function ownerContextFor(tenantId: string) {
       userId: owner.userId,
       membershipId: owner.id,
       customerLabel: nicheConfig(tenant.niche).customerLabel,
+      currency: tenant.currency,
     },
   };
 }

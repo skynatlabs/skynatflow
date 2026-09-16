@@ -9,10 +9,8 @@
 
 import { useState } from "react";
 import type { PayrollResult } from "./actions";
+import { useMoney } from "@/components/WorkspaceRegionProvider";
 
-function money(cents: number) {
-  return `R${(cents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 export function PayrollRun({
   tenantId,
@@ -25,6 +23,7 @@ export function PayrollRun({
   defaultMonth: string;
   runAction: (formData: FormData) => Promise<PayrollResult>;
 }) {
+  const money = useMoney();
   const [result, setResult] = useState<PayrollResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

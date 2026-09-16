@@ -38,7 +38,7 @@ export default async function StatusPage() {
         <p className="text-xs uppercase tracking-wide text-[var(--kb-text-dim)]">{BRAND}</p>
         <h1 className="mt-1 text-2xl font-semibold text-balance text-[var(--kb-text)] sm:text-3xl">{report.headline}</h1>
         <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-          Checked just now, {report.checkedAt.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}. This page runs
+          Checked just now, {report.checkedAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}. This page runs
           the checks when you open it — it is never a cached green tick.
         </p>
 

@@ -1,3 +1,4 @@
+import { moneyOf } from "@/lib/regions";
 import { prisma } from "@/lib/db";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
 import { listBankAccounts, reconciliationGap } from "@/lib/core/banking";
@@ -12,9 +13,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString("en-ZA", { style: "currency", currency: "ZAR" });
-}
 
 function fmt(date: Date) {
   return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -35,7 +33,9 @@ function suggestRuleText(description: string): string {
   return words.slice(0, 2).join(" ");
 }
 
-function ProposalRow({ p, tenantId }: { p: ProposedMatch; tenantId: string }) {
+// The formatter is passed in rather than reached for: a sub-component that
+// formats money without being told whose it is is a geo-lock waiting to happen.
+function ProposalRow({ p, tenantId, money }: { p: ProposedMatch; tenantId: string; money: (cents: number) => string }) {
   const moneyIn = p.amountCents > 0;
   const tone = moneyIn ? "var(--kb-tint-mint-ink)" : "var(--kb-text)";
 
@@ -147,6 +147,8 @@ export default async function BankingPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
 
   const accountCount = await prisma.account.count({ where: { tenantId } });
   const accounts = await listBankAccounts(tenantId);
@@ -225,7 +227,7 @@ export default async function BankingPage({
           <h2 className="text-lg font-semibold text-[var(--kb-text)]">To explain</h2>
           <ul className="kb-card mt-3 divide-y divide-[var(--kb-panel-border)]">
             {proposals.proposals.map((p) => (
-              <ProposalRow key={p.bankTransactionId} p={p} tenantId={tenantId} />
+              <ProposalRow key={p.bankTransactionId} p={p} tenantId={tenantId} money={money} />
             ))}
           </ul>
         </section>

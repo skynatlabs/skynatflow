@@ -2,10 +2,8 @@ import { listProperties, listAvailableProperties, listLeases, getExpiringLeases 
 import { listCustomers } from "@/lib/core/parties";
 import { addPropertyAction, addLeaseAction, endLeaseAction } from "./actions";
 import { Pagination } from "@/components/dashboard/Pagination";
+import { moneyOf } from "@/lib/regions";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 export default async function PropertiesPage({
   params,
@@ -15,6 +13,8 @@ export default async function PropertiesPage({
   searchParams: Promise<{ propertiesPage?: string; leasesPage?: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
   const { propertiesPage: propertiesPageParam, leasesPage: leasesPageParam } = await searchParams;
   const propertiesPage = Math.max(1, Number(propertiesPageParam ?? 1));
   const leasesPage = Math.max(1, Number(leasesPageParam ?? 1));

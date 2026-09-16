@@ -12,6 +12,7 @@ const ctx: AgentContext = {
   role: "OWNER",
   userId: "u_1",
   membershipId: "m_1",
+  currency: "ZAR",
   customerLabel: "Customer",
 };
 

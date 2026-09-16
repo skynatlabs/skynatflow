@@ -11,6 +11,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { markQuoteOutcomeAction } from "./actions";
 import { BreakdownBarChart } from "@/components/dashboard/MiniCharts";
+import { moneyOf } from "@/lib/regions";
 
 const COLUMN_COLOR: Record<string, string> = {
   DRAFT: "var(--kb-tint-blue-ink)",
@@ -19,9 +20,6 @@ const COLUMN_COLOR: Record<string, string> = {
   DECLINED: "var(--kb-tint-peach-ink)",
 };
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 const COLUMN_LIMIT = 25;
 
@@ -42,6 +40,8 @@ export default async function PipelinePage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
 
   const columns = await Promise.all(
     COLUMNS.map(async (col) => {

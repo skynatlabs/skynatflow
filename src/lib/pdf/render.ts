@@ -14,6 +14,7 @@ import { resolveSections } from "./sections";
 import { generateQrDataUrl } from "./qr";
 import { totalPaid, totalRefunded } from "@/lib/core/money";
 import { formatMoney } from "@/lib/format/money";
+import { regionFor } from "@/lib/regions";
 
 type TxWithLines = Transaction & {
   itemLines: (TransactionLine & { item: Item })[];
@@ -474,8 +475,11 @@ export async function renderAgreementPdf(params: {
   };
 
   const currency = params.agreement.currency ?? params.tenant.currency;
+  // The locale follows the business's country, so a US contract reads
+  // "March 4, 2026" and a South African one "4 March 2026".
+  const locale = regionFor(params.tenant.countryCode).locale;
   const date = (d: Date | null) =>
-    d ? d.toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" }) : null;
+    d ? d.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }) : null;
   const per =
     params.agreement.recurrence === "monthly"
       ? " a month"

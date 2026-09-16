@@ -6,6 +6,8 @@
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email/client";
 import { getReorderSuggestions } from "./inventory";
+import { tenantCurrency } from "./currency";
+import { formatMoney } from "@/lib/format/money";
 
 export interface PurchaseOrderLineInput {
   itemId: string;
@@ -54,8 +56,8 @@ export async function buildPurchaseOrderLinesFromReorderSuggestions(
     }));
 }
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
+function money(cents: number, currency: string) {
+  return formatMoney(cents, currency, { decimals: true });
 }
 
 export async function sendPurchaseOrder(
@@ -68,12 +70,15 @@ export async function sendPurchaseOrder(
   });
   if (!po || po.tenantId !== tenantId) throw new Error("Purchase order not found.");
 
+  // The purchase order already carries its tenant, so the currency comes free.
+  const currency = po.tenant.currency;
+
   if (!po.supplier.email) {
     return { ok: false, reason: "This supplier has no email on file — send it another way, or add their email first." };
   }
 
   const rows = po.lines
-    .map((l) => `<tr><td>${l.item.name}</td><td>${l.quantity}</td><td>${money(l.unitCostCents)}</td><td>${money(l.quantity * l.unitCostCents)}</td></tr>`)
+    .map((l) => `<tr><td>${l.item.name}</td><td>${l.quantity}</td><td>${money(l.unitCostCents, currency)}</td><td>${money(l.quantity * l.unitCostCents, currency)}</td></tr>`)
     .join("");
 
   try {
@@ -87,7 +92,7 @@ export async function sendPurchaseOrder(
           <thead><tr><th>Item</th><th>Qty</th><th>Unit cost</th><th>Total</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
-        <p><strong>Order total: ${money(po.totalCostCents)}</strong></p>
+        <p><strong>Order total: ${money(po.totalCostCents, currency)}</strong></p>
         <p>Thanks,<br/>${po.tenant.name}</p>
       `,
     });

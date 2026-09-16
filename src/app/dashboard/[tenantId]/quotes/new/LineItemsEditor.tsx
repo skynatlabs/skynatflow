@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { computeDocumentTotal } from "@/lib/core/pricing";
 import { ProductSearch } from "@/components/dashboard/ProductSearch";
+import { useMoney } from "@/components/WorkspaceRegionProvider";
 
 // Lets an external client component (SmartEntryBox) push a fresh set of
 // rows in after this component has already mounted — initialLines only
@@ -34,13 +35,6 @@ export interface LineItemValue {
   unit?: string | null;
 }
 
-function money(rand: number) {
-  return rand.toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
-function centsToRand(cents: number) {
-  return money(cents / 100);
-}
-
 let nextRowKey = 1;
 
 export function LineItemsEditor({
@@ -52,6 +46,7 @@ export function LineItemsEditor({
   initialLines?: LineItemValue[];
   initialDocumentDiscountPercent?: number;
 }) {
+  const money = useMoney();
   const [rows, setRows] = useState<(LineItemValue & { key: number })[]>(() =>
     (initialLines?.length ? initialLines : [{ itemId: "", itemName: "", quantity: 1, priceRand: 0 }]).map(
       (l) => ({ ...l, key: nextRowKey++ })
@@ -210,7 +205,7 @@ export function LineItemsEditor({
                     />
                   </td>
                   <td className="px-3 py-2 text-right align-top text-[var(--kb-text)]">
-                    {centsToRand(beforeTaxCents + taxCents)}
+                    {money(beforeTaxCents + taxCents)}
                   </td>
                   <td className="px-1 py-2 align-top">
                     <button
@@ -250,18 +245,18 @@ export function LineItemsEditor({
       <div className="mt-3 space-y-1.5 border-t border-[var(--kb-panel-border)] pt-3">
         <div className="flex justify-between text-sm text-[var(--kb-text-dim)]">
           <span>Subtotal</span>
-          <span>{centsToRand(breakdown.subtotalCents)}</span>
+          <span>{money(breakdown.subtotalCents)}</span>
         </div>
         {breakdown.lineDiscountCents > 0 && (
           <div className="flex justify-between text-sm text-[var(--kb-text-dim)]">
             <span>Line discounts</span>
-            <span>&minus;{centsToRand(breakdown.lineDiscountCents)}</span>
+            <span>&minus;{money(breakdown.lineDiscountCents)}</span>
           </div>
         )}
         {breakdown.taxCents > 0 && (
           <div className="flex justify-between text-sm text-[var(--kb-text-dim)]">
             <span>Tax</span>
-            <span>{centsToRand(breakdown.taxCents)}</span>
+            <span>{money(breakdown.taxCents)}</span>
           </div>
         )}
         <div className="flex items-center justify-between gap-3 text-sm text-[var(--kb-text-dim)]">
@@ -277,12 +272,12 @@ export function LineItemsEditor({
               className="w-16 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-panel)] px-2 py-1 text-sm"
             />
           </label>
-          <span>&minus;{centsToRand(breakdown.documentDiscountCents)}</span>
+          <span>&minus;{money(breakdown.documentDiscountCents)}</span>
         </div>
         <input type="hidden" name="documentDiscountPercent" value={documentDiscountPercent} />
         <div className="flex justify-end gap-4 border-t border-[var(--kb-panel-border)] pt-2">
           <span className="font-medium text-[var(--kb-text-dim)]">Total</span>
-          <span className="text-base font-semibold text-[var(--kb-text)]">{centsToRand(breakdown.totalCents)}</span>
+          <span className="text-base font-semibold text-[var(--kb-text)]">{money(breakdown.totalCents)}</span>
         </div>
       </div>
     </div>

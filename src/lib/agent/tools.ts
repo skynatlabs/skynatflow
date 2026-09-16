@@ -49,6 +49,15 @@ export interface AgentContext {
   // Vocabulary for this tenant's vertical, so the agent talks about
   // "patients" or "clients" rather than always "customers".
   customerLabel: string;
+  /**
+   * What this workspace's money is written in, ISO 4217.
+   *
+   * Carried on the context rather than fetched per tool, because an officer
+   * summarising six figures should not make six queries — and because a tool
+   * that has to remember to look it up is a tool that will one day say rands
+   * to somebody in Ohio.
+   */
+  currency: string;
 }
 
 // `tool()` infers a distinct generic per input schema, so the registry can't

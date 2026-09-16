@@ -28,10 +28,12 @@ export interface AgreementForWord {
   customer: { name: string; companyName?: string | null; vatNumber?: string | null; address?: string | null; email?: string | null; phone?: string | null };
   signature?: { signerName: string; signedAt: Date; hash?: string | null } | null;
   ourSignerName?: string | null;
+  /** The business's own locale, so a US contract reads "March 4, 2026". */
+  locale?: string;
 }
 
-function longDate(d: Date | null | undefined): string | null {
-  return d ? d.toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" }) : null;
+function longDate(d: Date | null | undefined, locale?: string): string | null {
+  return d ? d.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }) : null;
 }
 
 export function agreementToDocx(a: AgreementForWord): { fileName: string; data: Buffer } {
@@ -53,7 +55,7 @@ export function agreementToDocx(a: AgreementForWord): { fileName: string; data: 
   const blocks: DocxBlock[] = [
     { kind: "paragraph", text: a.kindLabel.toUpperCase(), muted: true },
     { kind: "heading", text: a.title, level: 1 },
-    { kind: "paragraph", text: `No. ${a.number} · ${longDate(a.createdAt)}`, muted: true },
+    { kind: "paragraph", text: `No. ${a.number} · ${longDate(a.createdAt, a.locale)}`, muted: true },
     { kind: "spacer" },
     { kind: "heading", text: "Between", level: 2 },
     { kind: "paragraph", text: partyLines(a.business) },
@@ -63,9 +65,9 @@ export function agreementToDocx(a: AgreementForWord): { fileName: string; data: 
 
   const terms = [
     a.valueCents !== null ? ["Value", `${formatMoney(a.valueCents, a.currency, { decimals: true })}${per}`] : null,
-    longDate(a.startsAt) ? ["Starts", longDate(a.startsAt)!] : null,
-    longDate(a.endsAt) ? ["Ends", longDate(a.endsAt)!] : null,
-    longDate(a.validUntil) ? ["Valid until", longDate(a.validUntil)!] : null,
+    longDate(a.startsAt, a.locale) ? ["Starts", longDate(a.startsAt, a.locale)!] : null,
+    longDate(a.endsAt, a.locale) ? ["Ends", longDate(a.endsAt, a.locale)!] : null,
+    longDate(a.validUntil, a.locale) ? ["Valid until", longDate(a.validUntil, a.locale)!] : null,
   ].filter(Boolean) as string[][];
   if (terms.length > 0) {
     blocks.push({ kind: "spacer" }, { kind: "table", header: ["Term", ""], rows: terms });
@@ -86,7 +88,7 @@ export function agreementToDocx(a: AgreementForWord): { fileName: string; data: 
       header: [`For ${a.business.name}`, `For ${a.customer.companyName ?? a.customer.name}`],
       rows: [
         [a.ourSignerName ?? "", a.signature?.signerName ?? ""],
-        ["Date:", a.signature ? longDate(a.signature.signedAt)! : "Date:"],
+        ["Date:", a.signature ? longDate(a.signature.signedAt, a.locale)! : "Date:"],
       ],
     }
   );

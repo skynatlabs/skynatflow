@@ -5,6 +5,8 @@
 
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email/client";
+import { formatMoney } from "@/lib/format/money";
+import { tenantCurrency } from "./currency";
 
 export async function maybeAlertHotLead(quoteId: string) {
   const quote = await prisma.transaction.findUniqueOrThrow({
@@ -21,10 +23,7 @@ export async function maybeAlertHotLead(quoteId: string) {
   });
   if (!ownerMembership?.user.email) return;
 
-  const amount = (quote.amountCents / 100).toLocaleString(undefined, {
-    style: "currency",
-    currency: "ZAR",
-  });
+  const amount = formatMoney(quote.amountCents, await tenantCurrency(quote.tenantId), { decimals: true });
 
   await sendEmail({
     to: ownerMembership.user.email,

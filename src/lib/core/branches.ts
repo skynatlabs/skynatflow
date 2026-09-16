@@ -14,6 +14,8 @@
 import { prisma } from "@/lib/db";
 import { postEntry } from "./ledger";
 import { profitAndLoss, type ProfitAndLoss } from "./financialReports";
+import { tenantCurrency } from "./currency";
+import { formatMoney } from "@/lib/format/money";
 
 export async function createBranch(params: {
   tenantId: string;
@@ -161,6 +163,7 @@ export async function compareBranches(
   const from = opts.from ?? new Date(Date.UTC(to.getUTCFullYear(), 0, 1));
 
   const branches = await listBranches(tenantId);
+  const currency = await tenantCurrency(tenantId);
 
   const [perBranch, unassignedPl, headcount, assetCounts, unassignedCounts] = await Promise.all([
     Promise.all(
@@ -215,22 +218,24 @@ export async function compareBranches(
     unassigned,
     from,
     to,
-    summary: summarise(rows, unassigned),
+    summary: summarise(rows, unassigned, currency),
     caveats: caveatsFor(rows, unassigned),
   };
 }
 
-function summarise(rows: BranchPerformance[], unassigned: BranchPerformance | null): string {
+// The currency is passed in rather than looked up, so this stays a pure
+// function of its inputs — and so it is impossible to call without having
+// said whose money these figures are.
+function summarise(rows: BranchPerformance[], unassigned: BranchPerformance | null, currency: string): string {
   if (rows.length === 0) return "";
 
-  const rands = (c: number) =>
-    `R${Math.abs(c / 100).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`;
+  const money = (c: number) => formatMoney(Math.abs(c), currency);
 
   const losing = rows.filter((r) => r.netProfitCents < 0);
   if (losing.length > 0) {
     const worst = losing[losing.length - 1];
     // The point of the whole feature: naming the one the average was hiding.
-    return `${worst.name} lost ${rands(worst.netProfitCents)} over this period${
+    return `${worst.name} lost ${money(worst.netProfitCents)} over this period${
       rows.length > 1 ? ", which the combined figure hides" : ""
     }.`;
   }
@@ -238,9 +243,9 @@ function summarise(rows: BranchPerformance[], unassigned: BranchPerformance | nu
   const best = rows[0];
   const extra =
     unassigned && unassigned.netProfitCents !== 0
-      ? ` ${rands(unassigned.netProfitCents)} is not assigned to any branch.`
+      ? ` ${money(unassigned.netProfitCents)} is not assigned to any branch.`
       : "";
-  return `${best.name} is the strongest at ${rands(best.netProfitCents)}.${extra}`;
+  return `${best.name} is the strongest at ${money(best.netProfitCents)}.${extra}`;
 }
 
 function caveatsFor(rows: BranchPerformance[], unassigned: BranchPerformance | null): string[] {

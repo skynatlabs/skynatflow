@@ -3,10 +3,8 @@ import { prisma } from "@/lib/db";
 import { customerBalances } from "@/lib/core/money";
 import { BreakdownBarChart } from "@/components/dashboard/MiniCharts";
 import { Pagination } from "@/components/dashboard/Pagination";
+import { moneyOf } from "@/lib/regions";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 const PAGE_SIZE = 48;
 
@@ -18,6 +16,8 @@ export default async function StatementsIndexPage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
   const { page: pageParam } = await searchParams;
   // Every customer's balance in one statement, so nobody is left off the
   // list for coming late in the alphabet.

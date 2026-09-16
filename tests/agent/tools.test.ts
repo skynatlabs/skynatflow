@@ -24,6 +24,7 @@ const ctxFor = (role: AgentContext["role"], tid = tenantId): AgentContext => ({
   role,
   userId: "user-test",
   membershipId: null,
+  currency: "ZAR",
   customerLabel: "Customer",
 });
 

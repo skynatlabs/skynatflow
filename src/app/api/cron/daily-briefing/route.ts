@@ -1,3 +1,4 @@
+import { formatMoney } from "@/lib/format/money";
 // Hit once a day by Hostinger Cron Jobs. Sends each tenant's owner the
 // "one daily action, not a dashboard" WhatsApp summary from the strategic
 // report (Section 12) — cash position and what's gone stale, in plain
@@ -9,8 +10,8 @@ import { findStaleTransactions } from "@/lib/core/money";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/client";
 import { prisma } from "@/lib/db";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
+function money(cents: number, currency: string) {
+  return formatMoney(cents, currency, { decimals: true });
 }
 
 export async function GET(req: NextRequest) {
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
         ? `Morning! Nothing overdue right now — all quotes and invoices are up to date. Have a good one.`
         : `Morning! ${stale.length} quote${stale.length === 1 ? "" : "s"}/invoice${
             stale.length === 1 ? "" : "s"
-          } gone quiet, worth ${money(staleTotal)}. The follow-up engine is already chasing them, but worth a look if any need your personal touch.`;
+          } gone quiet, worth ${money(staleTotal, tenant.currency)}. The follow-up engine is already chasing them, but worth a look if any need your personal touch.`;
 
     if (!owner.phone) {
       console.warn(`[daily-briefing] tenant ${tenant.id} owner has no phone on file, skipping`);

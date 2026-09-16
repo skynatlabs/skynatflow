@@ -2,10 +2,8 @@ import { getActiveRentals, getOverdueRentals } from "@/lib/core/rentals";
 import { listProducts } from "@/lib/core/catalog";
 import { listCustomers } from "@/lib/core/parties";
 import { markRentableAction, createRentalAction, returnRentalAction } from "./actions";
+import { moneyOf } from "@/lib/regions";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 export default async function RentalsPage({
   params,
@@ -13,6 +11,8 @@ export default async function RentalsPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
   const [active, overdue, products, customers] = await Promise.all([
     getActiveRentals(tenantId),
     getOverdueRentals(tenantId),

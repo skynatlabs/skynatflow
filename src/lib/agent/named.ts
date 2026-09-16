@@ -139,7 +139,7 @@ export async function runNamedAgent(params: {
   const tenant = await prisma.tenant.findUniqueOrThrow({
     where: { id: tenantId },
     select: {
-      niche: true,
+      currency: true, niche: true,
       memberships: { where: { role: "OWNER" }, take: 1, select: { id: true, userId: true } },
     },
   });
@@ -153,6 +153,7 @@ export async function runNamedAgent(params: {
       userId: actor?.userId ?? owner.userId,
       membershipId: actor?.membershipId ?? owner.id,
       customerLabel: nicheConfig(tenant.niche).customerLabel,
+      currency: tenant.currency,
     },
     input:
       `Do your job now. Report only what matters — if there is nothing worth raising, ` +

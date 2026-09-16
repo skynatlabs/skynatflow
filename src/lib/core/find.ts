@@ -8,6 +8,8 @@
 // goes there, and anything else goes to the agent.
 
 import { prisma } from "@/lib/db";
+import { formatMoney } from "@/lib/format/money";
+import { tenantCurrency } from "./currency";
 
 export interface FindResult {
   kind: "customer" | "supplier" | "quote" | "invoice" | "product" | "asset" | "trip" | "page";
@@ -49,6 +51,7 @@ export function looksLikeAsking(text: string): boolean {
 }
 
 export async function find(tenantId: string, raw: string, limit = 8): Promise<FindResult[]> {
+  const currency = await tenantCurrency(tenantId);
   const q = raw.trim();
   if (q.length < 2) return [];
   const d = `/dashboard/${tenantId}`;
@@ -94,7 +97,7 @@ export async function find(tenantId: string, raw: string, limit = 8): Promise<Fi
     out.push({
       kind: t.type === "QUOTE" ? "quote" : "invoice",
       label: `${t.type === "QUOTE" ? "Quote" : "Invoice"} · ${t.party.name}${t.subject ? ` · ${t.subject}` : ""}`,
-      hint: `${t.status.toLowerCase().replace("_", " ")} · ${(t.amountCents / 100).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`,
+      hint: `${t.status.toLowerCase().replace("_", " ")} · ${formatMoney(t.amountCents, currency)}`,
       href: `${d}/${t.type === "QUOTE" ? "quotes" : "invoices"}/${t.id}`,
     });
   }

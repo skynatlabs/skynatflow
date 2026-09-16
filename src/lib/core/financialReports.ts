@@ -13,6 +13,8 @@
 
 import { prisma } from "@/lib/db";
 import { AccountType } from "@prisma/client";
+import { tenantCurrency } from "./currency";
+import { formatMoney } from "@/lib/format/money";
 
 export interface AccountBalance {
   accountId: string;
@@ -192,6 +194,7 @@ export async function profitAndLoss(
   const from = opts.from ?? new Date(Date.UTC(to.getUTCFullYear(), 0, 1));
 
   const balances = await accountBalances(tenantId, { ...opts, from, to });
+  const currency = await tenantCurrency(tenantId);
   const nonZero = balances.filter((b) => b.balanceCents !== 0);
 
   const incomeRows = nonZero.filter((b) => b.type === "INCOME");
@@ -216,24 +219,25 @@ export async function profitAndLoss(
       incomeTotal > 0 ? Math.round((grossProfitCents / incomeTotal) * 1000) / 10 : null,
     from,
     to,
-    summary: plSummary(incomeTotal, netProfitCents),
+    summary: plSummary(incomeTotal, netProfitCents, currency),
   };
 }
 
-function plSummary(incomeCents: number, netCents: number): string {
+// Currency in, rather than looked up: a pure function of its inputs, and one
+// that cannot be called without saying whose money it is describing.
+function plSummary(incomeCents: number, netCents: number, currency: string): string {
   if (incomeCents === 0 && netCents === 0) return "";
-  const rands = (c: number) =>
-    `R${Math.abs(c / 100).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`;
+  const money = (c: number) => formatMoney(Math.abs(c), currency);
 
   if (netCents > 0) {
-    return `${rands(incomeCents)} in, ${rands(netCents)} kept.`;
+    return `${money(incomeCents)} in, ${money(netCents)} kept.`;
   }
   if (netCents < 0) {
     // Said plainly. A loss described as "negative net profit" is a loss
     // somebody has to read twice.
-    return `${rands(incomeCents)} in, and ${rands(netCents)} more went out than came in.`;
+    return `${money(incomeCents)} in, and ${money(netCents)} more went out than came in.`;
   }
-  return `${rands(incomeCents)} in, exactly breaking even.`;
+  return `${money(incomeCents)} in, exactly breaking even.`;
 }
 
 // ----------------------------------------------------------- balance sheet

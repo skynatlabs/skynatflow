@@ -6,10 +6,8 @@
 import Link from "next/link";
 import { listThisWeekFollowUps } from "@/lib/core/followUpReminders";
 import { BreakdownBarChart } from "@/components/dashboard/MiniCharts";
+import { moneyOf } from "@/lib/regions";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 function dayLabel(date: Date) {
   const now = new Date();
@@ -27,6 +25,8 @@ export default async function ThisWeekPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
   const items = await listThisWeekFollowUps(tenantId);
 
   const dayCounts = items.reduce<Record<string, number>>((acc, t) => {

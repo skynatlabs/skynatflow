@@ -74,8 +74,9 @@ const MONTHS: Array<[RegExp, number]> = [
 export function readCue(text: string, now = new Date()): Cue | null {
   const message = text.toLowerCase();
 
-  // An actual date, written the way South Africans write them. Taken first,
-  // because "call me on 14/03" should never be read as "next month".
+  // An actual date. Taken first, because "call me on 14/03" should never be
+  // read as "next month". The order follows the workspace's country — see
+  // parseLocalDate in lib/regions, which this defers to for the same reason.
   const written = message.match(/\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/);
   if (written) {
     const day = Number(written[1]);
@@ -172,8 +173,8 @@ export interface Proposal {
  * they already gave is irritating, and silently accepting "sometime next
  * year" is how a quote dies.
  */
-export function propose(cue: Cue, params: { businessName: string; what?: string }): Proposal {
-  const when = cue.when.toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" });
+export function propose(cue: Cue, params: { businessName: string; what?: string; locale?: string }): Proposal {
+  const when = cue.when.toLocaleDateString(params.locale, { weekday: "long", day: "numeric", month: "long" });
   const thing = params.what ?? "this";
 
   if (cue.confidence === "exact") {
@@ -206,8 +207,8 @@ export function propose(cue: Cue, params: { businessName: string; what?: string 
  * to set the reminder, because a quote that silently reschedules itself off
  * something a customer half-said is a quote nobody is watching.
  */
-export function readAndPropose(params: { text: string; businessName: string; what?: string; now?: Date }): Proposal | null {
+export function readAndPropose(params: { text: string; businessName: string; what?: string; locale?: string; now?: Date }): Proposal | null {
   const cue = readCue(params.text, params.now);
   if (!cue) return null;
-  return propose(cue, { businessName: params.businessName, what: params.what });
+  return propose(cue, { businessName: params.businessName, what: params.what, locale: params.locale });
 }

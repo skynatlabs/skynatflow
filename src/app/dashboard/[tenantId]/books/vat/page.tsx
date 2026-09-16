@@ -1,3 +1,4 @@
+import { regionOf } from "@/lib/regions";
 // The VAT return.
 //
 // Not a filing integration — nothing here talks to a revenue service. It is
@@ -38,6 +39,7 @@ export default async function VatPage({
     throw err;
   }
 
+  const region = await regionOf(tenantId);
   const period = from && to ? { start: new Date(from), end: new Date(to) } : vatPeriodFor(new Date());
   const [computed, filedReturns, pack] = await Promise.all([
     computeVatReturn(tenantId, period.start, period.end),
@@ -166,7 +168,7 @@ export default async function VatPage({
       {pack && (
         <section className="kb-card mt-5 p-4 sm:p-5">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--kb-text-dim)]">
-            VAT201, box by box &middot; due {pack.dueOn.toLocaleDateString("en-ZA", { day: "numeric", month: "long" })}
+            VAT201, box by box &middot; due {pack.dueOn.toLocaleDateString(region.locale, { day: "numeric", month: "long" })}
           </h2>
           <p className="mt-1 text-xs text-[var(--kb-text-dim)]">{pack.where}</p>
 

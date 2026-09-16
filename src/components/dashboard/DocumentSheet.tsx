@@ -77,8 +77,8 @@ const RIBBON: Record<string, { label: string; bg: string }> = {
   CANCELLED: { label: "Cancelled", bg: "#6b7280" },
 };
 
-function day(d: Date) {
-  return d.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
+function day(d: Date, locale?: string) {
+  return d.toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
 }
 
 export function DocumentSheet(p: SheetProps) {

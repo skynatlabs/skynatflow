@@ -15,6 +15,8 @@
 // suggestion in a way that "aim for 30%" never is.
 
 import { prisma } from "@/lib/db";
+import { tenantCurrency } from "./currency";
+import { formatMoney } from "@/lib/format/money";
 
 export interface RepricingLine {
   itemId: string;
@@ -52,8 +54,10 @@ function pct(part: number, whole: number): number {
   return Math.round((part / whole) * 1000) / 10;
 }
 
-function rands(cents: number): string {
-  return `R${(cents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// Takes the currency rather than assuming one: these sentences are read by
+// the owner, and an owner in Ohio reading rands stops trusting the number.
+function money(cents: number, currency: string): string {
+  return formatMoney(cents, currency, { decimals: true });
 }
 
 /**
@@ -68,6 +72,7 @@ export async function findCostRises(
   opts: { minMovePercent?: number } = {}
 ): Promise<RepricingReport> {
   const minMove = opts.minMovePercent ?? 2;
+  const currency = await tenantCurrency(tenantId);
 
   // Only received orders. What a supplier quoted on a draft is not evidence
   // of what the business is paying.
@@ -133,8 +138,8 @@ export async function findCostRises(
       suggestedPriceCents: suggested,
       sellingAtALoss: seen.cents >= item.unitPriceCents,
       basis:
-        `Catalogue cost ${rands(item.costCents)}, last actually paid ${rands(seen.cents)} on ` +
-        `${seen.at.toISOString().slice(0, 10)}. Selling at ${rands(item.unitPriceCents)} that is ` +
+        `Catalogue cost ${money(item.costCents, currency)}, last actually paid ${money(seen.cents, currency)} on ` +
+        `${seen.at.toISOString().slice(0, 10)}. Selling at ${money(item.unitPriceCents, currency)} that is ` +
         `${marginNow}% margin, not the ${marginAssumed}% the catalogue reports.`,
     });
   }
@@ -146,18 +151,18 @@ export async function findCostRises(
       a.marginNowPercent - b.marginNowPercent
   );
 
-  return { lines: out, summary: summarise(out), caveats: caveatsFor(out) };
+  return { lines: out, summary: summarise(out, currency), caveats: caveatsFor(out) };
 }
 
-function summarise(lines: RepricingLine[]): string {
+function summarise(lines: RepricingLine[], currency: string): string {
   if (lines.length === 0) return "";
 
   const losses = lines.filter((l) => l.sellingAtALoss);
   if (losses.length > 0) {
     const worst = losses[0];
     return (
-      `${worst.name} now costs ${rands(worst.latestPaidCents)} and sells for ` +
-      `${rands(worst.unitPriceCents)} — every one sold loses money.` +
+      `${worst.name} now costs ${money(worst.latestPaidCents, currency)} and sells for ` +
+      `${money(worst.unitPriceCents, currency)} — every one sold loses money.` +
       (losses.length > 1 ? ` ${losses.length - 1} other item${losses.length === 2 ? "" : "s"} the same.` : "")
     );
   }

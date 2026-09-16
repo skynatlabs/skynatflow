@@ -1,3 +1,4 @@
+import { moneyOf } from "@/lib/regions";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
@@ -5,9 +6,6 @@ import { Pagination } from "@/components/dashboard/Pagination";
 
 const STATEMENT_PAGE_SIZE = 50;
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 function ledgerEffect(type: string, amountCents: number) {
   if (type === "PAYMENT") return -amountCents;
@@ -22,6 +20,7 @@ export default async function CustomerStatementPage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const { tenantId, customerId } = await params;
+  const money = await moneyOf(tenantId);
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? 1));
   const party = await prisma.party.findUnique({ where: { id: customerId } });

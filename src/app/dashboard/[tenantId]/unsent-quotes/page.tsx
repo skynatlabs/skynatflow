@@ -1,9 +1,7 @@
 import { getQuoteSlaBreaches } from "@/lib/core/sla";
 import { sendQuoteNowAction } from "./actions";
+import { moneyOf } from "@/lib/regions";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 export default async function UnsentQuotesPage({
   params,
@@ -11,6 +9,8 @@ export default async function UnsentQuotesPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
   const breaches = await getQuoteSlaBreaches(tenantId);
   const totalAmountCents = breaches.reduce((s, b) => s + b.amountCents, 0);
 

@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   const tenant = await prisma.tenant.findUnique({
     where: { id: caller.tenantId },
     select: {
-      name: true,
+      currency: true, name: true,
       niche: true,
       agentAutonomy: true,
       memberships: { where: { role: "OWNER" }, take: 1, select: { id: true, userId: true } },
@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
       userId: owner?.userId ?? caller.keyId,
       membershipId: owner?.id ?? null,
       customerLabel: nicheConfig(tenant.niche).customerLabel,
+      currency: tenant.currency,
     },
     readOnly: caller.readOnly,
     autonomy: tenant.agentAutonomy,

@@ -28,7 +28,7 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 function when(d: Date | null) {
-  return d ? d.toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" }) : null;
+  return d ? d.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) : null;
 }
 
 export default async function PortalAgreementPage({

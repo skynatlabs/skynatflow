@@ -1,3 +1,4 @@
+import { formatMoney } from "@/lib/format/money";
 // Hit by Hostinger's Cron Jobs on a schedule (e.g. hourly). Finds every
 // quote/invoice gone quiet past its threshold, across every tenant, and
 // drafts a follow-up. By default this does NOT send it — the confirm-
@@ -24,11 +25,10 @@ import {
 } from "@/lib/ai/followUp";
 import { prisma } from "@/lib/db";
 
-function templateFollowUpMessage(type: string, amountCents: number, tone: CollectionsTone) {
-  const amount = (amountCents / 100).toLocaleString(undefined, {
-    style: "currency",
-    currency: "ZAR",
-  });
+function templateFollowUpMessage(type: string, amountCents: number, tone: CollectionsTone, currency: string) {
+  // The workspace's own money. A customer in Ohio reading a reminder about
+  // rands stops reading at the currency sign.
+  const amount = formatMoney(amountCents, currency, { decimals: true });
   const doc = type === "QUOTE" ? "quote" : "invoice";
   if (tone === "FIRM") {
     return type === "QUOTE"
@@ -43,10 +43,11 @@ function templateFollowUpMessage(type: string, amountCents: number, tone: Collec
 async function composeFollowUpMessage(
   tx: StaleTransactionWithParty,
   touchNumber: number,
-  tone: CollectionsTone
+  tone: CollectionsTone,
+  currency: string
 ): Promise<string> {
   if (!process.env.ANTHROPIC_API_KEY) {
-    return templateFollowUpMessage(tx.type, tx.amountCents, tone);
+    return templateFollowUpMessage(tx.type, tx.amountCents, tone, currency);
   }
   try {
     return await draftFollowUpMessage({ transaction: tx, touchNumber, tone });
@@ -54,7 +55,7 @@ async function composeFollowUpMessage(
     // AI drafting failing should never block a follow-up from going out —
     // fall back to the template rather than silently skipping the customer.
     console.error("[follow-ups] AI draft failed, falling back to template:", err);
-    return templateFollowUpMessage(tx.type, tx.amountCents, tone);
+    return templateFollowUpMessage(tx.type, tx.amountCents, tone, currency);
   }
 }
 
@@ -68,7 +69,8 @@ async function processTransaction(
   reasoning: string,
   autoRespond: boolean,
   repeatDays: number,
-  tone: CollectionsTone
+  tone: CollectionsTone,
+  currency: string
 ): Promise<boolean> {
   if (!tx.party.phone) return false;
 
@@ -78,7 +80,7 @@ async function processTransaction(
   if (existingPending) return false;
 
   const touchNumber = (await countFollowUpsSent(tx.id)) + 1;
-  const body = await composeFollowUpMessage(tx, touchNumber, tone);
+  const body = await composeFollowUpMessage(tx, touchNumber, tone, currency);
 
   const draft = await prisma.aiDraft.create({
     data: {
@@ -140,7 +142,8 @@ export async function GET(req: NextRequest) {
         followUpReasoning(await countFollowUpsSent(tx.id) + 1, tx.type, tenant.collectionsTone),
         tenant.autoRespondEnabled,
         tenant.followUpRepeatDays,
-        tenant.collectionsTone
+        tenant.collectionsTone,
+        tenant.currency
       );
       if (created) {
         drafted++;
@@ -161,7 +164,8 @@ export async function GET(req: NextRequest) {
         `They opened this quote (${tx.openCount}x) but haven't responded yet — worth a nudge while it's still fresh, rather than waiting for the standard follow-up cadence.`,
         tenant.autoRespondEnabled,
         tenant.followUpRepeatDays,
-        tenant.collectionsTone
+        tenant.collectionsTone,
+        tenant.currency
       );
       if (created) {
         abandonedDrafted++;

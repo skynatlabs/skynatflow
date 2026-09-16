@@ -2,10 +2,8 @@ import { prisma } from "@/lib/db";
 import { listProducts } from "@/lib/core/catalog";
 import { openTillAction, closeTillAction, checkoutAction } from "./actions";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
+import { moneyOf } from "@/lib/regions";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 export default async function PosPage({
   params,
@@ -13,6 +11,8 @@ export default async function PosPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
   const [openSession, lastClosedSession, products] = await Promise.all([
     prisma.tillSession.findFirst({ where: { tenantId, closedAt: null }, orderBy: { openedAt: "desc" } }),
     prisma.tillSession.findFirst({ where: { tenantId, closedAt: { not: null } }, orderBy: { closedAt: "desc" } }),

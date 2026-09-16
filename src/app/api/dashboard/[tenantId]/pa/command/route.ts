@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
   const tenant = await prisma.tenant.findUniqueOrThrow({
     where: { id: tenantId },
-    select: { niche: true },
+    select: { currency: true, niche: true },
   });
 
   // The page the request was made from. Derived from the path server-side so
@@ -70,6 +70,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
       userId: access.userId,
       membershipId: access.membershipId,
       customerLabel: nicheConfig(tenant.niche).customerLabel,
+      currency: tenant.currency,
     },
     input: text,
     threadId,

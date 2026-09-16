@@ -45,7 +45,7 @@ async function toolsForApprover(
 ) {
   const tenant = await prisma.tenant.findUniqueOrThrow({
     where: { id: tenantId },
-    select: { niche: true },
+    select: { currency: true, niche: true },
   });
   return buildAgentTools({
     tenantId,
@@ -53,6 +53,7 @@ async function toolsForApprover(
     userId: approver.userId,
     membershipId: approver.membershipId,
     customerLabel: nicheConfig(tenant.niche).customerLabel,
+      currency: tenant.currency,
   });
 }
 

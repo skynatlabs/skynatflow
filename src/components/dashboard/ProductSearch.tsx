@@ -12,6 +12,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useMoney } from "@/components/WorkspaceRegionProvider";
 
 export interface CatalogProduct {
   id: string;
@@ -26,9 +27,6 @@ export interface CatalogProduct {
   category: string | null;
 }
 
-function rand(cents: number) {
-  return `R${(cents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function Highlight({ text, query }: { text: string; query: string }) {
   const q = query.trim();
@@ -71,6 +69,7 @@ export function ProductSearch({
   required?: boolean;
   name?: string;
 }) {
+  const money = useMoney();
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(false);
@@ -240,7 +239,7 @@ export function ProductSearch({
                   </span>
                 </span>
                 <span className="shrink-0 text-right">
-                  <span className="block text-sm tabular-nums text-[var(--kb-text)]">{rand(p.unitPriceCents)}{p.unit ? <span className="text-[11px] text-[var(--kb-text-dim)]"> /{p.unit}</span> : null}</span>
+                  <span className="block text-sm tabular-nums text-[var(--kb-text)]">{money(p.unitPriceCents)}{p.unit ? <span className="text-[11px] text-[var(--kb-text-dim)]"> /{p.unit}</span> : null}</span>
                   {p.stockQty !== null && (
                     <span className="block text-[11px] tabular-nums" style={{ color: p.stockQty <= 0 ? "var(--kb-tint-peach-ink)" : "var(--kb-text-dim)" }}>
                       {p.stockQty <= 0 ? "out of stock" : `${p.stockQty} in stock`}

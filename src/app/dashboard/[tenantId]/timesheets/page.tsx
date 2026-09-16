@@ -9,7 +9,7 @@ import { notFound, redirect } from "next/navigation";
 import { AuthRequiredError, ForbiddenError, requireTenantAccess } from "@/lib/auth/tenant-access";
 import { can } from "@/lib/core/access";
 import { teamWeek } from "@/lib/core/timesheets";
-import { formatMoney } from "@/lib/format/money";
+import { moneyOf } from "@/lib/regions";
 import { PageHeader } from "../PageHeader";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 
@@ -48,6 +48,7 @@ export default async function TimesheetsPage({
   const seesCost = can(access.role, "staff:manage");
 
   const report = await teamWeek({ tenantId, from, to });
+  const money = await moneyOf(tenantId);
 
   const previous = new Date(from.getTime() - 7 * 86_400_000).toISOString().slice(0, 10);
   const next = new Date(from.getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
@@ -106,7 +107,7 @@ export default async function TimesheetsPage({
                     {Math.round(sheet.totalMinutes / 60)} h
                     <span className="ml-2 text-[11px] text-[var(--kb-text-dim)]">{sheet.billablePercent}% on jobs</span>
                     {seesCost && sheet.costCents !== null && (
-                      <span className="ml-2 text-[11px] text-[var(--kb-text-dim)]">{formatMoney(sheet.costCents)}</span>
+                      <span className="ml-2 text-[11px] text-[var(--kb-text-dim)]">{money(sheet.costCents)}</span>
                     )}
                   </span>
                 </div>

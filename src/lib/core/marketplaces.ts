@@ -19,6 +19,7 @@
 //   of them lets a seller download, which is the shape this reads.
 
 import { prisma } from "@/lib/db";
+import { formatMoney } from "@/lib/format/money";
 
 export type Marketplace = "takealot" | "shopify" | "woocommerce" | "bobshop" | "facebook" | "other";
 
@@ -107,6 +108,8 @@ export function trueMargin(params: {
   /** What it costs to get it to the customer, when the seller ships it. */
   shippingCents?: number;
   vatPercent?: number;
+  /** The seller's own money. Required, because the verdict is a sentence they read. */
+  currency: string;
 }): {
   commissionPercent: number;
   commissionCents: number;
@@ -129,16 +132,16 @@ export function trueMargin(params: {
 
   const verdict =
     margin <= 0
-      ? `This loses money on every sale. At ${rate}% commission the price has to be at least ${money(Math.ceil((params.costCents + shipping + vat) / (1 - rate / 100)))} to break even.`
+      ? `This loses money on every sale. At ${rate}% commission the price has to be at least ${money(Math.ceil((params.costCents + shipping + vat) / (1 - rate / 100)), params.currency)} to break even.`
       : marginPercent < 10
         ? `${marginPercent}% left after everything. One return wipes out several sales at this margin.`
-        : `${money(margin)} a unit, ${marginPercent}% of the selling price.`;
+        : `${money(margin, params.currency)} a unit, ${marginPercent}% of the selling price.`;
 
   return { commissionPercent: rate, commissionCents: commission, netCents: net, marginCents: margin, marginPercent, verdict };
 }
 
-function money(cents: number): string {
-  return `R${(cents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function money(cents: number, currency: string): string {
+  return formatMoney(cents, currency, { decimals: true });
 }
 
 export interface ParsedOrder {

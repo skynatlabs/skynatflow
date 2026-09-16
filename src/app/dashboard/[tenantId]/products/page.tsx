@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listProductsPaginated } from "@/lib/core/catalog";
 import { prisma } from "@/lib/db";
 import { BreakdownBarChart } from "@/components/dashboard/MiniCharts";
+import { moneyOf } from "@/lib/regions";
 
 const CATEGORY_COLORS = [
   "var(--kb-accent-a)",
@@ -12,9 +13,6 @@ const CATEGORY_COLORS = [
   "var(--kb-tint-violet-ink)",
 ];
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 export default async function ProductsPage({
   params,
@@ -24,6 +22,8 @@ export default async function ProductsPage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? 1));
   const [{ items: products, total, pageCount }, categoryGroups] = await Promise.all([

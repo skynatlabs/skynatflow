@@ -9,7 +9,7 @@
 import { notFound, redirect } from "next/navigation";
 import { AuthRequiredError, ForbiddenError, requireTenantAccess } from "@/lib/auth/tenant-access";
 import { costOfDarkness, formatBlock, getSchedule, isDark, nextOutage } from "@/lib/core/loadShedding";
-import { formatMoney } from "@/lib/format/money";
+import { moneyOf } from "@/lib/regions";
 import { PageHeader } from "../PageHeader";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
 import { saveScheduleAction } from "./actions";
@@ -37,6 +37,8 @@ export default async function PowerPage({ params }: { params: Promise<{ tenantId
   const next = nextOutage(schedule, now);
   const cost = await costOfDarkness({ tenantId, from: new Date(now.getTime() - 30 * 86_400_000), to: now });
   const dark = isDark(schedule, now);
+  // Bound to this workspace's own currency, not to wherever the code was written.
+  const money = await moneyOf(tenantId);
 
   return (
     <div className="pb-10">
@@ -154,15 +156,15 @@ export default async function PowerPage({ params }: { params: Promise<{ tenantId
               </div>
               <div className="flex items-baseline justify-between gap-2">
                 <dt className="text-[var(--kb-text-dim)]">Hours nobody could work</dt>
-                <dd className="tabular-nums text-[var(--kb-text)]">{cost.lostLabourCents === null ? "—" : formatMoney(cost.lostLabourCents)}</dd>
+                <dd className="tabular-nums text-[var(--kb-text)]">{cost.lostLabourCents === null ? "—" : money(cost.lostLabourCents)}</dd>
               </div>
               <div className="flex items-baseline justify-between gap-2">
                 <dt className="text-[var(--kb-text-dim)]">Generator fuel</dt>
-                <dd className="tabular-nums text-[var(--kb-text)]">{formatMoney(cost.generatorFuelCents)}</dd>
+                <dd className="tabular-nums text-[var(--kb-text)]">{money(cost.generatorFuelCents)}</dd>
               </div>
               <div className="flex items-baseline justify-between gap-2 border-t border-[var(--kb-panel-border)] pt-2">
                 <dt className="font-medium text-[var(--kb-text)]">What it cost</dt>
-                <dd className="font-medium tabular-nums text-[var(--kb-text)]">{formatMoney(cost.totalCents)}</dd>
+                <dd className="font-medium tabular-nums text-[var(--kb-text)]">{money(cost.totalCents)}</dd>
               </div>
             </dl>
             <ul className="mt-3 grid gap-1 text-[11px] text-[var(--kb-text-dim)]">

@@ -8,10 +8,8 @@ import { listPurchaseOrders } from "@/lib/core/purchaseOrders";
 import { listCustomers } from "@/lib/core/parties";
 import { addSupplierAction, createPurchaseOrderAction, sendPurchaseOrderAction, markReceivedAction } from "./actions";
 import { Pagination } from "@/components/dashboard/Pagination";
+import { moneyOf } from "@/lib/regions";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 export default async function PurchaseOrdersPage({
   params,
@@ -21,6 +19,8 @@ export default async function PurchaseOrdersPage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? 1));
   const [reorderSuggestions, suppliers, { items: purchaseOrders, pageCount }] = await Promise.all([

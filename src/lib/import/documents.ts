@@ -25,6 +25,7 @@ import { prisma } from "@/lib/db";
 import { createParty } from "@/lib/core/parties";
 import { createProduct } from "@/lib/core/catalog";
 import { recordPayment } from "@/lib/core/money";
+import { parseLocalDate, regionOf, type DateOrder } from "@/lib/regions";
 
 export interface DocumentImportResult {
   imported: number;
@@ -53,21 +54,19 @@ function parsePercent(raw: string | undefined): number | undefined {
   return Number.isFinite(n) && n >= 0 && n <= 100 ? n : undefined;
 }
 
-export function parseDate(raw: string | undefined): Date | undefined {
-  const trimmed = raw?.trim();
-  if (!trimmed) return undefined;
-  // dd/mm/yyyy — how a South African or European export writes a date, and
-  // the one JavaScript reads as mm/dd when it reads it at all.
-  const dmy = trimmed.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
-  if (dmy) {
-    const [, d, m, y] = dmy.map(Number) as unknown as [number, number, number, number];
-    if (m <= 12 && d <= 31) {
-      const date = new Date(Date.UTC(y, m - 1, d, 12));
-      if (!Number.isNaN(date.getTime())) return date;
-    }
-  }
-  const parsed = new Date(trimmed);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+/**
+ * A date out of somebody else's export.
+ *
+ * The order is the workspace's, not this file's. 03/04/2026 is the fourth of
+ * March in the United States and the third of April almost everywhere else,
+ * and an importer that assumes either one silently mis-dates a year of
+ * history — which is worse than failing, because nothing looks broken.
+ *
+ * Defaults to day-first only because that is what most of the world writes;
+ * every real caller passes the workspace's own order.
+ */
+export function parseDate(raw: string | undefined, order: DateOrder = "dmy"): Date | undefined {
+  return parseLocalDate(raw, order);
 }
 
 export function parseQuoteStatus(raw: string | undefined): TransactionStatus {
@@ -188,6 +187,9 @@ export async function importDocuments(params: {
   partyRole: PartyRole;
 }): Promise<DocumentImportResult> {
   const { tenantId, target, records, partyRole } = params;
+  // The country the workspace says it is in decides how its old system wrote
+  // dates. Getting this wrong is silent and costs a year of history.
+  const { dateOrder: order } = await regionOf(tenantId);
   const type = target === "quotes" ? TransactionType.QUOTE : TransactionType.INVOICE;
   const result: DocumentImportResult = { imported: 0, repaired: 0, alreadyHere: 0, skipped: 0, withoutLines: 0, errors: [] };
   const { headers, lines } = groupRows(records);
@@ -221,7 +223,7 @@ export async function importDocuments(params: {
 
       let party = await prisma.party.findFirst({ where: { tenantId, name: customerName } });
       party ??= await createParty({ tenantId, role: partyRole, name: customerName });
-      const createdAt = parseDate(record.date);
+      const createdAt = parseDate(record.date, order);
 
       const doc = await prisma.transaction.create({
         data: {
@@ -232,7 +234,7 @@ export async function importDocuments(params: {
           amountCents,
           externalRef,
           subject: (record.subject ?? "").trim() || null,
-          ...(target === "invoices" ? { dueAt: parseDate(record.dueDate) } : {}),
+          ...(target === "invoices" ? { dueAt: parseDate(record.dueDate, order) } : {}),
           ...(createdAt ? { createdAt } : {}),
         },
       });

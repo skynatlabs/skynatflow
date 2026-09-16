@@ -1,3 +1,4 @@
+import { formatMoney } from "@/lib/format/money";
 // Voice Q&A: the browser transcribes speech client-side (Web Speech
 // Recognition — free, no API key), sends the text question here, and
 // this answers it grounded in the tenant's actual real-time numbers —
@@ -16,8 +17,8 @@ import { listThisWeekFollowUps } from "@/lib/core/followUpReminders";
 import { getRecentEmailsForPa } from "@/lib/core/email";
 import { getTodayPlan } from "@/lib/core/dayPlan";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
+function money(cents: number, currency: string) {
+  return formatMoney(cents, currency, { decimals: true });
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
@@ -63,11 +64,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
 
   const context = [
     `Business: ${tenant.name}`,
-    `Open invoices owed to the business: ${openInvoices._count}, totaling ${money(openInvoices._sum.amountCents ?? 0)}.`,
-    `Quotes/invoices gone quiet needing a follow-up: ${stale.length}${listed(stale, (t) => `${t.party.name} (${money(t.amountCents)})`, ", ")}.`,
+    `Open invoices owed to the business: ${openInvoices._count}, totaling ${money(openInvoices._sum.amountCents ?? 0, tenant.currency)}.`,
+    `Quotes/invoices gone quiet needing a follow-up: ${stale.length}${listed(stale, (t) => `${t.party.name} (${money(t.amountCents, tenant.currency)})`, ", ")}.`,
     `Reminders due this week: ${thisWeek.length}${listed(thisWeek, (t) => `${t.party.name} on ${t.nextFollowUpAt?.toLocaleDateString()}${t.followUpNote ? ` (${t.followUpNote})` : ""}`, "; ")}.`,
     `Total customers on file: ${customerCount}.`,
-    `Total quotes ever sent: ${quotes._count}, total value ${money(quotes._sum.amountCents ?? 0)}, accepted: ${acceptedQuotes}.`,
+    `Total quotes ever sent: ${quotes._count}, total value ${money(quotes._sum.amountCents ?? 0, tenant.currency)}, accepted: ${acceptedQuotes}.`,
     recentEmails.length
       ? `Recent emails (most recent/important first):\n${recentEmails
           .map((e) => `- From ${e.fromLabel}, "${e.subject}" (${e.category}${e.isImportant ? ", IMPORTANT" : ""}, ${e.receivedAt.toLocaleDateString()}): ${e.summary}`)

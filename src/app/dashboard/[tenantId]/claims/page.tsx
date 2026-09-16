@@ -2,10 +2,8 @@ import { prisma } from "@/lib/db";
 import { listClaims, getAgingDenials } from "@/lib/core/claims";
 import { submitClaimAction, markDeniedAction, markReworkedAction, markPaidAction } from "./actions";
 import { Pagination } from "@/components/dashboard/Pagination";
+import { moneyOf } from "@/lib/regions";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 const STATUS_TINT: Record<string, string> = {
   SUBMITTED: "kb-tint-blue",
@@ -22,6 +20,8 @@ export default async function ClaimsPage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? 1));
   const [{ items: claims, pageCount }, agingDenials, invoices] = await Promise.all([

@@ -1,3 +1,4 @@
+import { moneyOf } from "@/lib/regions";
 // One customer's full picture — every quote, invoice, payment, delivery,
 // and visit in one place, per the strategic report's "unified customer
 // record" requirement (Section 7.1). Access to this page is already
@@ -30,9 +31,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 export default async function CustomerHistoryPage({
   params,
@@ -40,6 +38,7 @@ export default async function CustomerHistoryPage({
   params: Promise<{ tenantId: string; id: string }>;
 }) {
   const { tenantId, id } = await params;
+  const money = await moneyOf(tenantId);
 
   // Checked before anything else that would touch this partyId (e.g.
   // getOrCreatePortalToken) — those don't scope to tenantId themselves, so

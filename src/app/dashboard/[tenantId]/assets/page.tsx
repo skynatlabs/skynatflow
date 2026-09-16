@@ -1,3 +1,4 @@
+import { moneyOf } from "@/lib/regions";
 import { prisma } from "@/lib/db";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
 import { assetSummary, listAssets } from "@/lib/core/assets";
@@ -10,9 +11,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString("en-ZA", { style: "currency", currency: "ZAR" });
-}
 
 const STATUS_TONE: Record<string, { bg: string; ink: string }> = {
   ISSUED: { bg: "var(--kb-tint-blue)", ink: "var(--kb-tint-blue-ink)" },
@@ -36,6 +34,8 @@ export default async function AssetsPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
 
   const [assets, summary, members] = await Promise.all([
     listAssets(tenantId),

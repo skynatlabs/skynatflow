@@ -11,6 +11,8 @@
 import { generateText } from "ai";
 import type { Transaction, Party, CollectionsTone } from "@prisma/client";
 import { getAiModel } from "./model";
+import { formatMoney } from "@/lib/format/money";
+import { tenantCurrency } from "@/lib/core/currency";
 
 export interface StaleTransactionWithParty extends Transaction {
   party: Party;
@@ -42,10 +44,9 @@ export async function draftFollowUpMessage(params: {
   tone?: CollectionsTone;
 }) {
   const { transaction, touchNumber, tone = "STANDARD" } = params;
-  const amount = (transaction.amountCents / 100).toLocaleString(undefined, {
-    style: "currency",
-    currency: "ZAR",
-  });
+  // The workspace's own money: this amount goes into a message a customer
+  // reads, and a customer in Ohio reading rands stops at the currency sign.
+  const amount = formatMoney(transaction.amountCents, await tenantCurrency(transaction.tenantId), { decimals: true });
 
   const model = await getAiModel();
   if (!model) throw new Error("No AI provider configured (set ANTHROPIC_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY).");

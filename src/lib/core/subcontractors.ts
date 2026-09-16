@@ -19,6 +19,8 @@
 
 import { prisma } from "@/lib/db";
 import { getOrCreatePortalToken } from "./parties";
+import { formatMoney } from "@/lib/format/money";
+import { tenantCurrency } from "./currency";
 
 export interface HandoverResult {
   jobCardId: string;
@@ -95,6 +97,7 @@ export interface SubcontractorRow {
  * therefore entirely absent from the cash forecast until the invoice lands.
  */
 export async function subcontractorPosition(tenantId: string, since: Date): Promise<{ rows: SubcontractorRow[]; note: string }> {
+  const currency = await tenantCurrency(tenantId);
   const jobs = await prisma.jobCard.findMany({
     where: { tenantId, subcontractorId: { not: null }, createdAt: { gte: since } },
     select: {
@@ -161,7 +164,7 @@ export async function subcontractorPosition(tenantId: string, since: Date): Prom
       rows.length === 0
         ? "No work has been subcontracted in this period."
         : outstanding > 0
-          ? `${(outstanding / 100).toLocaleString("en-ZA", { style: "currency", currency: "ZAR" })} of work has been handed over and not yet invoiced back. None of it is in the cash forecast until it arrives.`
+          ? `${formatMoney(outstanding, currency, { decimals: true })} of work has been handed over and not yet invoiced back. None of it is in the cash forecast until it arrives.`
           : "Everything handed over has been invoiced.",
   };
 }

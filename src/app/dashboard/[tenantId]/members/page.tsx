@@ -1,10 +1,8 @@
 import { listActiveInvolvements, listDonations, listComplianceFilings, totalDonationsByFund, checkMembershipRenewals } from "@/lib/core/nonprofit";
 import { listCustomers } from "@/lib/core/parties";
 import { addMemberAction, endInvolvementAction, recordDonationAction, addFilingAction, setRenewalDateAction } from "./actions";
+import { moneyOf } from "@/lib/regions";
 
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 export default async function MembersPage({
   params,
@@ -12,6 +10,8 @@ export default async function MembersPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  // This workspace's own money, never the one the code was written in.
+  const money = await moneyOf(tenantId);
   const [involvements, donations, filings, funds, members, renewalsDue] = await Promise.all([
     listActiveInvolvements(tenantId),
     listDonations(tenantId),
