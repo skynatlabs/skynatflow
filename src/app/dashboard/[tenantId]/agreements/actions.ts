@@ -14,6 +14,7 @@ import {
   updateAgreement,
   type Clause,
 } from "@/lib/core/agreements";
+import { noteSigningEvent } from "@/lib/core/signing";
 import { draftAgreement, kindFromDraft, withDisclaimer } from "@/lib/ai/agreement";
 import { formatMoney } from "@/lib/format/money";
 
@@ -158,8 +159,15 @@ export async function saveAgreementAction(tenantId: string, id: string, formData
 }
 
 export async function sendAgreementAction(tenantId: string, id: string) {
-  await guard(tenantId);
+  const access = await guard(tenantId);
   await sendAgreement(tenantId, id);
+  await noteSigningEvent({
+    tenantId,
+    kind: "agreement",
+    documentId: id,
+    event: "sent",
+    actor: { type: "user", id: access.userId, name: "Somebody at the business" },
+  });
   refresh(tenantId, id);
 }
 

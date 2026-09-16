@@ -27,6 +27,14 @@ const EXACT: Record<string, string> = {
   customerBalance: "Check what the customer owes",
   findCustomers: "Look up customers",
   listProducts: "Look through the catalog",
+  awaitingSignature: "Check what is waiting to be signed",
+  signingRecord: "Open the signing record",
+  bookkeeperExport: "Prepare the books for the accountant",
+  documentCopies: "Check where document copies go",
+  websiteWidgets: "Look at the forms for the website",
+  brandingSettings: "Check what customers see",
+  setBranding: "Change the logo and colour customers see",
+  chooseDocumentDrive: "Choose where copies of documents go",
 };
 
 /**

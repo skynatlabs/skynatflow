@@ -34,6 +34,15 @@ const GROUPS: {
       { href: "../setup", label: "Bring things in", description: "Documents, spreadsheets and photographs, read into your workspace." },
       { href: "import", label: "Import", description: "Bring in customers, products, quotes, or invoices from a CSV." },
       { href: "developer", label: "API & webhooks", description: "Keys for reading and writing your data, and event notifications for other systems." },
+      { href: "bookkeeper", label: "For your bookkeeper", description: "The books in Xero, QuickBooks, Sage or spreadsheet shape — so your accountant can carry on as they are." },
+      { href: "document-copies", label: "A copy in your own drive", description: "Every document also written into your own Google Drive, OneDrive or Dropbox." },
+    ],
+  },
+  {
+    heading: "What customers see",
+    items: [
+      { href: "brand", label: "Logo, colour and your own address", description: "Your branding on documents and the portal, and the forms you can put on your own website." },
+      { href: "appearance", label: "Appearance", description: "How the workspace itself looks to you and your staff." },
     ],
   },
   {

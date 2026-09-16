@@ -72,6 +72,12 @@ import {
 import { listPdfTemplates, setDefaultPdfTemplate } from "@/lib/core/pdfTemplates";
 import { listAvailableSlots } from "@/lib/core/booking";
 import { listEmailAccounts, listInboundEmails, markEmailRead } from "@/lib/core/email";
+import { formatMoney } from "@/lib/format/money";
+import { awaitingSignature, signingCertificate } from "@/lib/core/signing";
+import { backupStatus, chooseProvider, whatWouldBeCopied } from "@/lib/core/documentBackup";
+import { snippetFor, widgetReadiness } from "@/lib/core/embeds";
+import { getBranding, setBranding, WHITE_LABEL_POSTURE } from "@/lib/core/whiteLabel";
+import { exportCosts, exportInvoices, exportTrialBalance } from "@/lib/export/accounting";
 import { prisma } from "@/lib/db";
 import { composeQuoteFromText } from "@/lib/core/quoteComposer";
 import { buildWhatsAppShareLink, quoteWhatsAppMessage, invoiceWhatsAppMessage } from "@/lib/core/whatsappShare";
@@ -1689,6 +1695,160 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
         },
       }),
   },
+
+  // --------------------------------------------------- signing and the trail
+
+  awaitingSignature: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Everything sent out that nobody has signed yet — agreements and quotes — oldest first, with how long each has " +
+          "been waiting. The old ones are the quiet noes.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const rows = await awaitingSignature(ctx.tenantId);
+          return rows.map((row) => ({
+            kind: row.kind,
+            reference: row.reference,
+            what: row.title,
+            customer: row.customer,
+            value: row.valueCents ? formatMoney(row.valueCents) : null,
+            waitingDays: row.waitingDays,
+            note: row.note,
+          }));
+        },
+      }),
+  },
+
+  signingRecord: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The signing record for one agreement or quote: who signed, when, from roughly where, and whether the document " +
+          "still matches what was signed. Use it when somebody disputes a document.",
+        inputSchema: z.object({
+          kind: z.enum(["agreement", "quote"]),
+          documentId: z.string(),
+        }),
+        execute: async ({ kind, documentId }) => {
+          const certificate = await signingCertificate({ tenantId: ctx.tenantId, kind, documentId });
+          if (!certificate) return { found: false as const };
+          return {
+            found: true as const,
+            reference: certificate.reference,
+            what: certificate.title,
+            customer: certificate.customer,
+            signedAt: certificate.signedAt?.toISOString() ?? null,
+            signedBy: certificate.signerName,
+            unaltered: certificate.intact,
+            warning: certificate.intact
+              ? null
+              : "The document does not match the fingerprint taken when it was signed. Something has been edited since.",
+            history: certificate.history.map((line) => ({
+              at: line.at.toISOString(),
+              what: line.what,
+              who: line.who,
+              from: line.where,
+              device: line.device,
+            })),
+            standing: certificate.standing,
+          };
+        },
+      }),
+  },
+
+  // ------------------------------------------------------- the outside edges
+
+  bookkeeperExport: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Prepare the books for an accountant in their own software's import format — Xero, QuickBooks, Sage, Zoho or a " +
+          "plain spreadsheet. Says what was left out and why. Returns a summary and the file's name, not the file itself.",
+        inputSchema: z.object({
+          package: z.enum(["xero", "quickbooks", "sage", "zoho", "generic"]),
+          what: z.enum(["invoices", "costs", "trial-balance"]),
+          fromDate: z.string().describe("YYYY-MM-DD"),
+          toDate: z.string().describe("YYYY-MM-DD"),
+        }),
+        execute: async (input) => {
+          const from = new Date(`${input.fromDate}T00:00:00.000Z`);
+          const to = new Date(`${input.toDate}T23:59:59.999Z`);
+          const result =
+            input.what === "invoices"
+              ? await exportInvoices({ tenantId: ctx.tenantId, pkg: input.package, from, to })
+              : input.what === "costs"
+                ? await exportCosts({ tenantId: ctx.tenantId, pkg: input.package, from, to })
+                : await exportTrialBalance({ tenantId: ctx.tenantId, from, to });
+          return { file: result.fileName, rows: result.rows, notes: result.notes };
+        },
+      }),
+  },
+
+  documentCopies: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Whether a copy of this workspace's documents is going to the owner's own Drive, OneDrive or Dropbox, and what a " +
+          "first copy would contain.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [status, would] = await Promise.all([backupStatus(ctx.tenantId), whatWouldBeCopied(ctx.tenantId)]);
+          return {
+            connected: status.connected,
+            summary: status.summary,
+            wouldCopy: would.summary,
+            byKind: would.counts.map((row) => ({ what: row.label, count: row.count, folder: row.folder })),
+            notes: status.notes,
+          };
+        },
+      }),
+  },
+
+  websiteWidgets: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The forms that can be put on the business's own website — booking, enquiry, quote request, pay an invoice — " +
+          "which of them are ready, and the snippet to paste in.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const origin = process.env.NEXT_PUBLIC_APP_URL || "";
+          const rows = await widgetReadiness(ctx.tenantId);
+          return rows.map((row) => ({
+            what: row.label,
+            purpose: row.purpose,
+            ready: row.ready,
+            blocker: row.blocker,
+            snippet: row.ready ? snippetFor({ origin, tenantId: ctx.tenantId, kind: row.kind }).plain : null,
+          }));
+        },
+      }),
+  },
+
+  brandingSettings: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What a customer sees on the pages this business sends them: logo, colour, whether a custom domain is set up, and " +
+          "whether the platform's name appears.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const branding = await getBranding(ctx.tenantId);
+          return {
+            business: branding.businessName,
+            hasLogo: !!branding.logoUrl,
+            colour: branding.accent,
+            customDomain: branding.customDomain,
+            domainVerified: branding.domainVerified,
+            showsPlatformName: branding.showsPlatform,
+            included: WHITE_LABEL_POSTURE.included,
+            paidFor: WHITE_LABEL_POSTURE.paid,
+            neverChanged: WHITE_LABEL_POSTURE.never,
+          };
+        },
+      }),
+  },
 };
 
 // ------------------------------------------------------------------ writing
@@ -3200,6 +3360,48 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
             sentById: ctx.membershipId ?? null,
           });
           return { sent: result.ok, how: result.via, note: result.message };
+        },
+      }),
+  },
+
+  setBranding: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Set what a customer sees on this business's documents and portal: a logo, a single accent colour, and whether " +
+          "the platform's name appears at the bottom of customer-facing pages.",
+        inputSchema: z.object({
+          logoUrl: z.string().nullable().optional().describe("A URL to the logo. Null removes it."),
+          colour: z.string().nullable().optional().describe("A six-digit hex colour like #1d4ed8. Null removes it."),
+          hidePlatformName: z.boolean().optional(),
+        }),
+        execute: async (input) => {
+          await setBranding(ctx.tenantId, {
+            logoUrl: input.logoUrl,
+            accent: input.colour,
+            hidePlatformBranding: input.hidePlatformName,
+          });
+          const branding = await getBranding(ctx.tenantId);
+          return { colour: branding.accent, hasLogo: !!branding.logoUrl, showsPlatformName: branding.showsPlatform };
+        },
+      }),
+  },
+
+  chooseDocumentDrive: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Choose which drive a copy of this workspace's documents should go to. Choosing is not connecting — the owner " +
+          "still has to authorise it, and this says what is needed.",
+        inputSchema: z.object({
+          provider: z.enum(["google_drive", "onedrive", "dropbox"]).nullable(),
+        }),
+        execute: async ({ provider }) => {
+          await chooseProvider(ctx.tenantId, provider);
+          const status = await backupStatus(ctx.tenantId);
+          return { chosen: status.provider, connected: status.connected, whatNext: status.summary };
         },
       }),
   },

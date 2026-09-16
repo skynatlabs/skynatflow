@@ -19,6 +19,8 @@ export interface ApiContext {
   req: NextRequest;
   /** Parsed query string, for list endpoints. */
   search: URLSearchParams;
+  /** Dynamic segments from the route, already awaited. */
+  params: Record<string, string>;
 }
 
 type Handler = (ctx: ApiContext) => Promise<unknown>;
@@ -52,8 +54,15 @@ export function apiError(status: number, message: string, extra?: Record<string,
   return NextResponse.json({ ok: false, error: message, ...extra }, { status });
 }
 
+/**
+ * The second argument Next hands a route handler. Optional, because most
+ * routes here have no dynamic segment and passing an empty object at every
+ * call site would be noise.
+ */
+type RouteParams = { params?: Promise<Record<string, string>> };
+
 export function route(options: RouteOptions, handler: Handler) {
-  return async function handle(req: NextRequest): Promise<NextResponse> {
+  return async function handle(req: NextRequest, context?: RouteParams): Promise<NextResponse> {
     const verdict = await verifyApiKey(req.headers.get("authorization"));
 
     if (!verdict.ok) {
@@ -87,6 +96,7 @@ export function route(options: RouteOptions, handler: Handler) {
         caller,
         req,
         search: new URL(req.url).searchParams,
+        params: (await context?.params) ?? {},
       });
       return NextResponse.json({ ok: true, data });
     } catch (err) {

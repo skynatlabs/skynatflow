@@ -194,6 +194,21 @@ model Tenant {
   /// trade. Off unless somebody says yes: comparing a business that did not
   /// ask, even anonymously, is using its data for somebody else's benefit.
   benchmarksOptedIn            Boolean         @default(false)
+  /// What a customer sees on the pages they read: the business's own logo
+  /// and colour, and — on a paid arrangement — their own domain with no
+  /// mention of the platform. Never applied to the tax number, registration
+  /// number or bank details on an invoice; those say who is actually being
+  /// paid and are not a design decision.
+  brandLogoUrl                 String?
+  brandAccent                  String?
+  brandDomain                  String?
+  brandDomainVerified          Boolean         @default(false)
+  hidePlatformBranding         Boolean         @default(false)
+  /// Sites allowed to embed the booking and enquiry widgets. Empty means
+  /// anywhere, because a business that cannot get the form onto its own site
+  /// has been failed by the product and most website builders do not tell
+  /// anybody their real origin.
+  embedAllowedHosts            String?
   whatsappVerifyNumber         String?
   // AI-generated proposal content is metered — the LLM call only writes
   // text (never the PDF design/layout, which stays fixed code, both for

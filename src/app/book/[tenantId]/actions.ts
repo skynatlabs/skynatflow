@@ -32,5 +32,9 @@ export async function bookSlotAction(formData: FormData) {
     eventType: tenant.niche === "MEDICAL" ? "CONSULTATION" : "SITE_VISIT",
   });
 
-  redirect(`/book/${tenantId}?booked=1`);
+  // The same form is used on the public page and inside an embedded frame.
+  // Sending the frame to the full booking page would replace the widget with
+  // a whole second copy of it inside the customer's website.
+  const inFrame = String(formData.get("embed") ?? "") === "1";
+  redirect(inFrame ? `/embed/${tenantId}/booking?booked=1` : `/book/${tenantId}?booked=1`);
 }

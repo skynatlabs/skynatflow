@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AuthRequiredError, ForbiddenError, requireTenantAccess } from "@/lib/auth/tenant-access";
 import { getAgreement, signatureStillMatches } from "@/lib/core/agreements";
+import { signingCertificate } from "@/lib/core/signing";
 import { getOrCreatePortalToken } from "@/lib/core/parties";
 import { prisma } from "@/lib/db";
 import { currencySymbol, formatMoney } from "@/lib/format/money";
@@ -54,9 +55,10 @@ export default async function AgreementPage({
   const agreement = await getAgreement(tenantId, agreementId);
   if (!agreement) notFound();
 
-  const [tenant, portalToken] = await Promise.all([
+  const [tenant, portalToken, certificate] = await Promise.all([
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true } }),
     agreement.party.portalToken ?? getOrCreatePortalToken(agreement.partyId),
+    signingCertificate({ tenantId, kind: "agreement", documentId: agreementId }),
   ]);
   const currency = agreement.currency ?? tenant?.currency ?? "ZAR";
   const signed = agreement.status === "SIGNED";
@@ -129,6 +131,34 @@ export default async function AgreementPage({
               : "The wording still matches what was signed."}
           </p>
         </div>
+      )}
+
+      {certificate && certificate.history.length > 0 && (
+        <details className="kb-card mb-4 px-5 py-4">
+          <summary className="cursor-pointer text-sm font-medium text-[var(--kb-text)]">
+            The signing record
+          </summary>
+          <p className="mt-2 text-xs text-[var(--kb-text-dim)]">
+            What happened to this document, and when. The page at the back of every e-signature product — the one that
+            matters eighteen months from now.
+          </p>
+          <ol className="mt-3 grid gap-2">
+            {certificate.history.map((line, index) => (
+              <li key={`${line.at.toISOString()}-${index}`} className="text-xs text-[var(--kb-text-dim)]">
+                <span className="text-[var(--kb-text)]">{line.what}</span>
+                {" · "}
+                {line.at.toLocaleString()}
+                {line.where ? ` · from ${line.where}` : ""}
+                {line.device ? ` · ${line.device}` : ""}
+              </li>
+            ))}
+          </ol>
+          <ul className="mt-3 grid gap-1 text-[11px] text-[var(--kb-text-dim)]">
+            {certificate.standing.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {agreement.status === "SENT" && (

@@ -6,10 +6,12 @@
 // found rather than refused, so a stranger with a guessed id learns nothing.
 
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { resolvePortal } from "@/lib/core/portal";
 import { parseClauses } from "@/lib/core/agreements";
+import { noteSigningEvent } from "@/lib/core/signing";
 import { formatMoney } from "@/lib/format/money";
 import { SignAgreement } from "./SignAgreement";
 
@@ -44,6 +46,22 @@ export default async function PortalAgreementPage({
   });
   // A draft has not been sent to anybody, so on this side it does not exist.
   if (!agreement || agreement.status === "DRAFT") notFound();
+
+  // Noting that they opened it, before anything is signed. This is the line in
+  // the signing record that answers "they never saw it", and it is also the
+  // only honest way to tell a business their proposal is being read.
+  if (agreement.status === "SENT") {
+    const headerList = await headers();
+    await noteSigningEvent({
+      tenantId: agreement.tenantId,
+      kind: "agreement",
+      documentId: agreement.id,
+      event: "opened",
+      actor: { type: "user", name: party.companyName ?? party.name },
+      ip: headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? undefined,
+      userAgent: headerList.get("user-agent") ?? undefined,
+    });
+  }
 
   const clauses = parseClauses(agreement.clauses);
   const currency = agreement.currency ?? agreement.tenant.currency;
