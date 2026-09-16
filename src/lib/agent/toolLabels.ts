@@ -53,6 +53,13 @@ const EXACT: Record<string, string> = {
   listInTradingGraph: "Change whether the business can be matched",
   todaysWorkInTheField: "Check the day out on site",
   notificationsOnPhones: "Check who gets told on their phone",
+  proofForJob: "Check what proves the job was done",
+  jobsWithoutProof: "Look for jobs nobody can defend",
+  weeklyTimesheet: "Look at the week's hours",
+  subcontractedWork: "Check what was put out to subcontractors",
+  whatWaitsOnWhat: "Work out what waits on what",
+  handOverToSubcontractor: "Hand a job to a subcontractor",
+  makeJobWaitFor: "Make one job wait for another",
 };
 
 /**

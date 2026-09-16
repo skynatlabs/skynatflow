@@ -118,6 +118,7 @@ export function buildAdminaNav(params: {
         { href: `${d}/payroll`, label: "Payroll" },
         { href: `${d}/leave`, label: "Leave" },
         { href: `${d}/attendance`, label: "Attendance", ...q(`${d}/attendance`) },
+        { href: `${d}/timesheets`, label: "Timesheets" },
         { href: `${d}/assets`, label: "Assets" },
         { href: `${d}/org`, label: "Org Chart", ...q(`${d}/org`) },
         { href: `${d}/team-performance`, label: "Team Performance", ...q(`${d}/team-performance`) },

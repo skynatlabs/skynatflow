@@ -91,6 +91,10 @@ import { findPartners, graphValue, setListed } from "@/lib/core/tradingGraph";
 import { PARTNER_KIND, partnerBook, partnerEarnings } from "@/lib/core/partners";
 import { pushStatus } from "@/lib/core/push";
 import { directionsTo, todayInTheField } from "@/lib/core/fieldMode";
+import { proofPack, undefendedJobs } from "@/lib/core/proofOfWork";
+import { teamWeek, timesheet } from "@/lib/core/timesheets";
+import { handOver, subcontractMargins, subcontractorPosition } from "@/lib/core/subcontractors";
+import { chain, dependsOn } from "@/lib/core/jobChain";
 import { prisma } from "@/lib/db";
 import { composeQuoteFromText } from "@/lib/core/quoteComposer";
 import { buildWhatsAppShareLink, quoteWhatsAppMessage, invoiceWhatsAppMessage } from "@/lib/core/whatsappShare";
@@ -2247,6 +2251,137 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
       }),
   },
 
+  proofForJob: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What there is to prove a job was done: before and after photographs, where and when each was taken, and who " +
+          "signed. Says how strong the pack is and what is missing.",
+        inputSchema: z.object({ jobCardId: z.string() }),
+        execute: async ({ jobCardId }) => {
+          const pack = await proofPack(ctx.tenantId, jobCardId);
+          if (!pack) return { found: false as const };
+          return {
+            found: true as const,
+            job: pack.title,
+            customer: pack.customer,
+            strength: pack.strength,
+            pieces: pack.items.map((item) => ({ what: item.kind, at: item.at.toISOString(), hasLocation: item.lat !== null })),
+            missing: pack.missing,
+            standing: pack.standing,
+          };
+        },
+      }),
+  },
+
+  jobsWithoutProof: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Jobs closed recently without enough behind them to settle an argument. Every row is an invoice that gets " +
+          "discounted if a customer pushes.",
+        inputSchema: z.object({ sinceDays: z.number().int().positive().max(365).default(30) }),
+        execute: async ({ sinceDays }) => {
+          const result = await undefendedJobs(ctx.tenantId, new Date(Date.now() - sinceDays * 86_400_000));
+          return { jobs: result.rows.map((row) => ({ job: row.title, customer: row.customer, why: row.why })), note: result.note };
+        },
+      }),
+  },
+
+  weeklyTimesheet: {
+    build: (ctx) =>
+      tool({
+        description:
+          "How somebody's week actually went: hours, which jobs they went against, and how much of the paid time reached " +
+          "a customer. Leave the person out for the whole team.",
+        inputSchema: z.object({
+          membershipId: z.string().optional(),
+          weekStart: z.string().optional().describe("YYYY-MM-DD. Defaults to the last seven days."),
+        }),
+        execute: async ({ membershipId, weekStart }) => {
+          const from = weekStart ? new Date(`${weekStart}T00:00:00.000Z`) : new Date(Date.now() - 7 * 86_400_000);
+          const to = new Date(from.getTime() + 7 * 86_400_000);
+
+          if (membershipId) {
+            const sheet = await timesheet({ tenantId: ctx.tenantId, membershipId, from, to });
+            return {
+              who: sheet.name,
+              hours: Math.round(sheet.totalMinutes / 60),
+              onJobs: Math.round(sheet.onJobMinutes / 60),
+              reachedACustomer: `${sheet.billablePercent}%`,
+              cost: sheet.costCents === null ? null : formatMoney(sheet.costCents),
+              jobs: sheet.jobs.map((job) => ({ what: job.title, hours: Math.round((job.minutes / 60) * 10) / 10 })),
+              warnings: sheet.warnings,
+            };
+          }
+
+          const week = await teamWeek({ tenantId: ctx.tenantId, from, to });
+          return {
+            hours: week.totalHours,
+            onJobs: week.onJobHours,
+            reachedACustomer: `${week.billablePercent}%`,
+            openShifts: week.openShifts,
+            byPerson: week.sheets.map((sheet) => ({ who: sheet.name, hours: Math.round(sheet.totalMinutes / 60), reachedACustomer: `${sheet.billablePercent}%` })),
+            note: week.note,
+          };
+        },
+      }),
+  },
+
+  subcontractedWork: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What has been handed to subcontractors, what they have invoiced back, what is still owed but not yet billed, " +
+          "and what each subcontracted job actually made.",
+        inputSchema: z.object({ sinceDays: z.number().int().positive().max(730).default(90) }),
+        execute: async ({ sinceDays }) => {
+          const since = new Date(Date.now() - sinceDays * 86_400_000);
+          const [position, margins] = await Promise.all([subcontractorPosition(ctx.tenantId, since), subcontractMargins(ctx.tenantId, since)]);
+          return {
+            people: position.rows.map((row) => ({
+              who: row.name,
+              jobs: row.jobs,
+              agreed: formatMoney(row.agreedCents),
+              invoiced: formatMoney(row.invoicedCents),
+              stillToCome: formatMoney(row.outstandingCents),
+              disagreements: row.disagreements.map((item) => item.note),
+            })),
+            note: position.note,
+            averageMargin: margins.averagePercent,
+            worstJobs: margins.rows.slice(0, 3).map((row) => ({ job: row.title, who: row.who, marginPercent: row.marginPercent, note: row.note })),
+            marginNote: margins.note,
+          };
+        },
+      }),
+  },
+
+  whatWaitsOnWhat: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The open jobs laid out in time, with what each waits on, which ones decide the finish date, and any promised " +
+          "for a day they cannot start on.",
+        inputSchema: z.object({ days: z.number().int().positive().max(180).default(60) }),
+        execute: async ({ days }) => {
+          const result = await chain({ tenantId: ctx.tenantId, days });
+          return {
+            summary: result.note,
+            finishesAt: result.finishesAt?.toISOString().slice(0, 10) ?? null,
+            jobs: result.bars.map((bar) => ({
+              what: bar.title,
+              customer: bar.customer,
+              starts: bar.startsAt.toISOString().slice(0, 10),
+              ends: bar.endsAt.toISOString().slice(0, 10),
+              decidesTheFinishDate: bar.onCriticalPath,
+              problem: bar.problem,
+            })),
+            warnings: result.warnings,
+          };
+        },
+      }),
+  },
+
   myPartnerBook: {
     build: (ctx) =>
       tool({
@@ -3899,6 +4034,50 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
               ? "Businesses that already have your VAT or registration number on file can now see that you are here. Nothing about your trade, prices or customers is shown."
               : "Nobody can match this workspace any more. Existing connections are unaffected.",
           };
+        },
+      }),
+  },
+
+  handOverToSubcontractor: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Hand a job to a subcontractor at an agreed price, and get the link to send them. The price is required — a " +
+          "handover without one is why subcontracted jobs end up with no margin anybody can calculate.",
+        inputSchema: z.object({
+          jobCardId: z.string(),
+          subcontractorId: z.string().describe("The party doing the work."),
+          agreedCents: z.number().int().positive(),
+          scope: z.string().optional().describe("What exactly they are doing."),
+        }),
+        execute: async (input) => {
+          const result = await handOver({
+            tenantId: ctx.tenantId,
+            jobCardId: input.jobCardId,
+            subcontractorId: input.subcontractorId,
+            agreedCents: input.agreedCents,
+            scope: input.scope,
+          });
+          return { who: result.subcontractor, agreed: formatMoney(result.agreedCents), sendThem: result.portalUrl, note: result.note };
+        },
+      }),
+  },
+
+  makeJobWaitFor: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Say that one job cannot start until another is finished, or clear that. Refuses anything that would make a " +
+          "loop, because a plan that waits on itself cannot happen.",
+        inputSchema: z.object({
+          jobCardId: z.string(),
+          waitsForId: z.string().nullable().describe("Null clears it."),
+        }),
+        execute: async ({ jobCardId, waitsForId }) => {
+          await dependsOn({ tenantId: ctx.tenantId, jobCardId, waitsForId });
+          return { waitsFor: waitsForId, note: waitsForId ? "Set. The chain will move every date after it." : "Cleared." };
         },
       }),
   },
