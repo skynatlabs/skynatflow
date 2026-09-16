@@ -51,6 +51,8 @@ const EXACT: Record<string, string> = {
   heldTooLong: "Look for anything held too long",
   tradingConnections: "Check the trading connections",
   listInTradingGraph: "Change whether the business can be matched",
+  todaysWorkInTheField: "Check the day out on site",
+  notificationsOnPhones: "Check who gets told on their phone",
 };
 
 /**

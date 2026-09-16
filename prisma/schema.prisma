@@ -337,6 +337,7 @@ model Tenant {
   agentUndo         AgentUndo[]
   agentSpend        AgentSpend[]
   agentRecipes      AgentRecipe[]
+  pushSubscriptions PushSubscription[]
 
   @@map("tenants")
 }
@@ -4323,4 +4324,31 @@ model Partner {
 
   @@index([ownerUserId])
   @@map("partners")
+}
+
+/// Where to reach somebody when they are not looking at the screen.
+///
+/// Keyed on the endpoint rather than on the person, because one person
+/// legitimately has several — a phone, a laptop, the tablet in the workshop —
+/// and each expires on its own. A browser that has thrown the subscription
+/// away answers 404 or 410, which deletes the row rather than retrying it.
+model PushSubscription {
+  id           String    @id @default(cuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  membershipId String
+  endpoint     String    @unique
+  /// The browser's own public key and auth secret, base64url. Useless on
+  /// their own: they encrypt to that browser and nothing else.
+  p256dh       String
+  auth         String
+  userAgent    String?
+  /// Consecutive failures that were not "gone". Five and it stops being
+  /// tried, so a push service answering 500 is not hammered for ever.
+  failures     Int       @default(0)
+  lastSentAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([tenantId, membershipId])
+  @@map("push_subscriptions")
 }

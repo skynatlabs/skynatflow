@@ -89,6 +89,8 @@ import { scanWebsite } from "@/lib/core/websiteScan";
 import { BASIS_LABEL, REQUEST_LABEL, pastRetention, processingRecord, subjectRequest } from "@/lib/core/dataProtection";
 import { findPartners, graphValue, setListed } from "@/lib/core/tradingGraph";
 import { PARTNER_KIND, partnerBook, partnerEarnings } from "@/lib/core/partners";
+import { pushStatus } from "@/lib/core/push";
+import { directionsTo, todayInTheField } from "@/lib/core/fieldMode";
 import { prisma } from "@/lib/db";
 import { composeQuoteFromText } from "@/lib/core/quoteComposer";
 import { buildWhatsAppShareLink, quoteWhatsAppMessage, invoiceWhatsAppMessage } from "@/lib/core/whatsappShare";
@@ -2199,6 +2201,48 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
             })),
             note: found.note,
           };
+        },
+      }),
+  },
+
+  todaysWorkInTheField: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What one person has on today out on site: their jobs in route order, where each is, what is still outstanding " +
+          "on the checklist, and whether anything they recorded is still waiting to go up.",
+        inputSchema: z.object({ membershipId: z.string().optional().describe("Whose day. Defaults to whoever is asking.") }),
+        execute: async ({ membershipId }) => {
+          const who = membershipId ?? ctx.membershipId;
+          if (!who) return { jobs: [], note: "Nobody to look up a day for." };
+
+          const day = await todayInTheField({ tenantId: ctx.tenantId, membershipId: who });
+          return {
+            summary: day.greeting,
+            waitingToSync: day.queued,
+            stuck: day.stuck,
+            jobs: day.jobs.map((job) => ({
+              what: job.title,
+              customer: job.customer,
+              where: job.where,
+              at: job.scheduledAt?.toISOString() ?? null,
+              onIt: job.onIt,
+              outstandingChecks: job.checklistOutstanding,
+              directions: directionsTo(job),
+            })),
+          };
+        },
+      }),
+  },
+
+  notificationsOnPhones: {
+    build: (ctx) =>
+      tool({
+        description: "Whether anybody in this workspace will be told on their phone when something happens, and on how many devices.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const status = await pushStatus(ctx.tenantId);
+          return { switchedOn: status.configured, devices: status.devices, stale: status.stale, note: status.note, privacy: status.privacy };
         },
       }),
   },

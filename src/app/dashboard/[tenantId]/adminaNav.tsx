@@ -65,6 +65,7 @@ export function buildAdminaNav(params: {
       items: [
         { href: `${d}/dispatch`, label: "The week" },
         { href: `${d}/power`, label: "Power" },
+        { href: `${d}/field`, label: "Field mode" },
         { href: `${d}/tasks`, label: "Tasks" },
         { href: `${d}/notes`, label: "Notes" },
         ...(is("SERVICES", "LOGISTICS") ? [{ href: `${d}/job-cards`, label: "Job Cards" }] : []),

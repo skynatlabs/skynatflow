@@ -28,9 +28,22 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
       { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
+    // Long-pressing the icon on a phone's home screen. Four is the most
+    // Android shows, and they are the four things somebody opens the app
+    // specifically to do rather than the four biggest features.
     shortcuts: [
-      { name: "New quote", url: "/dashboard?new=quote" },
-      { name: "Today", url: "/dashboard?view=today" },
+      { name: "New quote", short_name: "Quote", url: "/dashboard?new=quote" },
+      { name: "Today's work", short_name: "Today", url: "/dashboard?view=today" },
+      { name: "Photograph a slip", short_name: "Slip", url: "/dashboard?capture=expense" },
+      { name: "Field mode", short_name: "Field", url: "/dashboard?view=field" },
     ],
+    // A photograph shared into the app from the camera roll lands on the
+    // capture screen. The single most common way a receipt actually arrives:
+    // somebody photographs it, then shares it, rather than opening anything.
+    share_target: {
+      action: "/dashboard?capture=expense",
+      method: "GET",
+      params: { title: "title", text: "text", url: "url" },
+    },
   };
 }

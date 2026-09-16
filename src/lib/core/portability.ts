@@ -174,6 +174,8 @@ const EXCLUDED: Record<string, string> = {
   conversation_notes: "Exported through their conversations.",
   checklist_items: "Exported through their checklists.",
   agent_recipes: "A shared catalogue of agent templates. A workspace’s own published recipe is its words, not its data, and the catalogue is not scoped to one business.",
+  push_subscriptions:
+    "Where one browser can be reached, and the keys that encrypt to it. Meaningless anywhere else — a subscription is issued by a push service to one installation and cannot be moved — and circulating the keys would be handing somebody the ability to write to a person's lock screen.",
 };
 
 export const EXPORT_EXCLUSIONS = EXCLUDED;

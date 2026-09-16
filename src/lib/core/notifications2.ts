@@ -10,6 +10,7 @@
 import { prisma } from "@/lib/db";
 import { NotificationType } from "@prisma/client";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/client";
+import { push } from "./push";
 
 export async function createNotification(params: {
   tenantId: string;
@@ -26,7 +27,7 @@ export async function createNotification(params: {
     sentViaWhatsApp = true;
   }
 
-  return prisma.notification.create({
+  const notification = await prisma.notification.create({
     data: {
       tenantId: params.tenantId,
       membershipId: params.membershipId ?? null,
@@ -37,6 +38,26 @@ export async function createNotification(params: {
       sentViaWhatsApp,
     },
   });
+
+  // The phone, last and never blocking: a push service having a bad morning
+  // must not stop the notification being recorded, which is the thing that
+  // actually has to survive.
+  void push({
+    tenantId: params.tenantId,
+    membershipId: params.membershipId ?? null,
+    message: {
+      title: params.title,
+      // The body as written, which is already a nudge rather than an amount —
+      // see push.ts. Nothing extra is added here.
+      body: params.body,
+      url: params.linkHref ?? `/dashboard/${params.tenantId}`,
+      // One banner per kind of thing. Four "invoice overdue" notifications
+      // stacked up is how somebody turns them off for good.
+      tag: `${params.type}`,
+    },
+  }).catch(() => null);
+
+  return notification;
 }
 
 export async function listNotifications(tenantId: string, membershipId?: string) {
