@@ -232,7 +232,12 @@ describe("money belongs to the workspace", () => {
         const hardcodedCode = /currency:\s*["'](?:ZAR|USD|GBP|EUR|AUD|NZD|CAD)["']/.test(line);
         const bareSymbol = /[`'"](?:R|\$|£|€)\$\{/.test(line);
         const localeMoney = /toLocaleString\(\s*["'][a-z]{2}-[A-Z]{2}["']\s*,\s*\{[^}]*style:\s*["']currency["']/.test(line);
-        if (hardcodedCode || bareSymbol || localeMoney) {
+        // The one that got through the first time: formatMoney is the right
+        // function, called with a currency somebody typed rather than one the
+        // workspace supplied. Using the correct helper wrongly is exactly the
+        // shape a guard has to catch, because it looks right in review.
+        const literalToFormatMoney = /formatMoney\([^)]*,\s*["'][A-Z]{3}["']/.test(line);
+        if (hardcodedCode || bareSymbol || localeMoney || literalToFormatMoney) {
           offenders.push(`${relative}:${index + 1}`);
         }
       });

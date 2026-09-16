@@ -1,3 +1,4 @@
+import { moneyOf } from "@/lib/regions";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
@@ -20,10 +21,6 @@ import {
   clearQuoteReminderAction,
 } from "./actions";
 
-function money(cents: number) {
-  return formatMoney(cents, "ZAR", { decimals: true });
-}
-
 const LOCKED_STATUSES = new Set(["ACCEPTED", "DECLINED", "CANCELLED"]);
 
 export default async function QuoteDetailPage({
@@ -32,6 +29,7 @@ export default async function QuoteDetailPage({
   params: Promise<{ tenantId: string; id: string }>;
 }) {
   const { tenantId, id } = await params;
+  const money = await moneyOf(tenantId);
 
   const quote = await prisma.transaction.findUnique({
     where: { id },

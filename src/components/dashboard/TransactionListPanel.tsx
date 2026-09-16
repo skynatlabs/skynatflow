@@ -1,13 +1,14 @@
 "use client";
 
-// The persistent left-hand list for /quotes and /invoices — stays mounted
-// while the right-hand detail panel swaps between the empty state and a
-// specific record, the same two-column pattern most invoicing tools use.
+// The list for /quotes and /invoices — stays mounted while the detail swaps
+// between the overview and a specific record, the same pattern most invoicing
+// tools use on a desk. On a phone BrowseShell shows this or the document, one
+// at a time; this component does not know or care which, and owns no width.
 // Fetches its own page client-side (App Router layouts can't read
 // searchParams, and this needs to update without losing the selection).
 
 import { useEffect, useState } from "react";
-import { formatMoney } from "@/lib/format/money";
+import { useMoney } from "@/components/WorkspaceRegionProvider";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { StatusPill } from "./StatusPill";
@@ -23,10 +24,6 @@ interface Row {
   matchedItems: string[];
 }
 
-function money(cents: number) {
-  return formatMoney(cents, "ZAR", { decimals: true });
-}
-
 export function TransactionListPanel({
   tenantId,
   type,
@@ -36,6 +33,7 @@ export function TransactionListPanel({
   type: "QUOTE" | "INVOICE";
   basePath: string;
 }) {
+  const money = useMoney();
   const pathname = usePathname();
   const [rows, setRows] = useState<Row[]>([]);
   const [page, setPage] = useState(1);
@@ -86,7 +84,7 @@ export function TransactionListPanel({
   }, [tenantId, type, page, debouncedQ]);
 
   return (
-    <div className="flex h-full w-80 shrink-0 flex-col border-r border-[var(--kb-panel-border)]">
+    <div className="flex h-full w-full flex-col">
       <div className="border-b border-[var(--kb-panel-border)] p-3">
         <input
           value={q}

@@ -1,4 +1,5 @@
 import { TransactionListPanel } from "@/components/dashboard/TransactionListPanel";
+import { BrowseShell } from "@/components/dashboard/BrowseShell";
 
 export default async function InvoicesBrowseLayout({
   children,
@@ -8,11 +9,11 @@ export default async function InvoicesBrowseLayout({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  const basePath = `/dashboard/${tenantId}/invoices`;
 
   return (
-    <div className="flex h-screen">
-      <TransactionListPanel tenantId={tenantId} type="INVOICE" basePath={`/dashboard/${tenantId}/invoices`} />
-      <div className="flex-1 overflow-y-auto">{children}</div>
-    </div>
+    <BrowseShell basePath={basePath} listLabel="All invoices" list={<TransactionListPanel tenantId={tenantId} type="INVOICE" basePath={basePath} />}>
+      {children}
+    </BrowseShell>
   );
 }

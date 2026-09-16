@@ -1,3 +1,4 @@
+import { moneyOf } from "@/lib/regions";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
@@ -19,10 +20,6 @@ import {
   clearInvoiceReminderAction,
 } from "./actions";
 
-function money(cents: number) {
-  return formatMoney(cents, "ZAR", { decimals: true });
-}
-
 const LOCKED_STATUSES = new Set(["PAID", "PARTIALLY_PAID", "CANCELLED"]);
 
 export default async function InvoiceDetailPage({
@@ -31,6 +28,7 @@ export default async function InvoiceDetailPage({
   params: Promise<{ tenantId: string; id: string }>;
 }) {
   const { tenantId, id } = await params;
+  const money = await moneyOf(tenantId);
 
   const invoice = await prisma.transaction.findUnique({
     where: { id },

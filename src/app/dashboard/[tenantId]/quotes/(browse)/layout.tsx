@@ -1,4 +1,5 @@
 import { TransactionListPanel } from "@/components/dashboard/TransactionListPanel";
+import { BrowseShell } from "@/components/dashboard/BrowseShell";
 
 export default async function QuotesBrowseLayout({
   children,
@@ -8,11 +9,11 @@ export default async function QuotesBrowseLayout({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
+  const basePath = `/dashboard/${tenantId}/quotes`;
 
   return (
-    <div className="flex h-screen">
-      <TransactionListPanel tenantId={tenantId} type="QUOTE" basePath={`/dashboard/${tenantId}/quotes`} />
-      <div className="flex-1 overflow-y-auto">{children}</div>
-    </div>
+    <BrowseShell basePath={basePath} listLabel="All quotes" list={<TransactionListPanel tenantId={tenantId} type="QUOTE" basePath={basePath} />}>
+      {children}
+    </BrowseShell>
   );
 }
