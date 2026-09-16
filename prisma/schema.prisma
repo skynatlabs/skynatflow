@@ -190,6 +190,10 @@ model Tenant {
   /// sitting there asking — being told the agent is out of budget mid-question
   /// is a worse outcome than a few cents.
   agentMonthlyCapCents         Int?
+  /// Whether this business has agreed to be compared with others in its
+  /// trade. Off unless somebody says yes: comparing a business that did not
+  /// ask, even anonymously, is using its data for somebody else's benefit.
+  benchmarksOptedIn            Boolean         @default(false)
   whatsappVerifyNumber         String?
   // AI-generated proposal content is metered — the LLM call only writes
   // text (never the PDF design/layout, which stays fixed code, both for

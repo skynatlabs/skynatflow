@@ -64,6 +64,9 @@ import { spendByAgent, spendThisMonth } from "@/lib/agent/budget";
 import { howItIsDoing } from "@/lib/agent/learning";
 import { availableRecipes, installRecipe } from "@/lib/agent/recipes";
 import { buyingSomething, hiringSomebody, howMuchCanWeAfford, whatIf } from "@/lib/core/whatIf";
+import { ask, asSentence, windowNamed, type GroupBy, type Measure, type Subject } from "@/lib/core/analytics";
+import { churnRisk, demandForecast, nextBestActions, priceSignals, scoreOpenQuotes } from "@/lib/core/predictions";
+import { compare } from "@/lib/core/benchmarks";
 import { cancelPaymentPlan, createPaymentPlan, evenInstalments, paymentPlanFor } from "@/lib/core/paymentPlans";
 import { currencyForCustomer, fxPosition, rateOn, setCustomerCurrency, setRate } from "@/lib/core/fx";
 import { approveBill, buildPaymentRun, listBills, payablesSummary, payBill, recordBill } from "@/lib/core/supplierBills";
@@ -593,6 +596,123 @@ export const EXTRA_READ_TOOLS: Record<string, ExtraToolDef> = {
             wordingStillMatchesSignature: signatureStillMatches(agreement),
           };
         },
+      }),
+  },
+
+  askTheNumbers: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Any figure the ledger can answer, without a page having to exist for it: pick what to count, how to " +
+          "measure it, how to group it and over what window. Use it for questions nobody anticipated — 'what did we " +
+          "sell to schools last March', 'which product made the most last year', 'how much did we spend on fuel by " +
+          "month'. Always repeat the basis line: a figure whose denominator is invisible is one people argue about " +
+          "instead of acting on.",
+        inputSchema: z.object({
+          subject: z.enum(["invoices", "quotes", "payments", "costs", "jobs"]),
+          measure: z.enum(["total", "count", "average"]).default("total"),
+          groupBy: z.enum(["month", "customer", "product", "person", "category", "status", "none"]).default("none"),
+          window: z
+            .enum(["last-30-days", "last-90-days", "this-month", "last-month", "this-year", "last-year"])
+            .default("last-30-days"),
+          partyId: z.string().optional(),
+          itemId: z.string().optional(),
+          membershipId: z.string().optional(),
+        }),
+        execute: async ({ subject, measure, groupBy, window, partyId, itemId, membershipId }) => {
+          const result = await ask(ctx.tenantId, {
+            subject: subject as Subject,
+            measure: measure as Measure,
+            groupBy: groupBy as GroupBy,
+            window: windowNamed(window),
+            filter: { partyId, itemId, membershipId },
+          });
+          return {
+            sentence: asSentence(result),
+            total: result.total,
+            unit: result.unit,
+            rows: result.rows,
+            basis: result.basis,
+            caveat: result.caveat,
+          };
+        },
+      }),
+  },
+
+  whatWillSell: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What each line is selling at, what to order, and how many days of cover is left — leaning on the same " +
+          "month last year where there is a year of history. Every row says how sure it is and on how many months; " +
+          "repeat that, because a forecast on four data points presented like one on four hundred is how a business " +
+          "orders stock it cannot sell.",
+        inputSchema: z.object({ runningOutWithinDays: z.number().int().positive().default(30) }),
+        execute: async ({ runningOutWithinDays }) => {
+          const rows = await demandForecast(ctx.tenantId);
+          return {
+            runningOut: rows.filter((r) => r.daysOfCover !== null && r.daysOfCover <= runningOutWithinDays),
+            all: rows.slice(0, 40),
+          };
+        },
+      }),
+  },
+
+  whereThePriceIsWrong: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Lines that are under-priced, discounted so often the list price is fiction, or running at a margin a " +
+          "single return would wipe out. Read off what has actually sold rather than a rule.",
+        inputSchema: z.object({}),
+        execute: async () => (await priceSignals(ctx.tenantId)).slice(0, 25),
+      }),
+  },
+
+  whoIsDriftingOff: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Good customers who have gone quiet, measured against each one's own rhythm rather than a fixed window — " +
+          "a builder who orders every six weeks and a restaurant that orders weekly are overdue at very different " +
+          "points. Ranked by what they were worth.",
+        inputSchema: z.object({}),
+        execute: async () => (await churnRisk(ctx.tenantId)).slice(0, 25),
+      }),
+  },
+
+  whichQuoteToChaseFirst: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Open quotes ordered by how likely they are to close and what they are worth, with the reason for each. " +
+          "The score is an ordering rather than a probability — give the reasons, not the number.",
+        inputSchema: z.object({}),
+        execute: async () => (await scoreOpenQuotes(ctx.tenantId)).slice(0, 20),
+      }),
+  },
+
+  whatToDoFirst: {
+    build: (ctx) =>
+      tool({
+        description:
+          "One ranked list for today, drawn from every part of the business — quotes worth chasing, customers going " +
+          "quiet, stock about to run out, a price that is wrong. Use it for 'what should I do' when nothing more " +
+          "specific was asked.",
+        inputSchema: z.object({}),
+        execute: async () => nextBestActions(ctx.tenantId),
+      }),
+  },
+
+  howWeCompare: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Where this business sits against others in the same trade — margin, how fast it is paid, how many quotes " +
+          "turn into work. Only when the workspace has opted in, and never on a cohort small enough to identify " +
+          "anybody. Say the cohort size along with the figure.",
+        inputSchema: z.object({}),
+        execute: async () => compare(ctx.tenantId),
       }),
   },
 
