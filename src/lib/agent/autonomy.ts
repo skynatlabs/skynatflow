@@ -21,6 +21,8 @@ const ALWAYS_ASK = new Set([
   "recordRefund",
   "sendQuote",
   "convertQuoteToInvoice",
+  // A message from the business's own mailbox is the business speaking.
+  "sendMailMessage",
 ]);
 
 /**
@@ -67,10 +69,18 @@ export function canAutoRun(params: {
   toolName: string;
   autonomy: AgentAutonomy;
   userPresent: boolean;
+  /**
+   * Whether this tool writes anything, as the caller already knows from
+   * MUTATING_TOOLS. Without it the only signal is the two lists below, and a
+   * write tool added to the registry and not added to a list would read as
+   * read-only and run itself in a workspace set to "nothing runs on its own".
+   * The registry is the authority; the lists only say how careful to be.
+   */
+  isMutation?: boolean;
 }): ActionVerdict {
-  const { toolName, autonomy, userPresent } = params;
+  const { toolName, autonomy, userPresent, isMutation } = params;
 
-  if (isReadOnly(toolName)) return { allowed: true };
+  if (!isMutation && isReadOnly(toolName)) return { allowed: true };
 
   if (ALWAYS_ASK.has(toolName)) {
     if (userPresent) return { allowed: true };

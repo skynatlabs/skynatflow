@@ -265,7 +265,7 @@ export async function runAgent(params: {
         onProgress?.({ type: "tool:start", tool: name, label, isMutation });
 
         if (isMutation) {
-          const verdict = canAutoRun({ toolName: name, autonomy, userPresent });
+          const verdict = canAutoRun({ toolName: name, autonomy, userPresent, isMutation });
           if (!verdict.allowed) {
             pendingActions.push({ tool: name, input: toolInput, reason: verdict.reason });
             onProgress?.({ type: "tool:held", tool: name, label, isMutation });

@@ -8,13 +8,11 @@ import Link from "next/link";
 import { findPartyByPortalToken } from "@/lib/core/parties";
 import { prisma } from "@/lib/db";
 import { PAYMENT_GATEWAYS } from "@/lib/payments/registry";
+import { formatMoney } from "@/lib/format/money";
+import { netPaidByInvoice } from "@/lib/core/money";
 import { startPortalCheckoutAction } from "./pay/actions";
 
 export const dynamic = "force-dynamic";
-
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 export default async function PortalInvoicePage({
   params,
@@ -24,7 +22,7 @@ export default async function PortalInvoicePage({
   searchParams: Promise<{ paid?: string }>;
 }) {
   const { token, invoiceId } = await params;
-  const { paid } = await searchParams;
+  const { paid: justPaid } = await searchParams;
   const party = await findPartyByPortalToken(token);
   if (!party) notFound();
 
@@ -40,16 +38,28 @@ export default async function PortalInvoicePage({
   const tenant = await prisma.tenant.findUnique({ where: { id: invoice.tenantId } });
   if (!tenant) notFound();
 
-  const gateways =
+  const [gateways, paidMap] = await Promise.all([
     invoice.status === "PAID"
-      ? []
-      : await prisma.paymentGateway.findMany({ where: { tenantId: invoice.tenantId, isActive: true } });
+      ? Promise.resolve([])
+      : prisma.paymentGateway.findMany({ where: { tenantId: invoice.tenantId, isActive: true } }),
+    netPaidByInvoice([invoice.id]),
+  ]);
+
+  const money = (cents: number) => formatMoney(cents, invoice.currency ?? tenant.currency, { decimals: true });
+  const paid = paidMap.get(invoice.id) ?? 0;
+  const outstanding = invoice.status === "CANCELLED" ? 0 : Math.max(0, invoice.amountCents - paid);
+  const overdue = outstanding > 0 && invoice.dueAt !== null && invoice.dueAt < new Date();
 
   return (
     <main className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
-      <div className="kb-card p-6">
+      <Link href={`/portal/${token}`} className="text-xs text-[var(--kb-text-dim)]">
+        &larr; All your documents
+      </Link>
+      <div className="kb-card mt-2 p-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-[var(--kb-text)]">Invoice</h1>
+          <h1 className="text-xl font-semibold text-[var(--kb-text)]">
+            Invoice{invoice.externalRef ? ` ${invoice.externalRef}` : ""}
+          </h1>
           <Link
             href={`/portal/${token}/invoices/${invoiceId}/pdf`}
             className="kb-pill kb-pill-primary text-xs"
@@ -58,7 +68,18 @@ export default async function PortalInvoicePage({
             Download PDF
           </Link>
         </div>
-        <p className="mt-1 text-sm text-[var(--kb-text-dim)]">Status: {invoice.status}</p>
+        <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
+          {overdue ? (
+            <span style={{ color: "var(--kb-status-danger-ink)" }}>
+              Overdue — it was due on {invoice.dueAt!.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}.
+            </span>
+          ) : (
+            <>
+              Status: {invoice.status.replace(/_/g, " ").toLowerCase()}
+              {invoice.dueAt ? ` · due ${invoice.dueAt.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}` : ""}
+            </>
+          )}
+        </p>
         {invoice.subject && <p className="mt-1 text-sm text-[var(--kb-text-dim)]">{invoice.subject}</p>}
         {invoice.poNumber && <p className="text-xs text-[var(--kb-text-dim)]">PO #: {invoice.poNumber}</p>}
         {invoice.salesPersonMembership && (
@@ -69,22 +90,54 @@ export default async function PortalInvoicePage({
 
         <ul className="mt-4 divide-y divide-[var(--kb-panel-border)]">
           {invoice.itemLines.map((l) => (
-            <li key={l.id} className="flex items-center justify-between py-2 text-sm">
-              <span>{l.quantity}x {l.item.name}</span>
-              <span>{money(l.quantity * l.unitPriceCents)}</span>
+            <li key={l.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+              {/* What was typed on the line wins over the catalogue name — the
+                  same rule the PDF follows, so the two documents match. */}
+              <span>
+                {l.quantity}
+                {l.unit ? ` ${l.unit}` : "×"} {l.description ?? l.item.name}
+              </span>
+              <span className="shrink-0">{money(l.quantity * l.unitPriceCents)}</span>
             </li>
           ))}
         </ul>
 
-        <div className="mt-4 flex items-center justify-between border-t border-[var(--kb-panel-border)] pt-4">
-          <span className="font-semibold text-[var(--kb-text)]">Total</span>
-          <span className="font-semibold text-[var(--kb-text)]">{money(invoice.amountCents)}</span>
+        <div className="mt-4 border-t border-[var(--kb-panel-border)] pt-4">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-[var(--kb-text)]">Total</span>
+            <span className="font-semibold text-[var(--kb-text)]">{money(invoice.amountCents)}</span>
+          </div>
+          {paid > 0 && (
+            <>
+              <div className="mt-1 flex items-center justify-between text-sm text-[var(--kb-text-dim)]">
+                <span>Received</span>
+                <span>{money(paid)}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-sm font-semibold text-[var(--kb-text)]">
+                <span>Still owing</span>
+                <span>{money(outstanding)}</span>
+              </div>
+            </>
+          )}
         </div>
 
-        {paid === "1" && (
+        {justPaid === "1" && (
           <p className="mt-4 rounded-lg bg-green-50 px-3 py-2 text-sm font-medium text-green-700">
             Payment received — thank you!
           </p>
+        )}
+
+        {/* The other half of paying: most of it happens in a banking app, and
+            the business only finds out when the customer says so. */}
+        {outstanding > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--kb-panel-border)] pt-4">
+            <Link href={`/portal/${token}?do=paid#send`} className="kb-pill kb-pill-primary text-xs">
+              I&apos;ve paid — send the proof
+            </Link>
+            <Link href={`/portal/${token}?do=ask#send`} className="kb-pill kb-pill-ghost text-xs">
+              Ask about this invoice
+            </Link>
+          </div>
         )}
 
         {gateways.length > 0 && (

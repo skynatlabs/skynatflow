@@ -163,6 +163,34 @@ describe("quote -> invoice -> payment ledger", () => {
     await prisma.tenant.delete({ where: { id: elsewhere.id } });
   });
 
+  it("leaves a draft out of what a customer owes, and puts a refund back on", async () => {
+    const draftOnly = await prisma.party.create({ data: { tenantId, role: PartyRole.CUSTOMER, name: "Not Yet Invoiced" } });
+    // A draft has never been issued. Nobody has been asked to pay it, so it
+    // is not a receivable — on a statement or on the customer's own portal.
+    await prisma.transaction.create({
+      data: { tenantId, partyId: draftOnly.id, type: "INVOICE", status: "DRAFT", amountCents: 750_000 },
+    });
+    expect((await customerBalances(tenantId)).get(draftOnly.id)).toBeUndefined();
+    expect(await customerBalance(tenantId, draftOnly.id)).toBe(0);
+
+    // A refund is money that went back to them, so it restores the balance —
+    // the same arithmetic netPaidByInvoice does.
+    const refunded = await prisma.party.create({ data: { tenantId, role: PartyRole.CUSTOMER, name: "Refunded Customer" } });
+    const quote = await createQuote({
+      tenantId,
+      partyId: refunded.id,
+      lines: [{ itemId, quantity: 1, unitPriceCents: 200_000 }],
+    });
+    await recordResponse(quote.id, "ACCEPTED");
+    const invoice = await convertToInvoice({ quoteId: quote.id });
+    await recordPayment({ invoiceId: invoice.id, amountCents: 200_000 });
+    expect(await customerBalance(tenantId, refunded.id)).toBe(0);
+
+    await recordRefund({ invoiceId: invoice.id, amountCents: 50_000 });
+    expect(await customerBalance(tenantId, refunded.id)).toBe(50_000);
+    expect((await netPaidByInvoice([invoice.id])).get(invoice.id)).toBe(150_000);
+  });
+
   it("flags a sent quote with no response as stale — the leakage-engine query", async () => {
     const quote = await createQuote({
       tenantId,

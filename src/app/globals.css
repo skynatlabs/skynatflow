@@ -236,6 +236,55 @@ body:has(.kb-shell[data-skin="admina"]:not([data-theme="dark"])) { background: #
   --kb-tint-mint-ink: #2dd4bf;
 }
 
+/* A soft warm wash behind a page — lit rather than printed.
+   Three very low-saturation pools of the palette's own accents over the
+   normal ground, so the surface has some warmth in it without anything on
+   top of it changing colour. Deliberately weak: at these alphas the
+   contrast of every piece of text on it is unchanged, which is the whole
+   trick — warmth that reads as light, not as a coloured page.
+   Applied to the shell, so cards float on it rather than sit in it. */
+.kb-warm {
+  background-color: var(--kb-bg);
+  background-image:
+    radial-gradient(58rem 38rem at 10% -12%, rgba(251, 146, 60, 0.13), transparent 62%),
+    radial-gradient(50rem 34rem at 94% 2%, rgba(251, 93, 107, 0.10), transparent 64%),
+    radial-gradient(72rem 52rem at 52% 110%, rgba(20, 121, 232, 0.05), transparent 66%);
+  background-repeat: no-repeat;
+}
+
+/* Dark mode wants the same shape at a fraction of the strength — the pools
+   are there to keep the ground from reading as flat black, not to tint it. */
+.kb-warm[data-theme="dark"],
+[data-theme="dark"] .kb-warm {
+  background-image:
+    radial-gradient(58rem 38rem at 10% -12%, rgba(251, 146, 60, 0.07), transparent 62%),
+    radial-gradient(50rem 34rem at 94% 2%, rgba(251, 93, 107, 0.06), transparent 64%),
+    radial-gradient(72rem 52rem at 52% 110%, rgba(20, 121, 232, 0.05), transparent 66%);
+}
+
+/* The louder version, for onboarding only — the one page in the product
+   that should feel like arriving somewhere. Same three pools, roughly
+   three times the strength, plus a fourth so the top of the page carries
+   the colour where the heading sits. */
+.kb-warm-loud {
+  background-color: var(--kb-bg);
+  background-image:
+    radial-gradient(46rem 30rem at 4% -8%, rgba(251, 146, 60, 0.34), transparent 60%),
+    radial-gradient(42rem 30rem at 98% -4%, rgba(251, 93, 107, 0.30), transparent 62%),
+    radial-gradient(56rem 40rem at 50% 104%, rgba(20, 121, 232, 0.14), transparent 66%),
+    radial-gradient(38rem 24rem at 62% 18%, rgba(253, 186, 116, 0.18), transparent 64%);
+  background-repeat: no-repeat;
+}
+
+.kb-warm-loud[data-theme="dark"],
+[data-theme="dark"] .kb-warm-loud {
+  background-image:
+    radial-gradient(46rem 30rem at 4% -8%, rgba(251, 146, 60, 0.16), transparent 60%),
+    radial-gradient(42rem 30rem at 98% -4%, rgba(251, 93, 107, 0.14), transparent 62%),
+    radial-gradient(56rem 40rem at 50% 104%, rgba(20, 121, 232, 0.10), transparent 66%),
+    radial-gradient(38rem 24rem at 62% 18%, rgba(253, 186, 116, 0.08), transparent 64%);
+}
+
 /* Marketing site override: bolder, more saturated than the dashboard's
    pastel/muted palette — the marketing site needs to sell, so richer
    accents and deeper navy (used for black-banded sections) read better

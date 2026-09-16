@@ -78,7 +78,7 @@ export function mcpToolsFor(params: {
     // userPresent: false — an MCP client is not a person sitting in flow with
     // the consequences on screen. Anything the gate would hold for approval
     // is simply not offered, rather than offered and then refused.
-    const verdict = canAutoRun({ toolName: name, autonomy: params.autonomy, userPresent: false });
+    const verdict = canAutoRun({ toolName: name, autonomy: params.autonomy, userPresent: false, isMutation: true });
     if (!verdict.allowed) continue;
 
     allowed[name] = def;

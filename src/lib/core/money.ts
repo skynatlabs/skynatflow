@@ -454,22 +454,32 @@ export async function customerBalance(
 }
 
 /**
- * What customers owe — every invoice that was not cancelled, less what was
- * paid against it — for one customer or all of them, in one statement.
- * Worked out invoice by invoice this was a query per invoice, which is fine
- * for one customer and thousands of queries for a statements page.
+ * What customers owe — every invoice actually issued, less what was paid
+ * against it and plus anything refunded back to them — for one customer or
+ * all of them, in one statement. Worked out invoice by invoice this was a
+ * query per invoice, which is fine for one customer and thousands of queries
+ * for a statements page.
+ *
+ * Two things this must not do, both of which it did:
+ *   A DRAFT invoice is not a receivable. It has not been issued, the customer
+ *   has never seen it, and counting it puts a number on a statement — and on
+ *   the customer's own portal — that nobody has ever been asked to pay.
+ *   A refund is money that went back, so it restores the balance. Netting it
+ *   off payments the way netPaidByInvoice does is what makes the two agree.
  */
 export async function customerBalances(tenantId: string, partyId?: string): Promise<Map<string, number>> {
   const rows = await prisma.$queryRaw<Array<{ partyId: string; balance: number }>>`
     SELECT i."partyId", (sum(i."amountCents") - coalesce(sum(p.paid), 0))::float8 AS balance
     FROM transactions i
     LEFT JOIN (
-      SELECT "parentId", sum("amountCents") AS paid
+      SELECT "parentId",
+             sum(CASE WHEN type = 'REFUND' THEN -"amountCents" ELSE "amountCents" END) AS paid
       FROM transactions
-      WHERE "tenantId" = ${tenantId} AND type = 'PAYMENT' AND "parentId" IS NOT NULL
+      WHERE "tenantId" = ${tenantId} AND type IN ('PAYMENT', 'REFUND') AND "parentId" IS NOT NULL
       GROUP BY "parentId"
     ) p ON p."parentId" = i.id
-    WHERE i."tenantId" = ${tenantId} AND i.type = 'INVOICE' AND i.status <> 'CANCELLED'
+    WHERE i."tenantId" = ${tenantId} AND i.type = 'INVOICE'
+      AND i.status NOT IN ('CANCELLED', 'DRAFT')
       ${partyId ? Prisma.sql`AND i."partyId" = ${partyId}` : Prisma.empty}
     GROUP BY i."partyId"
   `;

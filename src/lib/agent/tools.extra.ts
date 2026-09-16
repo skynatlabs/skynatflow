@@ -46,6 +46,7 @@ import { addComment, listComments } from "@/lib/core/comments";
 import { logDelivery } from "@/lib/core/movement";
 import { getQuoteSlaBreaches } from "@/lib/core/sla";
 import { listNotifications } from "@/lib/core/notifications2";
+import { acceptDetails, listSubmissions, markSubmissionHandled } from "@/lib/core/portal";
 import { prisma } from "@/lib/db";
 
 export interface ExtraToolDef {
@@ -469,6 +470,33 @@ export const EXTRA_READ_TOOLS: Record<string, ExtraToolDef> = {
         },
       }),
   },
+
+  customerPortalMessages: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What customers have sent in from their own portal link and nobody has dealt with yet — proof of " +
+          "payment, questions about an invoice, and corrections to their own details. Check this when asked " +
+          "what customers are waiting on, or before chasing someone who says they have already paid.",
+        inputSchema: z.object({
+          includeHandled: z.boolean().default(false).describe("Also show ones already dealt with."),
+        }),
+        execute: async ({ includeHandled }) => {
+          const rows = await listSubmissions(ctx.tenantId, includeHandled ? {} : { handled: false });
+          return rows.map((s) => ({
+            id: s.id,
+            customer: s.party.name,
+            customerId: s.partyId,
+            kind: s.kind,
+            says: s.body,
+            attached: Boolean(s.fileDataUrl),
+            aboutDocumentId: s.transactionId,
+            when: s.createdAt.toISOString().slice(0, 10),
+            dealtWith: s.handledAt ? s.handledAt.toISOString().slice(0, 10) : null,
+          }));
+        },
+      }),
+  },
 };
 
 // ------------------------------------------------------------------ writing
@@ -846,6 +874,33 @@ export const EXTRA_WRITE_TOOLS: Record<string, ExtraToolDef> = {
           await applyLateFee({ invoiceId, feePercent, tenantId: ctx.tenantId });
           return { ok: true };
         },
+      }),
+  },
+
+  closeCustomerPortalMessage: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Mark something a customer sent from their portal as dealt with, so it stops showing as waiting. " +
+          "Use it once the payment has been recorded or the question has actually been answered.",
+        inputSchema: z.object({ submissionId: z.string() }),
+        execute: async ({ submissionId }) => {
+          await markSubmissionHandled(ctx.tenantId, submissionId, ctx.membershipId ?? null);
+          return { ok: true };
+        },
+      }),
+  },
+
+  applyCustomerDetailsCorrection: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Apply a correction a customer made to their own details from the portal — name, business name, " +
+          "email, phone, address, VAT number. Changes what appears on their future documents, so read it back " +
+          "to whoever asked before doing it.",
+        inputSchema: z.object({ submissionId: z.string() }),
+        execute: async ({ submissionId }) => acceptDetails(ctx.tenantId, submissionId, ctx.membershipId ?? null),
       }),
   },
 

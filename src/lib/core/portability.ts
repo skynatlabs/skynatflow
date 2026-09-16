@@ -107,6 +107,11 @@ const EXPORTS: Array<{
   // documents themselves were never kept, only the reading.
   { key: "intake_documents", label: "Documents read while setting up", direct: true, fetch: (t) => prisma.intakeDocument.findMany({ where: { tenantId: t } }) },
   { key: "delivery_notes", label: "Delivery notes", direct: true, fetch: (t) => prisma.deliveryNote.findMany({ where: { tenantId: t } }) },
+  { key: "outbound_emails", label: "Mail sent", direct: true, fetch: (t) => prisma.outboundEmail.findMany({ where: { tenantId: t } }) },
+  // What customers sent in from their own portal link. The attachments are
+  // inline data URLs, so the proof of payment travels with the record rather
+  // than pointing at a file that will not be there.
+  { key: "portal_submissions", label: "What customers sent from their portal", direct: true, fetch: (t) => prisma.portalSubmission.findMany({ where: { tenantId: t } }) },
   { key: "wholesale_connections", label: "Trading connections", direct: false, fetch: (t) => prisma.wholesaleConnection.findMany({ where: { OR: [{ supplierTenantId: t }, { buyerTenantId: t }] } }) },
 ];
 

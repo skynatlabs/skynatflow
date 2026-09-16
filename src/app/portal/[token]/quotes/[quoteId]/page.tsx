@@ -8,14 +8,11 @@ import Link from "next/link";
 import { findPartyByPortalToken } from "@/lib/core/parties";
 import { trackQuoteOpen, prisma } from "@/lib/core/money";
 import { maybeAlertHotLead } from "@/lib/core/notifications";
+import { formatMoney } from "@/lib/format/money";
 import { SignatureCapture } from "./SignatureCapture";
 import { raiseDisputeAction } from "./actions";
 
 export const dynamic = "force-dynamic";
-
-function money(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "ZAR" });
-}
 
 export default async function PortalQuotePage({
   params,
@@ -47,9 +44,13 @@ export default async function PortalQuotePage({
   });
 
   const isDecided = quote.status === "ACCEPTED" || quote.status === "DECLINED";
+  // The document's own currency where it has one, otherwise the workspace's —
+  // never the browser's, which is how a rand quote reads as dollars abroad.
+  const money = (cents: number) =>
+    formatMoney(cents, quote.currency ?? quote.tenant.currency, { decimals: true });
 
   return (
-    <div className="kb-shell min-h-screen p-8" data-theme="light">
+    <div className="p-4 sm:p-8">
       <main className="mx-auto max-w-lg">
         <Link href={`/portal/${token}`} className="text-xs text-[var(--kb-text-dim)]">
           &larr; Back
@@ -94,9 +95,10 @@ export default async function PortalQuotePage({
         <div className="kb-card mt-6 p-6">
           <ul className="divide-y divide-[var(--kb-panel-border)]">
             {quote.itemLines.map((l) => (
-              <li key={l.id} className="flex justify-between py-2 text-sm">
+              <li key={l.id} className="flex justify-between gap-3 py-2 text-sm">
                 <span className="text-[var(--kb-text)]">
-                  {l.quantity} &times; {l.item.name}
+                  {l.quantity}
+                  {l.unit ? ` ${l.unit}` : " ×"} {l.description ?? l.item.name}
                 </span>
                 <span className="text-[var(--kb-text)]">{money(l.quantity * l.unitPriceCents)}</span>
               </li>
@@ -149,7 +151,11 @@ export default async function PortalQuotePage({
 
         {!isDecided && (
           <p className="mt-3 text-xs text-[var(--kb-text-dim)]">
-            Questions? Reply on WhatsApp and {quote.tenant.name} will get back to you.
+            Questions?{" "}
+            <Link href={`/portal/${token}?do=ask#send`} className="underline">
+              Ask {quote.tenant.name}
+            </Link>{" "}
+            and someone there will come back to you.
           </p>
         )}
 

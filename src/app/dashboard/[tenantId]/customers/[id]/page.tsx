@@ -60,6 +60,7 @@ export default async function CustomerHistoryPage({
   ]);
   const margin = margins.find((m) => m.partyId === id);
   const cur = tenantRow?.currency ?? "ZAR";
+  const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com"}/portal/${portalToken}`;
 
   const invoicedQuoteIds = new Set(
     transactions.filter((t) => t.type === "INVOICE" && t.parentId).map((t) => t.parentId as string)
@@ -105,11 +106,41 @@ export default async function CustomerHistoryPage({
           Customer portal
         </h2>
         <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
-          Send this link so {party.name} can view and sign their own quotes — no login needed.
+          Send this once. {party.name} can see every quote and invoice, what they still owe, sign a quote, send you
+          proof of a payment, and correct their own details — no login, no app.
         </p>
+        {/* The whole link, not the path: this is meant to be copied into a
+            WhatsApp message, and half a link is not a link. */}
         <code className="mt-2 block truncate rounded-lg bg-black/5 px-3 py-2 text-xs text-[var(--kb-text)]">
-          /portal/{portalToken}
+          {portalUrl}
         </code>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <a href={`/portal/${portalToken}`} target="_blank" rel="noopener noreferrer" className="kb-pill kb-pill-ghost text-xs">
+            See what they see
+          </a>
+          {party.phone && (
+            <a
+              href={`https://wa.me/${party.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                `Hi ${party.name}, here is your account with us — quotes, invoices and what is outstanding: ${portalUrl}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="kb-pill kb-pill-primary text-xs"
+            >
+              Send it on WhatsApp
+            </a>
+          )}
+          {party.email && (
+            <a
+              href={`mailto:${party.email}?subject=${encodeURIComponent("Your account")}&body=${encodeURIComponent(
+                `Hi ${party.name},\n\nHere is your account with us — quotes, invoices and what is outstanding:\n${portalUrl}\n`
+              )}`}
+              className="kb-pill kb-pill-ghost text-xs"
+            >
+              Email it
+            </a>
+          )}
+        </div>
       </section>
 
       <section className="kb-card mt-6 p-6">
