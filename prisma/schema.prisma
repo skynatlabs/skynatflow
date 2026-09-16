@@ -217,6 +217,16 @@ model Tenant {
   powerAreaLabel               String?
   powerStage                   Int?
   powerBlocks                  Json?
+  /// Whether this business may be matched by another workspace that already
+  /// holds its VAT or registration number. Off by default: a match says "the
+  /// business you know is also here", which is a fact about a third party
+  /// nobody gave permission to share. What it exposes is only what already
+  /// appears on their own invoices.
+  listedInGraph                Boolean         @default(false)
+  /// The partner whose code this workspace signed up under. Set once, at
+  /// sign-up — a code applied later would let anybody claim a business that
+  /// was already here.
+  referredByCode               String?
   whatsappVerifyNumber         String?
   // AI-generated proposal content is metered — the LLM call only writes
   // text (never the PDF design/layout, which stays fixed code, both for
@@ -4290,4 +4300,27 @@ model AgentRecipe {
 
   @@index([tenantId])
   @@map("agent_recipes")
+}
+
+/// A bookkeeper, accountant, consultant or agency who looks after several
+/// businesses here.
+///
+/// The deliberate absence: a partner has no rights of its own over any
+/// workspace. Everything they can see, they see through an ordinary
+/// Membership on that workspace, which the client can revoke without asking
+/// anybody. This row carries who they are and what they are owed — never
+/// access.
+model Partner {
+  id           String   @id @default(cuid())
+  ownerUserId  String
+  firmName     String
+  /// bookkeeper | accountant | consultant | reseller | developer
+  kind         String   @default("bookkeeper")
+  contactEmail String
+  /// Short enough to say down a phone, long enough not to be guessed at.
+  code         String   @unique
+  createdAt    DateTime @default(now())
+
+  @@index([ownerUserId])
+  @@map("partners")
 }

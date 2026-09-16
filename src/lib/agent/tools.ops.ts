@@ -86,6 +86,9 @@ import { chargeableWeight, collectionManifest, suggestCourier } from "@/lib/core
 import { whoAreThey } from "@/lib/core/companyLookup";
 import { usage, usageSummary } from "@/lib/core/quotas";
 import { scanWebsite } from "@/lib/core/websiteScan";
+import { BASIS_LABEL, REQUEST_LABEL, pastRetention, processingRecord, subjectRequest } from "@/lib/core/dataProtection";
+import { findPartners, graphValue, setListed } from "@/lib/core/tradingGraph";
+import { PARTNER_KIND, partnerBook, partnerEarnings } from "@/lib/core/partners";
 import { prisma } from "@/lib/db";
 import { composeQuoteFromText } from "@/lib/core/quoteComposer";
 import { buildWhatsAppShareLink, quoteWhatsAppMessage, invoiceWhatsAppMessage } from "@/lib/core/whatsappShare";
@@ -2105,6 +2108,130 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
         },
       }),
   },
+
+  // ------------------------------------------------------------- the moat
+
+  dataProtectionRecord: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What this business holds about people, why, on what legal basis, and for how long — the record POPIA and the " +
+          "GDPR both ask for, plus what the owner still has to do themselves.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const record = await processingRecord(ctx.tenantId);
+          return {
+            business: record.businessName,
+            yourRole: record.role,
+            ourRole: record.operator,
+            holds: record.categories.map((category) => ({
+              what: category.what,
+              why: category.why,
+              basis: BASIS_LABEL[category.basis],
+              keptFor: category.retention,
+              canBeErased: category.erasable,
+            })),
+            acrossBorders: record.crossBorder,
+            yourPart: record.yourPart,
+          };
+        },
+      }),
+  },
+
+  whatWeHoldAbout: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Everything this workspace holds about one person or business, for answering a request to see it, correct it or " +
+          "have it deleted. Says what would go and what has to stay, with the law that keeps it.",
+        inputSchema: z.object({
+          customerId: z.string(),
+          kind: z.enum(["access", "correction", "erasure", "objection"]).default("access"),
+        }),
+        execute: async ({ customerId, kind }) => {
+          const request = await subjectRequest({ tenantId: ctx.tenantId, partyId: customerId, kind });
+          return {
+            about: request.subject,
+            asking: REQUEST_LABEL[request.kind],
+            holding: request.holding,
+            wouldBeDeleted: request.wouldErase,
+            wouldStay: request.wouldRemain,
+            answerBy: request.answerBy.toISOString().slice(0, 10),
+            note: request.note,
+          };
+        },
+      }),
+  },
+
+  heldTooLong: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What this workspace is holding past the period it said it would. Nothing is deleted — a retention rule is a " +
+          "promise a regulator can hold somebody to, but only the business knows whether a claim is still live.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const result = await pastRetention(ctx.tenantId);
+          return { total: result.total, rows: result.rows, note: result.note };
+        },
+      }),
+  },
+
+  tradingConnections: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Businesses this workspace already deals with that are also here, and what the existing trading connections " +
+          "have saved. Matched on a number already on file, never on a name.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [found, value] = await Promise.all([
+            findPartners(ctx.tenantId),
+            graphValue(ctx.tenantId, new Date(Date.now() - 90 * 86_400_000)),
+          ]);
+          return {
+            summary: value.sentence,
+            couldConnectWith: found.suggestions.map((suggestion) => ({
+              name: suggestion.listing.name,
+              theyAre: suggestion.relationship,
+              because: suggestion.because,
+              alreadyConnected: suggestion.listing.connected,
+            })),
+            note: found.note,
+          };
+        },
+      }),
+  },
+
+  myPartnerBook: {
+    build: (ctx) =>
+      tool({
+        description:
+          "For a bookkeeper or accountant: the workspaces they look after, what needs attention in each, and what the " +
+          "referral share works out at. Only shows workspaces that have given them access.",
+        inputSchema: z.object({ partnerId: z.string() }),
+        execute: async ({ partnerId }) => {
+          const partner = await prisma.partner.findUnique({ where: { id: partnerId } });
+          // A partner is a person's firm, not a workspace's property — so the
+          // only caller allowed to read one is somebody who is signed in as
+          // the user who owns it.
+          if (!partner || !ctx.userId || partner.ownerUserId !== ctx.userId) {
+            return { found: false as const, why: "That partner firm is not one this account owns." };
+          }
+
+          const [book, earnings] = await Promise.all([partnerBook(partnerId), partnerEarnings(partnerId)]);
+          return {
+            found: true as const,
+            firm: partner.firmName,
+            kind: PARTNER_KIND[partner.kind as keyof typeof PARTNER_KIND]?.label ?? partner.kind,
+            code: partner.code,
+            clients: book.clients.map((client) => ({ name: client.name, canOpen: client.hasAccess, needsAttention: client.attention })),
+            note: book.note,
+            share: { clients: earnings.clients, earningNow: earnings.earningNow, monthly: formatMoney(earnings.monthlyCents), caveat: earnings.caveat },
+          };
+        },
+      }),
+  },
 };
 
 // ------------------------------------------------------------------ writing
@@ -3708,6 +3835,26 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
           });
           const schedule = await getSchedule(ctx.tenantId);
           return { stage: schedule.stage, blocks: schedule.blocks.length, summary: schedule.note };
+        },
+      }),
+  },
+
+  listInTradingGraph: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Switch on or off whether other businesses here can recognise this one from a VAT or registration number they " +
+          "already hold. Off by default. What it shows is only what already appears on this business's own invoices.",
+        inputSchema: z.object({ listed: z.boolean() }),
+        execute: async ({ listed }) => {
+          await setListed(ctx.tenantId, listed);
+          return {
+            listed,
+            note: listed
+              ? "Businesses that already have your VAT or registration number on file can now see that you are here. Nothing about your trade, prices or customers is shown."
+              : "Nobody can match this workspace any more. Existing connections are unaffected.",
+          };
         },
       }),
   },

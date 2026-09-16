@@ -46,6 +46,11 @@ const EXACT: Record<string, string> = {
   allowanceUsed: "Check what has been used this month",
   readTheirWebsite: "Read their website",
   applyIndustryPack: "Set the workspace up for this trade",
+  dataProtectionRecord: "Check what the business holds about people",
+  whatWeHoldAbout: "Check what is held about one person",
+  heldTooLong: "Look for anything held too long",
+  tradingConnections: "Check the trading connections",
+  listInTradingGraph: "Change whether the business can be matched",
 };
 
 /**
