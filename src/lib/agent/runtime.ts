@@ -19,7 +19,9 @@
 import { generateText, stepCountIs, type ToolSet } from "ai";
 import type { AgentAutonomy, AgentRunTrigger } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { getAiModel } from "@/lib/ai/model";
+import { aiModelChain, worthFailingOver } from "@/lib/ai/model";
+import { mayRun, recordSpend } from "@/lib/agent/budget";
+import { preferenceNotes } from "@/lib/agent/learning";
 import { buildAgentTools, MUTATING_TOOLS, type AgentContext } from "@/lib/agent/tools";
 import { canAutoRun } from "@/lib/agent/autonomy";
 import { loadFacts, loadThread, appendToThread, type ThreadTurn } from "@/lib/agent/memory";
@@ -215,17 +217,26 @@ export async function runAgent(params: {
     };
   };
 
-  const model = await getAiModel();
-  if (!model) {
+  const chain = await aiModelChain();
+  if (chain.length === 0) {
     return fail(
       "No AI provider is configured for this platform yet — an admin can set one up in the admin console.",
       "no_model"
     );
   }
 
-  const [facts, history] = await Promise.all([
+  // A workspace's monthly budget stops the background work and never stops a
+  // person who is sitting there asking. Being told the agent is out of budget
+  // mid-question is a worse outcome than a few cents.
+  const budget = await mayRun({ tenantId: ctx.tenantId, userPresent, now });
+  if (!budget.allowed) return fail(budget.reason, "over_budget");
+
+  const [facts, history, preferences] = await Promise.all([
     loadFacts(ctx.tenantId),
     threadId ? loadThread(threadId, ctx.tenantId) : Promise.resolve([] as ThreadTurn[]),
+    // What this workspace has consistently accepted and refused. Phrased as
+    // taste rather than prohibition — see agent/learning.ts.
+    preferenceNotes(ctx.tenantId, now).catch(() => [] as string[]),
   ]);
 
   // The gate wraps each mutating tool's execute. Interception happens here,
@@ -293,17 +304,54 @@ export async function runAgent(params: {
   }
 
   try {
-    const result = await generateText({
-      model,
-      system: systemPrompt({ ctx, now, facts, autonomy, userPresent, brief, page }),
-      messages: [...history, { role: "user" as const, content: input }],
-      tools,
-      // The loop. Without this the SDK returns after a single tool call and
-      // the model never sees what the call returned — exactly the limitation
-      // the old classifier had.
-      stopWhen: stepCountIs(MAX_STEPS),
-      abortSignal,
-    });
+    const system =
+      systemPrompt({ ctx, now, facts, autonomy, userPresent, brief, page }) +
+      (preferences.length > 0 ? `\n\nWhat this business has told you by what it accepts:\n- ${preferences.join("\n- ")}` : "");
+
+    // Providers in order, best first. An outage at one vendor should be a
+    // slower answer rather than no answer — but only for the failures where
+    // the same request might work elsewhere. A refusal or a malformed request
+    // is retried nowhere: it would fail again, more slowly and at twice the
+    // cost. See ai/model.ts.
+    let result: Awaited<ReturnType<typeof generateText>> | null = null;
+    let lastError: unknown = null;
+    let servedBy = chain[0];
+
+    for (const candidate of chain) {
+      try {
+        servedBy = candidate;
+        result = await generateText({
+          model: candidate.model,
+          system,
+          messages: [...history, { role: "user" as const, content: input }],
+          tools,
+          // The loop. Without this the SDK returns after a single tool call and
+          // the model never sees what the call returned — exactly the limitation
+          // the old classifier had.
+          stopWhen: stepCountIs(MAX_STEPS),
+          abortSignal,
+        });
+        break;
+      } catch (err) {
+        lastError = err;
+        if (!worthFailingOver(err) || candidate === chain[chain.length - 1]) throw err;
+        console.warn(`[agent] ${candidate.provider} failed, trying the next provider:`, err);
+      }
+    }
+    if (!result) throw lastError ?? new Error("No provider answered.");
+
+    // What it cost, recorded per run so a budget can be enforced before the
+    // next one rather than discovered on an invoice.
+    await recordSpend({
+      tenantId: ctx.tenantId,
+      runId: run.id,
+      agentId: agentId ?? null,
+      provider: servedBy.provider,
+      model: servedBy.modelId,
+      inputTokens: result.usage?.inputTokens ?? 0,
+      outputTokens: result.usage?.outputTokens ?? 0,
+      at: new Date(),
+    }).catch((err) => console.error("[agent] could not record what the run cost:", err));
 
     const steps: AgentStep[] = [];
     for (const step of result.steps) {

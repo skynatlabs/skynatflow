@@ -185,6 +185,11 @@ model Tenant {
   // Master switch for the proactive layer. Off means the agent only ever
   // responds when spoken to — no tick, no event reactions, no nudges.
   agentProactiveEnabled        Boolean         @default(true)
+  /// What the agent may cost this workspace in a month, in cents. Null means
+  /// no cap. A cap stops the background work and never stops a person who is
+  /// sitting there asking — being told the agent is out of budget mid-question
+  /// is a worse outcome than a few cents.
+  agentMonthlyCapCents         Int?
   whatsappVerifyNumber         String?
   // AI-generated proposal content is metered — the LLM call only writes
   // text (never the PDF design/layout, which stays fixed code, both for
@@ -292,6 +297,9 @@ model Tenant {
   checklists        Checklist[]
   certificates      Certificate[]
   offlineQueue      OfflineChange[]
+  agentUndo         AgentUndo[]
+  agentSpend        AgentSpend[]
+  agentRecipes      AgentRecipe[]
 
   @@map("tenants")
 }
@@ -4159,4 +4167,96 @@ model OfflineChange {
   @@unique([tenantId, clientRef])
   @@index([tenantId, appliedAt])
   @@map("offline_changes")
+}
+
+// ----------------------------------------------------------------- the agent
+// Phases 57-70: what makes an agent that acts on a business trustworthy
+// rather than alarming — a way back, a budget, and a record of whether what
+// it did actually worked.
+
+/// How to undo one thing the agent did.
+///
+/// Autonomy is only sellable with a way back. The gate stops the irreversible
+/// things; this covers everything else, which is most of what it does — and
+/// "I can put that back" is the sentence that lets somebody turn the agent up
+/// a notch.
+///
+/// The compensation is recorded at the time of the action, because working
+/// out how to reverse something a week later needs state that has moved on.
+model AgentUndo {
+  id           String    @id @default(cuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  runId        String?
+  /// The tool that did it, for the sentence shown to a person.
+  tool         String
+  /// What it did, in the words of somebody reading a list of them.
+  description  String
+  /// How to put it back: { kind, ...args }. Read by agent/undo.ts.
+  compensation Json
+  /// Who or what did it.
+  actedById    String?
+  undoneAt     DateTime?
+  undoneById   String?
+  /// Set when putting it back failed, with the reason.
+  failedReason String?
+  /// Undo is offered for a week. After that the world has moved.
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, undoneAt])
+  @@map("agent_undo")
+}
+
+/// What the agent cost, per run.
+///
+/// A business that cannot see what its agent costs cannot be asked to trust
+/// it with more. Recorded per run so a budget can be enforced before the
+/// next one rather than discovered on an invoice.
+model AgentSpend {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  runId        String?
+  agentId      String?
+  provider     String
+  model        String
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  /// What it cost, in the platform's own currency, at the rate when it ran.
+  costCents    Float    @default(0)
+  at           DateTime @default(now())
+
+  @@index([tenantId, at])
+  @@map("agent_spend")
+}
+
+/// A named agent somebody wrote, packaged so another business can install it.
+///
+/// A marketplace with no code in it: a recipe is a name, a brief, a schedule
+/// and the tools it may use. Everything it can do is already bounded by the
+/// installing workspace's own roles and autonomy, so installing one is not a
+/// security decision.
+model AgentRecipe {
+  id          String   @id @default(cuid())
+  /// Null for one published by the platform rather than by a workspace.
+  tenantId    String?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  slug        String   @unique
+  name        String
+  summary     String
+  /// What it is told to do.
+  brief       String
+  /// Cron-ish schedule, or null to run only when asked.
+  schedule    String?
+  /// Tool names it may use. Narrowing, never widening.
+  tools       String[]
+  /// Which trades it suits, for the list. Empty means any.
+  niches      String[]
+  installs    Int      @default(0)
+  publishedAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("agent_recipes")
 }

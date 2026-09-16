@@ -59,6 +59,11 @@ import {
 import { draftAgreement, kindFromDraft, withDisclaimer } from "@/lib/ai/agreement";
 import { SYSTEM_BY_KEY, addSystem, listSystems, switchover } from "@/lib/core/systems";
 import { kpiBoard } from "@/lib/core/kpis";
+import { undo, undoable, undoHealth, undoRun } from "@/lib/agent/undo";
+import { spendByAgent, spendThisMonth } from "@/lib/agent/budget";
+import { howItIsDoing } from "@/lib/agent/learning";
+import { availableRecipes, installRecipe } from "@/lib/agent/recipes";
+import { buyingSomething, hiringSomebody, howMuchCanWeAfford, whatIf } from "@/lib/core/whatIf";
 import { cancelPaymentPlan, createPaymentPlan, evenInstalments, paymentPlanFor } from "@/lib/core/paymentPlans";
 import { currencyForCustomer, fxPosition, rateOn, setCustomerCurrency, setRate } from "@/lib/core/fx";
 import { approveBill, buildPaymentRun, listBills, payablesSummary, payBill, recordBill } from "@/lib/core/supplierBills";
@@ -588,6 +593,120 @@ export const EXTRA_READ_TOOLS: Record<string, ExtraToolDef> = {
             wordingStillMatchesSignature: signatureStillMatches(agreement),
           };
         },
+      }),
+  },
+
+  canWeAffordIt: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What the next thirteen weeks look like with one more commitment in them — a hire, a vehicle, a machine, " +
+          "bigger premises. The question every owner actually has. It answers in weeks rather than yes or no, " +
+          "because 'yes' is a claim about the future and 'this takes the lowest point to R6 000 in week nine' is a " +
+          "fact about the arithmetic. Always repeat the caveats it returns.",
+        inputSchema: z.object({
+          what: z.string().describe("What they are thinking of taking on."),
+          amountCents: z.number().int().positive(),
+          every: z.enum(["once", "monthly"]).default("monthly"),
+          startsInWeeks: z.number().int().nonnegative().default(4),
+          /** A salary needs the on-costs added; this does it. */
+          isAHire: z.boolean().default(false),
+          openingBalanceCents: z.number().int().optional().describe("Cash on hand now, if they said."),
+        }),
+        execute: async ({ what, amountCents, every, startsInWeeks, isAHire, openingBalanceCents }) => {
+          const commitment = isAHire
+            ? hiringSomebody({ role: what, monthlyCostCents: amountCents, startsInWeeks })
+            : buyingSomething({ what, priceCents: amountCents, overMonths: every === "monthly" ? 12 : 1, inWeeks: startsInWeeks });
+          const answer = await whatIf({
+            tenantId: ctx.tenantId,
+            question: what,
+            commitments: [commitment],
+            openingCents: openingBalanceCents,
+          });
+          return {
+            answer: answer.answer,
+            affordable: answer.affordable,
+            lowestPointNowCents: answer.lowestNowCents,
+            lowestPointThenCents: answer.lowestThenCents,
+            goesShortInWeek: answer.goesShortInWeek,
+            caveats: answer.caveats,
+          };
+        },
+      }),
+  },
+
+  howMuchCanWeAfford: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The most this business could take on before the next thirteen weeks go short. Use it when somebody asks " +
+          "what they can afford rather than whether they can afford a particular thing.",
+        inputSchema: z.object({
+          every: z.enum(["once", "monthly"]).default("monthly"),
+          startsInWeeks: z.number().int().nonnegative().default(4),
+        }),
+        execute: async ({ every, startsInWeeks }) =>
+          howMuchCanWeAfford({ tenantId: ctx.tenantId, recurrence: every, startsInWeeks }),
+      }),
+  },
+
+  whatCanBePutBack: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Things you did recently that can still be undone, and for how long. Offer this whenever somebody sounds " +
+          "unsure about something that was done — being able to say 'I can put that back' is the point.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [rows, health] = await Promise.all([undoable(ctx.tenantId), undoHealth(ctx.tenantId)]);
+          return {
+            ...health,
+            canBeUndone: rows.map((r) => ({
+              id: r.id,
+              what: r.description,
+              tool: r.tool,
+              when: r.createdAt.toISOString(),
+              until: r.expiresAt.toISOString().slice(0, 10),
+            })),
+          };
+        },
+      }),
+  },
+
+  whatTheAgentCosts: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What this workspace's agent has cost this month, against its cap if it has one, and where the money went " +
+          "by agent. The figures are close rather than exact and should be described that way.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [month, byAgent] = await Promise.all([spendThisMonth(ctx.tenantId), spendByAgent(ctx.tenantId)]);
+          return { ...month, byAgent, note: "Worked out from published token rates, so close rather than exact." };
+        },
+      }),
+  },
+
+  howAmIDoing: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Whether what the officers raise is being accepted, and whether acting on it changed anything. Read it " +
+          "before raising the same kind of finding again — something turned down four times needs a reason it is " +
+          "different this time.",
+        inputSchema: z.object({}),
+        execute: async () => howItIsDoing(ctx.tenantId),
+      }),
+  },
+
+  agentRecipes: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Ready-made agents this workspace could install — the jobs every business has and nobody gets round to. " +
+          "Each is a brief, a schedule and a tool list; nothing it can do exceeds what this workspace already permits.",
+        inputSchema: z.object({}),
+        execute: async () => availableRecipes(ctx.tenantId),
       }),
   },
 
@@ -1626,6 +1745,52 @@ export const EXTRA_WRITE_TOOLS: Record<string, ExtraToolDef> = {
         execute: async ({ invoiceId, feePercent }) => {
           await applyLateFee({ invoiceId, feePercent, tenantId: ctx.tenantId });
           return { ok: true };
+        },
+      }),
+  },
+
+  putItBack: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Undo one thing that was done, or everything one run did. Offer it rather than waiting to be asked — most " +
+          "people do not know it is possible.",
+        inputSchema: z.object({
+          undoId: z.string().optional().describe("One thing."),
+          runId: z.string().optional().describe("Everything a run did."),
+        }),
+        execute: async ({ undoId, runId }) => {
+          if (runId) return undoRun({ tenantId: ctx.tenantId, runId, undoneById: ctx.membershipId ?? null });
+          if (!undoId) throw new Error("Say which thing to put back.");
+          return undo({ tenantId: ctx.tenantId, undoId, undoneById: ctx.membershipId ?? null });
+        },
+      }),
+  },
+
+  installAgentRecipe: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Install a ready-made agent. The tools it asks for are narrowed to what this role may already do — a " +
+          "recipe can never widen anything — and anything refused is named rather than silently dropped.",
+        inputSchema: z.object({ slug: z.string() }),
+        execute: async ({ slug }) => {
+          const result = await installRecipe({
+            tenantId: ctx.tenantId,
+            slug,
+            role: ctx.role,
+            createdById: ctx.membershipId ?? null,
+          });
+          return {
+            ok: true,
+            ...result,
+            note:
+              result.toolsNotAvailable.length > 0
+                ? `Installed without ${result.toolsNotAvailable.join(", ")} — this role cannot use ${result.toolsNotAvailable.length === 1 ? "it" : "them"}.`
+                : "Installed with everything it asked for.",
+          };
         },
       }),
   },

@@ -6,6 +6,7 @@
 // configured if the chosen one doesn't, and to null (caller degrades
 // gracefully, same as every other external integration here) if neither does.
 
+import type { LanguageModel } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { prisma } from "@/lib/db";
@@ -137,6 +138,40 @@ export async function getAiModel() {
 
   const fallback: AiProvider = chosen === "anthropic" ? "google" : "anthropic";
   return modelFor(fallback);
+}
+
+/**
+ * Every provider that could serve a request, best first.
+ *
+ * getAiModel falls back when a provider has no key, which covers the setup
+ * case and nothing else. This covers the one that actually happens: a
+ * provider that is configured, has credit, and is having a bad afternoon.
+ * The caller tries them in order — see agent/runtime.ts — so an outage at one
+ * vendor is a slower answer rather than no answer.
+ */
+export async function aiModelChain(): Promise<Array<{ provider: AiProvider; model: LanguageModel; modelId: string }>> {
+  const chosen = await getPlatformAiProvider();
+  const order: AiProvider[] = chosen === "anthropic" ? ["anthropic", "google"] : ["google", "anthropic"];
+
+  const chain: Array<{ provider: AiProvider; model: LanguageModel; modelId: string }> = [];
+  for (const provider of order) {
+    const model = await modelFor(provider);
+    if (model) chain.push({ provider, model, modelId: provider === "google" ? GOOGLE_MODEL : ANTHROPIC_MODEL });
+  }
+  return chain;
+}
+
+/**
+ * Whether an error is worth trying the next provider for.
+ *
+ * A rate limit, an outage or a timeout is: the same request may well work
+ * elsewhere. A refusal or a malformed request is not — retrying it at another
+ * vendor produces the same refusal, more slowly and at twice the cost.
+ */
+export function worthFailingOver(err: unknown): boolean {
+  const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  if (/invalid|unsupported|schema|refus|content filter|safety/.test(message)) return false;
+  return /rate.?limit|overload|timeout|timed out|unavailable|5\d\d|econn|network|fetch failed|capacity|credit|quota/.test(message);
 }
 
 // ---------------------------------------------------------------- accents

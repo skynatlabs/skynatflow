@@ -127,6 +127,8 @@ const EXPORTS: Array<{
   { key: "checklists", label: "Checklists", direct: true, fetch: (t) => prisma.checklist.findMany({ where: { tenantId: t } }) },
   { key: "certificates", label: "Certificates issued", direct: true, fetch: (t) => prisma.certificate.findMany({ where: { tenantId: t } }) },
   { key: "offline_changes", label: "Captured in the field", direct: true, fetch: (t) => prisma.offlineChange.findMany({ where: { tenantId: t } }) },
+  { key: "agent_undo", label: "What the agent did that can be put back", direct: true, fetch: (t) => prisma.agentUndo.findMany({ where: { tenantId: t } }) },
+  { key: "agent_spend", label: "What the agent cost", direct: true, fetch: (t) => prisma.agentSpend.findMany({ where: { tenantId: t } }) },
   // What customers sent in from their own portal link. The attachments are
   // inline data URLs, so the proof of payment travels with the record rather
   // than pointing at a file that will not be there.
@@ -171,6 +173,7 @@ const EXCLUDED: Record<string, string> = {
   fx_rates: "Exchange rates for a day, shared by every workspace and owned by none.",
   conversation_notes: "Exported through their conversations.",
   checklist_items: "Exported through their checklists.",
+  agent_recipes: "A shared catalogue of agent templates. A workspace’s own published recipe is its words, not its data, and the catalogue is not scoped to one business.",
 };
 
 export const EXPORT_EXCLUSIONS = EXCLUDED;
