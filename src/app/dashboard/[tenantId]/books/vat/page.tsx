@@ -9,6 +9,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AuthRequiredError, ForbiddenError, requireTenantAccess } from "@/lib/auth/tenant-access";
 import { computeVatReturn, driftSinceFiling, listVatReturns, vatPeriodFor } from "@/lib/core/vatReturn";
+import { vat201 } from "@/lib/core/sarsFiling";
 import { formatMoney } from "@/lib/format/money";
 import { PageHeader } from "../../PageHeader";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
@@ -38,9 +39,12 @@ export default async function VatPage({
   }
 
   const period = from && to ? { start: new Date(from), end: new Date(to) } : vatPeriodFor(new Date());
-  const [computed, filedReturns] = await Promise.all([
+  const [computed, filedReturns, pack] = await Promise.all([
     computeVatReturn(tenantId, period.start, period.end),
     listVatReturns(tenantId),
+    // The same figures against the boxes on the actual form, so nobody has to
+    // work out which of our labels is field 14.
+    vat201({ tenantId, periodEnd: period.end }).catch(() => null),
   ]);
   const money = (c: number) => formatMoney(c, computed.currency, { decimals: true });
 
@@ -158,6 +162,45 @@ export default async function VatPage({
         is worse than no return, because it disagrees with the one the revenue service already has — anything that lands
         afterwards is shown here and carried into the next period instead.
       </p>
+
+      {pack && (
+        <section className="kb-card mt-5 p-4 sm:p-5">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--kb-text-dim)]">
+            VAT201, box by box &middot; due {pack.dueOn.toLocaleDateString("en-ZA", { day: "numeric", month: "long" })}
+          </h2>
+          <p className="mt-1 text-xs text-[var(--kb-text-dim)]">{pack.where}</p>
+
+          <ul className="mt-3 divide-y divide-[var(--kb-panel-border)]">
+            {pack.fields.map((field) => (
+              <li key={field.box} className="py-2">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="text-sm text-[var(--kb-text)]">
+                    <span className="mr-2 font-mono text-[11px] text-[var(--kb-text-dim)]">{field.box}</span>
+                    {field.label}
+                  </span>
+                  <span className="text-sm tabular-nums text-[var(--kb-text)]">{money(field.valueCents)}</span>
+                </div>
+                <p className="mt-0.5 text-[11px] text-[var(--kb-text-dim)]">{field.basis}</p>
+              </li>
+            ))}
+          </ul>
+
+          {pack.warnings.length > 0 && (
+            <ul className="mt-3 grid gap-1">
+              {pack.warnings.map((warning) => (
+                <li key={warning} className="text-xs text-[var(--kb-tint-amber-ink)]">
+                  {warning}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <p className="mt-3 text-[11px] text-[var(--kb-text-dim)]">
+            {pack.supporting.rows.toLocaleString()} supporting rows sit behind these figures. On a refund they will ask
+            for them, and having the file already assembled is the difference between an afternoon and a weekend.
+          </p>
+        </section>
+      )}
     </div>
   );
 }

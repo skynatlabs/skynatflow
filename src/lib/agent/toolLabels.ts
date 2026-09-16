@@ -35,6 +35,14 @@ const EXACT: Record<string, string> = {
   brandingSettings: "Check what customers see",
   setBranding: "Change the logo and colour customers see",
   chooseDocumentDrive: "Choose where copies of documents go",
+  payrollForecast: "Work out what payroll costs",
+  vatFilingPack: "Put the VAT return together",
+  powerSchedule: "Check when the power is off",
+  setPowerSchedule: "Record when the power is off",
+  marketplaceMargin: "Work out what is left after the marketplace",
+  parcelAdvice: "Work out what the parcel will cost to send",
+  buildCollectionManifest: "Make the courier's collection sheet",
+  whoAreThey: "Check who this customer really is",
 };
 
 /**

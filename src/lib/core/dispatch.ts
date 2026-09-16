@@ -21,6 +21,7 @@
 
 import { JobCardStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { formatBlock, getSchedule } from "./loadShedding";
 import { haversineKm } from "./trips";
 
 /** A working day, in hours, when nothing says otherwise. */
@@ -313,6 +314,8 @@ export interface CapacityAnswer {
   fits: boolean;
   /** The sentence somebody can read down the phone. */
   answer: string;
+  /** Load-shedding that day, when there is any. Advice, never a refusal. */
+  powerWarning: string | null;
 }
 
 /** Can we take this job that day? Answered from the jobs already on it. */
@@ -328,6 +331,14 @@ export async function canWeFitIt(params: {
   const free = day.minutesAvailable - day.minutesBooked;
   const fits = free >= wanted;
 
+  // The hours free are only half the answer in a country where the power
+  // goes off on a schedule. A day with four hours free, three of them dark,
+  // is not a day you promise a customer.
+  const schedule = await getSchedule(params.tenantId);
+  const darkMinutes = schedule.blocks
+    .filter((block) => block.day === params.date.getDay())
+    .reduce((sum, block) => sum + (block.endMinute - block.startMinute), 0);
+
   const hours = (m: number) => `${Math.round((m / 60) * 10) / 10} hours`;
   return {
     date: day.date,
@@ -338,6 +349,13 @@ export async function canWeFitIt(params: {
     answer: fits
       ? `Yes — ${hours(free)} free that day, and this would take ${hours(wanted)}.`
       : `Not really. ${hours(day.minutesBooked)} is already booked out of ${hours(day.minutesAvailable)}, leaving ${hours(Math.max(0, free))}.`,
+    powerWarning:
+      darkMinutes > 0
+        ? `The power is off for ${hours(darkMinutes)} that day (${schedule.blocks
+            .filter((block) => block.day === params.date.getDay())
+            .map(formatBlock)
+            .join(", ")}). Fine for work that needs no power.`
+        : null,
   };
 }
 

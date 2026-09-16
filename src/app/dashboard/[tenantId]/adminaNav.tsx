@@ -64,6 +64,7 @@ export function buildAdminaNav(params: {
       icon: <SquaresIcon />,
       items: [
         { href: `${d}/dispatch`, label: "The week" },
+        { href: `${d}/power`, label: "Power" },
         { href: `${d}/tasks`, label: "Tasks" },
         { href: `${d}/notes`, label: "Notes" },
         ...(is("SERVICES", "LOGISTICS") ? [{ href: `${d}/job-cards`, label: "Job Cards" }] : []),
@@ -113,6 +114,7 @@ export function buildAdminaNav(params: {
       items: [
         { href: `${d}/compliance`, label: "Compliance" },
         { href: `${d}/staff`, label: "Staff & Roles" },
+        { href: `${d}/payroll`, label: "Payroll" },
         { href: `${d}/leave`, label: "Leave" },
         { href: `${d}/attendance`, label: "Attendance", ...q(`${d}/attendance`) },
         { href: `${d}/assets`, label: "Assets" },

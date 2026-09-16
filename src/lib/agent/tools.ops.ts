@@ -78,6 +78,12 @@ import { backupStatus, chooseProvider, whatWouldBeCopied } from "@/lib/core/docu
 import { snippetFor, widgetReadiness } from "@/lib/core/embeds";
 import { getBranding, setBranding, WHITE_LABEL_POSTURE } from "@/lib/core/whiteLabel";
 import { exportCosts, exportInvoices, exportTrialBalance } from "@/lib/export/accounting";
+import { payrollCommitment } from "@/lib/core/payroll";
+import { vat201 } from "@/lib/core/sarsFiling";
+import { costOfDarkness, getSchedule, isDark, nextOutage, setSchedule } from "@/lib/core/loadShedding";
+import { MARKETPLACE_BY_KEY, trueMargin } from "@/lib/core/marketplaces";
+import { chargeableWeight, collectionManifest, suggestCourier } from "@/lib/core/couriers";
+import { whoAreThey } from "@/lib/core/companyLookup";
 import { prisma } from "@/lib/db";
 import { composeQuoteFromText } from "@/lib/core/quoteComposer";
 import { buildWhatsAppShareLink, quoteWhatsAppMessage, invoiceWhatsAppMessage } from "@/lib/core/whatsappShare";
@@ -1849,6 +1855,210 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
         },
       }),
   },
+
+  // ---------------------------------------------------------- the local rails
+
+  payrollForecast: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What a month's payroll costs, split into what goes to staff and what goes to SARS, with each payslip showing " +
+          "its own arithmetic. Two outflows on different dates, which is what catches businesses out.",
+        inputSchema: z.object({
+          people: z
+            .array(
+              z.object({
+                membershipId: z.string(),
+                monthlySalaryCents: z.number().int().nonnegative().optional(),
+                hourlyRateCents: z.number().int().nonnegative().optional(),
+              }),
+            )
+            .describe("Who is being paid, and how."),
+          month: z.string().optional().describe("YYYY-MM. Defaults to this month."),
+        }),
+        execute: async (input) => {
+          const base = input.month ? new Date(`${input.month}-01T00:00:00.000Z`) : new Date();
+          const start = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), 1));
+          const end = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+
+          const result = await payrollCommitment({
+            tenantId: ctx.tenantId,
+            periodStart: start,
+            periodEnd: end,
+            people: input.people.map((person) => ({
+              membershipId: person.membershipId,
+              salaryCents: person.monthlySalaryCents ?? null,
+              hourlyRateCents: person.hourlyRateCents ?? null,
+            })),
+          });
+
+          return {
+            toStaff: formatMoney(result.wagesCents),
+            toSars: formatMoney(result.toSarsCents),
+            total: formatMoney(result.totalCents),
+            sarsDueOn: result.sarsDueOn.toISOString().slice(0, 10),
+            note: result.note,
+            payslips: result.payslips.map((slip) => ({
+              name: slip.name,
+              gross: formatMoney(slip.grossCents),
+              net: formatMoney(slip.netCents),
+              warnings: slip.warnings,
+            })),
+          };
+        },
+      }),
+  },
+
+  vatFilingPack: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The VAT201 figures box by box, with what was counted for each, what would make a number wrong, and when it is " +
+          "due. Nothing is filed from here — these are the numbers to type into eFiling.",
+        inputSchema: z.object({ periodEnd: z.string().optional().describe("YYYY-MM-DD inside the period. Defaults to now.") }),
+        execute: async ({ periodEnd }) => {
+          const pack = await vat201({ tenantId: ctx.tenantId, periodEnd: periodEnd ? new Date(periodEnd) : undefined });
+          return {
+            period: pack.periodLabel,
+            dueOn: pack.dueOn.toISOString().slice(0, 10),
+            boxes: pack.fields.map((field) => ({ box: field.box, label: field.label, amount: formatMoney(field.valueCents), basis: field.basis })),
+            warnings: pack.warnings,
+            supportingRows: pack.supporting.rows,
+            where: pack.where,
+          };
+        },
+      }),
+  },
+
+  powerSchedule: {
+    build: (ctx) =>
+      tool({
+        description:
+          "When the power is off for this business, when the next block starts, and what the dark hours have cost. Use it " +
+          "before promising a customer a time.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const schedule = await getSchedule(ctx.tenantId);
+          const next = nextOutage(schedule, new Date());
+          const cost = await costOfDarkness({ tenantId: ctx.tenantId, from: new Date(Date.now() - 30 * 86_400_000), to: new Date() });
+          return {
+            area: schedule.areaLabel,
+            stage: schedule.stage,
+            summary: schedule.note,
+            rightNow: isDark(schedule, new Date()) ? "The power is off." : "The power is on.",
+            nextOutage: next ? { startsAt: next.startsAt.toISOString(), minutesAway: next.minutesAway } : null,
+            lastThirtyDays: {
+              workingHoursLost: cost.workingDarkHours,
+              lostLabour: cost.lostLabourCents ? formatMoney(cost.lostLabourCents) : null,
+              generatorFuel: formatMoney(cost.generatorFuelCents),
+              caveats: cost.caveats,
+            },
+          };
+        },
+      }),
+  },
+
+  marketplaceMargin: {
+    build: () =>
+      tool({
+        description:
+          "What is actually left on a line after a marketplace takes its commission and VAT comes off — the number that " +
+          "decides whether something should be listed at all.",
+        inputSchema: z.object({
+          marketplace: z.enum(["takealot", "shopify", "woocommerce", "bobshop", "facebook", "other"]),
+          sellPriceCents: z.number().int().positive(),
+          costCents: z.number().int().nonnegative(),
+          category: z.string().optional(),
+          shippingCents: z.number().int().nonnegative().optional(),
+          vatPercent: z.number().optional(),
+        }),
+        execute: async (input) => {
+          const result = trueMargin({
+            marketplace: input.marketplace,
+            sellPriceCents: input.sellPriceCents,
+            costCents: input.costCents,
+            category: input.category,
+            shippingCents: input.shippingCents,
+            vatPercent: input.vatPercent,
+          });
+          const def = MARKETPLACE_BY_KEY[input.marketplace];
+          return {
+            commission: `${result.commissionPercent}%`,
+            commissionAmount: formatMoney(result.commissionCents),
+            leftAfterFees: formatMoney(result.netCents),
+            margin: formatMoney(result.marginCents),
+            marginPercent: result.marginPercent,
+            verdict: result.verdict,
+            otherFees: def?.otherFees ?? [],
+          };
+        },
+      }),
+  },
+
+  parcelAdvice: {
+    build: () =>
+      tool({
+        description:
+          "What a parcel will be charged on — its weight or its size, whichever is greater — and which courier suits it. " +
+          "Quoting on the scale number loses money on anything light and bulky.",
+        inputSchema: z.object({
+          actualKg: z.number().positive(),
+          lengthCm: z.number().positive(),
+          widthCm: z.number().positive(),
+          heightCm: z.number().positive(),
+          sameDay: z.boolean().optional(),
+          localKm: z.number().optional(),
+          customerCanCollect: z.boolean().optional(),
+        }),
+        execute: async (input) => {
+          const suggestion = suggestCourier({
+            chargeableKg: input.actualKg,
+            sameDay: input.sameDay,
+            localKm: input.localKm,
+            customerCanCollect: input.customerCanCollect,
+          });
+          const weight = chargeableWeight({
+            actualKg: input.actualKg,
+            lengthCm: input.lengthCm,
+            widthCm: input.widthCm,
+            heightCm: input.heightCm,
+            courier: suggestion.courier,
+          });
+          return {
+            chargeableKg: weight.chargeableKg,
+            chargedOn: weight.charged,
+            note: weight.note,
+            use: suggestion.label,
+            why: suggestion.why,
+            orElse: suggestion.alternatives,
+          };
+        },
+      }),
+  },
+
+  whoAreThey: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What is actually known about a customer before doing work on credit: whether their VAT and registration " +
+          "numbers hold up, and how they have paid this business. Said in days, not as a score.",
+        inputSchema: z.object({ customerId: z.string() }),
+        execute: async ({ customerId }) => {
+          const answer = await whoAreThey(ctx.tenantId, customerId);
+          return {
+            name: answer.name,
+            vatNumber: answer.vat ? { number: answer.vat.number, looksRight: answer.vat.plausible, note: answer.vat.reason } : null,
+            registration: answer.registration
+              ? { number: answer.registration.number, looksRight: answer.registration.plausible, kind: answer.registration.entityType, note: answer.registration.reason }
+              : null,
+            howTheyPay: answer.behaviour.verdict,
+            outstanding: formatMoney(answer.behaviour.outstandingCents),
+            oldestUnpaidDays: answer.behaviour.oldestOutstandingDays,
+            caveat: answer.behaviour.caveat,
+          };
+        },
+      }),
+  },
 };
 
 // ------------------------------------------------------------------ writing
@@ -3402,6 +3612,54 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
           await chooseProvider(ctx.tenantId, provider);
           const status = await backupStatus(ctx.tenantId);
           return { chosen: status.provider, connected: status.connected, whatNext: status.summary };
+        },
+      }),
+  },
+
+  setPowerSchedule: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Record the hours the power is off for this business, so the week's plan works around them. The owner knows " +
+          "their block and their stage; this is the ten seconds of typing that makes every schedule afterwards correct.",
+        inputSchema: z.object({
+          areaLabel: z.string().optional().describe('What the municipality calls it — "Block 7", "Group 3".'),
+          stage: z.number().int().min(0).max(8),
+          blocks: z
+            .array(z.object({ day: z.number().int().min(0).max(6).describe("0 is Sunday."), from: z.string().describe("HH:MM"), to: z.string().describe("HH:MM") }))
+            .describe("The recurring times the power is off."),
+        }),
+        execute: async (input) => {
+          await setSchedule({
+            tenantId: ctx.tenantId,
+            areaLabel: input.areaLabel ?? null,
+            stage: input.stage as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8,
+            blocks: input.blocks,
+          });
+          const schedule = await getSchedule(ctx.tenantId);
+          return { stage: schedule.stage, blocks: schedule.blocks.length, summary: schedule.note };
+        },
+      }),
+  },
+
+  buildCollectionManifest: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description:
+          "The collection sheet for a courier driver to sign: every parcel going out, its address and its piece count. " +
+          "The one piece of paper that settles a lost parcel later.",
+        inputSchema: z.object({ date: z.string().optional().describe("YYYY-MM-DD. Defaults to today.") }),
+        execute: async ({ date }) => {
+          const manifest = await collectionManifest({ tenantId: ctx.tenantId, on: date ? new Date(date) : new Date() });
+          return {
+            business: manifest.businessName,
+            parcels: manifest.rows.length,
+            pieces: manifest.pieces,
+            note: manifest.note,
+            rows: manifest.rows.map((row) => ({ reference: row.reference, waybill: row.waybill, customer: row.customer, address: row.address, pieces: row.pieces })),
+          };
         },
       }),
   },

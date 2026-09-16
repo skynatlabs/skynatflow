@@ -209,6 +209,14 @@ model Tenant {
   /// has been failed by the product and most website builders do not tell
   /// anybody their real origin.
   embedAllowedHosts            String?
+  /// The hours the power is off. No business software built anywhere else
+  /// models this, and in South Africa it is the largest single thing shaping
+  /// a working day. Entered by the owner — a live national feed needs a
+  /// provider key, and the times an owner already knows are the whole of
+  /// what the planning actually needs.
+  powerAreaLabel               String?
+  powerStage                   Int?
+  powerBlocks                  Json?
   whatsappVerifyNumber         String?
   // AI-generated proposal content is metered — the LLM call only writes
   // text (never the PDF design/layout, which stays fixed code, both for
@@ -499,6 +507,10 @@ model Party {
   // a name+number — printed on quotes/invoices and usable in reporting.
   companyName String?
   vatNumber   String?
+  /// The CIPC (or equivalent) registration number, as it appears on their
+  /// own letterhead. Printed on a contract, and the thing to check before
+  /// doing work on credit for a company nobody here has heard of.
+  registrationNumber String?
   addressLine String?
   city        String?
   postalCode  String?
