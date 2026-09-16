@@ -26,6 +26,10 @@ const ALWAYS_ASK = new Set([
   // A contract the customer can sign the moment it lands. Nothing in this app
   // binds the business to more than this does.
   "sendAgreementForSignature",
+  // Money taken at a counter, posted to the books and the stock in one step.
+  "recordCashSale",
+  // Emails a stranger an invitation and gives them a view of the business.
+  "addSomebodyToTheTeam",
 ]);
 
 /**

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { disputeHealth, listDisputes } from "@/lib/core/disputes";
 import { resolveDisputeAction } from "./actions";
 import { BreakdownDonut } from "@/components/dashboard/MiniCharts";
 
@@ -10,25 +10,15 @@ export default async function DisputesPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
-  const [open, resolved, resolvedCount] = await Promise.all([
-    prisma.dispute.findMany({
-      where: { tenantId, status: "OPEN" },
-      include: { party: true },
-      orderBy: { createdAt: "asc" },
-      take: 200,
-    }),
-    prisma.dispute.findMany({
-      where: { tenantId, status: "RESOLVED" },
-      include: { party: true },
-      orderBy: { resolvedAt: "desc" },
-      take: 20,
-    }),
-    prisma.dispute.count({ where: { tenantId, status: "RESOLVED" } }),
+  const [open, resolved, health] = await Promise.all([
+    listDisputes(tenantId, { status: "OPEN" }),
+    listDisputes(tenantId, { status: "RESOLVED", take: 20 }),
+    disputeHealth(tenantId),
   ]);
 
   const donutData = [
-    { name: "Open", value: open.length, color: "#e2445c" },
-    { name: "Resolved", value: resolvedCount, color: "var(--kb-tint-mint-ink)" },
+    { name: "Open", value: health.open, color: "#e2445c" },
+    { name: "Resolved", value: health.resolved, color: "var(--kb-tint-mint-ink)" },
   ];
 
   return (
@@ -38,19 +28,30 @@ export default async function DisputesPage({
         &quot;Something&apos;s not right&quot; flags raised from the customer portal on a quote or invoice.
       </p>
 
-      {(open.length > 0 || resolvedCount > 0) && (
-        <div className="mt-6">
-          <BreakdownDonut title="Reports by status" data={donutData} />
-        </div>
+      {(health.open > 0 || health.resolved > 0) && (
+        <>
+          <div className="mt-6">
+            <BreakdownDonut title="Reports by status" data={donutData} />
+          </div>
+          {/* The number that says whether this page is being used or just
+              filled: how long the oldest person has been waiting. */}
+          <p className="mt-3 text-xs text-[var(--kb-text-dim)]">
+            {health.open > 0
+              ? `The oldest has been open ${health.oldestOpenDays} ${health.oldestOpenDays === 1 ? "day" : "days"}.`
+              : "Nothing is waiting on you."}
+            {health.averageDaysToSettle !== null &&
+              ` On average these are settled in ${health.averageDaysToSettle} ${health.averageDaysToSettle === 1 ? "day" : "days"}.`}
+          </p>
+        </>
       )}
 
       <div className="mt-6 space-y-4">
         {open.map((d) => (
           <div key={d.id} className="kb-card p-6">
-            <p className="text-sm font-medium text-[var(--kb-text)]">{d.party.name}</p>
+            <p className="text-sm font-medium text-[var(--kb-text)]">{d.partyName}</p>
             <p className="mt-1 text-sm text-[var(--kb-text)]">&ldquo;{d.message}&rdquo;</p>
             <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
-              Raised {d.createdAt.toLocaleString()}
+              Raised {d.createdAt.toLocaleDateString()} · open {d.ageDays} {d.ageDays === 1 ? "day" : "days"}
             </p>
             <form action={resolveDisputeAction} className="mt-3">
               <input type="hidden" name="tenantId" value={tenantId} />
@@ -80,7 +81,7 @@ export default async function DisputesPage({
             {resolved.map((d) => (
               <li key={d.id} className="p-4 text-sm">
                 <p className="text-[var(--kb-text)]">
-                  {d.party.name}: &ldquo;{d.message}&rdquo;
+                  {d.partyName}: &ldquo;{d.message}&rdquo;
                 </p>
                 {d.resolutionNote && (
                   <p className="mt-1 text-xs text-[var(--kb-text-dim)]">&rarr; {d.resolutionNote}</p>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { findPartyByPortalToken } from "@/lib/core/parties";
 import { acceptQuoteWithSignature, recordResponse } from "@/lib/core/money";
+import { raiseDispute } from "@/lib/core/disputes";
 import { prisma } from "@/lib/db";
 
 async function verifyOwnership(token: string, quoteId: string) {
@@ -56,16 +57,11 @@ export async function raiseDisputeAction(formData: FormData) {
   const message = String(formData.get("message") ?? "").trim();
 
   const { party, quote } = await verifyOwnership(token, quoteId);
-  if (!message) throw new Error("Tell us what's wrong before submitting.");
 
-  await prisma.dispute.create({
-    data: {
-      tenantId: quote.tenantId,
-      transactionId: quoteId,
-      partyId: party.id,
-      message,
-    },
-  });
+  // Through the module rather than straight to the table, so somebody at the
+  // business is actually told — a complaint that sits unread for four days
+  // becomes a phone call.
+  await raiseDispute({ tenantId: quote.tenantId, transactionId: quoteId, partyId: party.id, message });
 
   revalidatePath(`/portal/${token}/quotes/${quoteId}`);
 }

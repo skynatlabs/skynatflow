@@ -59,8 +59,11 @@ import {
 import { draftAgreement, kindFromDraft, withDisclaimer } from "@/lib/ai/agreement";
 import { SYSTEM_BY_KEY, addSystem, listSystems, switchover } from "@/lib/core/systems";
 import { kpiBoard } from "@/lib/core/kpis";
+import { disputeHealth, listDisputes, resolveDispute } from "@/lib/core/disputes";
+import { inviteStaff } from "@/lib/core/staff";
+import { recordCashSale } from "@/lib/core/money";
 import { formatMoney } from "@/lib/format/money";
-import type { AgreementState } from "@prisma/client";
+import type { AgreementState, DisputeStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 export interface ExtraToolDef {
@@ -549,6 +552,41 @@ export const EXTRA_READ_TOOLS: Record<string, ExtraToolDef> = {
       }),
   },
 
+  customerComplaints: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What customers have said is wrong with a quote or an invoice, raised from their own portal — what is " +
+          "still open, how long each has been waiting, and how quickly this business usually settles them. Read it " +
+          "before chasing a customer for money: somebody disputing half an invoice is not somebody ignoring it.",
+        inputSchema: z.object({
+          status: z.enum(["OPEN", "RESOLVED"]).optional(),
+          partyId: z.string().optional(),
+        }),
+        execute: async ({ status, partyId }) => {
+          const [rows, health] = await Promise.all([
+            listDisputes(ctx.tenantId, { status: status as DisputeStatus | undefined, partyId }),
+            disputeHealth(ctx.tenantId),
+          ]);
+          return {
+            summary: health,
+            complaints: rows.map((d) => ({
+              id: d.id,
+              customer: d.partyName,
+              customerId: d.partyId,
+              about: d.documentType,
+              documentId: d.transactionId,
+              amountCents: d.amountCents,
+              said: d.message,
+              status: d.status,
+              openDays: d.ageDays,
+              settledWith: d.resolutionNote,
+            })),
+          };
+        },
+      }),
+  },
+
   theNumbers: {
     build: (ctx) =>
       tool({
@@ -1023,6 +1061,89 @@ export const EXTRA_WRITE_TOOLS: Record<string, ExtraToolDef> = {
         execute: async ({ invoiceId, feePercent }) => {
           await applyLateFee({ invoiceId, feePercent, tenantId: ctx.tenantId });
           return { ok: true };
+        },
+      }),
+  },
+
+  settleComplaint: {
+    capability: "quote:send",
+    build: (ctx) =>
+      tool({
+        description:
+          "Mark a customer's complaint settled, with a note of what was done about it. Use it once something has " +
+          "actually been done — a complaint closed without an answer is a customer who stops replying.",
+        inputSchema: z.object({
+          disputeId: z.string(),
+          whatWasDone: z.string().optional(),
+          reopen: z.boolean().default(false).describe("Put it back to open, when it was settled too early."),
+        }),
+        execute: async ({ disputeId, whatWasDone, reopen }) => {
+          const updated = await resolveDispute({ tenantId: ctx.tenantId, disputeId, note: whatWasDone ?? null, reopen });
+          return { ok: true, status: updated.status };
+        },
+      }),
+  },
+
+  addSomebodyToTheTeam: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Put somebody on this workspace and email them an invitation. Use their real role — a driver and a rep " +
+          "see different things, and getting it wrong either blocks their work or shows them the books. Somebody " +
+          "already here has their role changed rather than being added twice.",
+        inputSchema: z.object({
+          email: z.string(),
+          name: z.string().optional(),
+          role: z.enum(["OWNER", "STAFF", "REP", "TECHNICIAN", "DRIVER"]).default("STAFF"),
+        }),
+        execute: async ({ email, name, role }) => {
+          const result = await inviteStaff({
+            tenantId: ctx.tenantId,
+            email,
+            name: name ?? null,
+            role,
+            actorId: ctx.userId ?? null,
+          });
+          return {
+            ok: true,
+            ...result,
+            // Said rather than hidden: an invitation nobody received is not
+            // an invitation, and the person is on the workspace either way.
+            note: result.emailed
+              ? result.alreadyHere
+                ? "They were already here; their role was changed and they were told."
+                : "Added and emailed."
+              : "Added, but the invitation email did not send — tell them yourself.",
+          };
+        },
+      }),
+  },
+
+  recordCashSale: {
+    capability: "payment:record",
+    build: (ctx) =>
+      tool({
+        description:
+          "A walk-in sale, recorded in one step: the invoice and the payment together, for a customer standing at " +
+          "the counter. Everything else about it is an ordinary invoice, so it reaches the books, the stock and the " +
+          "day's takings the same way.",
+        inputSchema: z.object({
+          partyId: z.string().describe("Who bought it. Create a customer first if they are not on file."),
+          lines: z
+            .array(
+              z.object({
+                itemId: z.string(),
+                quantity: z.number().positive(),
+                unitPriceCents: z.number().int().nonnegative(),
+                description: z.string().optional(),
+              })
+            )
+            .min(1),
+        }),
+        execute: async ({ partyId, lines }) => {
+          const invoice = await recordCashSale({ tenantId: ctx.tenantId, partyId, lines });
+          return { ok: true, invoiceId: invoice.id, amountCents: invoice.amountCents, status: invoice.status };
         },
       }),
   },
