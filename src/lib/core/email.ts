@@ -7,6 +7,7 @@
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import { prisma } from "@/lib/db";
+import { bareAddress, threadKeyFor } from "./mailbox";
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import { classifyInboundEmail } from "@/lib/ai/emailClassifier";
 import { createNotification, resolveOwnerPhone } from "@/lib/core/notifications2";
@@ -66,6 +67,10 @@ export async function ingestEmail(params: {
   subject: string;
   bodyText: string;
   receivedAt: Date;
+  /** The headers that thread a conversation, when the message carried them. */
+  toAddress?: string | null;
+  messageId?: string | null;
+  inReplyTo?: string | null;
 }) {
   const classification = await classifyInboundEmail({
     fromAddress: params.fromAddress,
@@ -109,6 +114,14 @@ export async function ingestEmail(params: {
     }
   }
 
+  // Who it is from, where it belongs, and which customer wrote it — worked
+  // out once, on the way in, so the mailbox can read as conversations.
+  const threadKey = threadKeyFor(params.fromAddress, params.subject);
+  const sender = await prisma.party.findFirst({
+    where: { tenantId: params.tenantId, email: { equals: bareAddress(params.fromAddress), mode: "insensitive" } },
+    select: { id: true },
+  });
+
   const email = await prisma.inboundEmail.create({
     data: {
       tenantId: params.tenantId,
@@ -117,6 +130,11 @@ export async function ingestEmail(params: {
       subject: params.subject,
       bodyText: params.bodyText,
       receivedAt: params.receivedAt,
+      toAddress: params.toAddress ?? null,
+      messageId: params.messageId ?? null,
+      inReplyTo: params.inReplyTo ?? null,
+      threadKey,
+      partyId: sender?.id ?? null,
       category: classification.category,
       isImportant: classification.isImportant,
       looksLikePaymentProof: classification.looksLikePaymentProof,
@@ -232,6 +250,9 @@ export async function fetchNewImapEmails(accountId: string) {
           subject: parsed.subject ?? "(no subject)",
           bodyText: parsed.text ?? "",
           receivedAt: parsed.date ?? new Date(),
+          toAddress: parsed.to && "text" in parsed.to ? parsed.to.text : null,
+          messageId: parsed.messageId ?? null,
+          inReplyTo: parsed.inReplyTo ?? null,
         });
         fetched++;
       }

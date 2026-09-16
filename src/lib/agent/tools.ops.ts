@@ -134,6 +134,7 @@ import { DOCUMENT_LANGUAGES } from "@/lib/core/documentLanguage";
 import { applyProposal, upsertParties, upsertProducts } from "@/lib/onboarding/apply";
 import { listIntakeDocuments, onboardingState } from "@/lib/onboarding/progress";
 import { createDeliveryNote, listDeliveryNotes, markDelivered } from "@/lib/core/deliveryNotes";
+import { listThreads, readThread, sendMail } from "@/lib/core/mailbox";
 import {
   proposeMatches,
   acceptMatch,
@@ -1601,6 +1602,42 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
         description: "The deep read a consultant would charge for: money leaking, work that did not pay, compliance exposure, contracts renewing, money in other people's hands.",
         inputSchema: z.object({}),
         execute: async () => firstAudit(ctx.tenantId),
+      }),
+  },
+
+  mailThreads: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Conversations in the workspace's mailbox, newest first: who wrote, about what, and whether anything is unread. " +
+          "Pass a thread key to read one in full.",
+        inputSchema: z.object({ threadKey: z.string().optional() }),
+        execute: async ({ threadKey }) => {
+          if (threadKey) {
+            const { thread, messages } = await readThread(ctx.tenantId, threadKey);
+            if (!thread) return { found: false };
+            return {
+              found: true,
+              subject: thread.subject,
+              with: thread.partyName ?? thread.counterpart,
+              messages: messages.map((m) => ({
+                direction: m.direction,
+                from: m.direction === "in" ? m.address : "us",
+                at: m.at.toISOString(),
+                body: m.body.slice(0, 2000),
+              })),
+            };
+          }
+          const threads = await listThreads(ctx.tenantId, { take: 30 });
+          return threads.map((t) => ({
+            key: t.key,
+            with: t.partyName ?? t.counterpart,
+            subject: t.subject,
+            unread: t.unread,
+            lastAt: t.lastAt.toISOString(),
+            preview: t.preview,
+          }));
+        },
       }),
   },
 
@@ -3134,6 +3171,35 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
         execute: async ({ deliveryNoteId, signedBy }) => {
           const note = await markDelivered(ctx.tenantId, deliveryNoteId, { signedBy: signedBy ?? null });
           return { number: note.number, status: note.status, deliveredAt: note.deliveredAt?.toISOString() ?? null };
+        },
+      }),
+  },
+
+  // Writing to a customer is outbound contact: the gate holds it for
+  // approval whatever the autonomy setting says.
+  sendMailMessage: {
+    capability: "quote:send",
+    build: (ctx) =>
+      tool({
+        description:
+          "Send an email from the business's mailbox — a reply in a conversation, or a new message. Goes out from the " +
+          "business's own address when one is connected for sending, and is recorded on the customer's record either way.",
+        inputSchema: z.object({
+          to: z.string().describe("The address to write to."),
+          subject: z.string(),
+          body: z.string(),
+          threadKey: z.string().optional().describe("Reply inside this conversation rather than starting a new one."),
+        }),
+        execute: async ({ to, subject, body, threadKey }) => {
+          const result = await sendMail({
+            tenantId: ctx.tenantId,
+            to,
+            subject,
+            body,
+            threadKey: threadKey ?? null,
+            sentById: ctx.membershipId ?? null,
+          });
+          return { sent: result.ok, how: result.via, note: result.message };
         },
       }),
   },

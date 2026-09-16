@@ -1,5 +1,5 @@
 import { listEmailAccounts } from "@/lib/core/email";
-import { connectImapAction, connectFlowHostedAction, disconnectAccountAction } from "./actions";
+import { connectImapAction, connectFlowHostedAction, disconnectAccountAction, setSmtpAction } from "./actions";
 
 export default async function MailSettingsPage({
   params,
@@ -21,7 +21,8 @@ export default async function MailSettingsPage({
         <h2 className="text-lg font-semibold text-[var(--kb-text)]">Connected accounts</h2>
         <ul className="kb-card mt-3 divide-y divide-[var(--kb-panel-border)]">
           {accounts.map((a) => (
-            <li key={a.id} className="flex items-center justify-between px-5 py-3">
+            <li key={a.id} className="px-5 py-3">
+              <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="font-medium text-[var(--kb-text)]">{a.emailAddress}</p>
                 <p className="text-xs text-[var(--kb-text-dim)]">
@@ -37,6 +38,27 @@ export default async function MailSettingsPage({
                   <button type="submit" className="text-xs text-red-500 hover:underline">Disconnect</button>
                 </form>
               )}
+              </div>
+              <details className="mt-2 w-full">
+                <summary className="cursor-pointer text-xs text-[var(--kb-text-dim)]">
+                  {a.smtpHost ? `Sends through ${a.smtpHost}` : "Set up sending from this address"}
+                </summary>
+                <form action={setSmtpAction} className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <input type="hidden" name="tenantId" value={tenantId} />
+                  <input type="hidden" name="accountId" value={a.id} />
+                  <input name="smtpHost" defaultValue={a.smtpHost ?? ""} placeholder="smtp.yourhost.com" className="kb-input text-sm" />
+                  <input name="smtpPort" type="number" defaultValue={a.smtpPort ?? 465} className="kb-input text-sm" />
+                  <input name="smtpUser" defaultValue={a.smtpUser ?? ""} placeholder="Username" className="kb-input text-sm" />
+                  <input name="smtpPassword" type="password" placeholder={a.smtpHost ? "Leave blank to keep the saved password" : "Password (encrypted at rest)"} className="kb-input text-sm" />
+                  <input name="fromName" defaultValue={a.fromName ?? ""} placeholder="Name shown on the message" className="kb-input text-sm" />
+                  <label className="flex items-center gap-2 text-xs text-[var(--kb-text-dim)]">
+                    <input type="checkbox" name="smtpSecure" defaultChecked={a.smtpSecure} /> TLS on connect (port 465)
+                  </label>
+                  <div className="sm:col-span-2">
+                    <button type="submit" className="kb-pill kb-pill-primary text-xs">Save sending details</button>
+                  </div>
+                </form>
+              </details>
             </li>
           ))}
           {accounts.length === 0 && (

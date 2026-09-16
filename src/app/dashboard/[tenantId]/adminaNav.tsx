@@ -95,6 +95,7 @@ export function buildAdminaNav(params: {
         { href: `${d}/unsent-quotes`, label: "Unsent Quotes" },
         { href: `${d}/pipeline`, label: "Pipeline" },
         { href: `${d}/inbox`, label: "Inbox", badge: unread || undefined },
+        { href: `${d}/mail`, label: "Mail" },
         { href: `${d}/messages`, label: "Messages" },
         { href: `${d}/ai-drafts`, label: "AI Drafts" },
         { href: `${d}/connections`, label: "Connections", ...q(`${d}/connections`) },

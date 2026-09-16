@@ -273,6 +273,8 @@ model Tenant {
   fieldSyncs   FieldSync[]
   intakeDocuments IntakeDocument[]
   deliveryNotes   DeliveryNote[]
+  outboundEmails  OutboundEmail[]
+  portalSubmissions PortalSubmission[]
 
   @@map("tenants")
 }
@@ -458,6 +460,9 @@ model Party {
   language String?
 
   deliveryNotes DeliveryNote[]
+  inboundEmails InboundEmail[]
+  outboundEmails OutboundEmail[]
+  portalSubmissions PortalSubmission[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -669,6 +674,7 @@ model Transaction {
   expenses      Expense[]
   tripStops     TripStop[]
   deliveryNotes DeliveryNote[]
+  portalSubmissions PortalSubmission[]
 
   // Which branch this was sold from. Null on a single-site business.
   branchId String?
@@ -2926,12 +2932,21 @@ model EmailAccount {
   imapPort           Int?
   imapUser           String?
   imapPasswordEnc    String? // AES-encrypted, never plaintext
+  /// Sending, from the business's own address rather than ours — the reply a
+  /// customer gets should come from the mailbox they wrote to.
+  smtpHost           String?
+  smtpPort           Int?
+  smtpUser           String?
+  smtpPasswordEnc    String?
+  smtpSecure         Boolean           @default(true)
+  fromName           String?
   flowInboundAddress String?           @unique // e.g. "acme-co@mail.flow.skynat.co"
   isActive           Boolean           @default(true)
   lastCheckedAt      DateTime?
   createdAt          DateTime          @default(now())
 
   emails InboundEmail[]
+  sent   OutboundEmail[]
 
   @@index([tenantId])
   @@map("email_accounts")
@@ -2969,10 +2984,21 @@ model InboundEmail {
   // Transaction.nextFollowUpAt instead of the default cadence.
   linkedTransactionId   String?
   isRead                Boolean       @default(false)
+  /// Who it was addressed to, the mail headers that thread it, and the
+  /// customer it turned out to be from. Threading by hand beats threading by
+  /// subject alone: two customers both write "Invoice".
+  toAddress             String?
+  messageId             String?
+  inReplyTo             String?
+  threadKey             String?
+  partyId               String?
+  party                 Party?        @relation(fields: [partyId], references: [id])
+  isArchived            Boolean       @default(false)
   createdAt             DateTime      @default(now())
 
   @@index([tenantId, isRead])
   @@index([tenantId, category])
+  @@index([tenantId, threadKey])
   @@map("inbound_emails")
 }
 
@@ -3375,4 +3401,66 @@ model DeliveryNoteLine {
 
   @@index([noteId])
   @@map("delivery_note_lines")
+}
+
+/// A message sent from the business's own mailbox.
+///
+/// Kept beside the inbound ones so a conversation reads as a conversation:
+/// what the customer wrote, what was sent back, and who sent it.
+model OutboundEmail {
+  id             String        @id @default(cuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  emailAccountId String?
+  emailAccount   EmailAccount? @relation(fields: [emailAccountId], references: [id])
+  toAddress      String
+  ccAddress      String?
+  subject        String
+  bodyText       String
+  /// The thread it belongs to, the same key the inbound side uses.
+  threadKey      String?
+  inReplyTo      String?
+  messageId      String?
+  partyId        String?
+  party          Party?        @relation(fields: [partyId], references: [id])
+  /// Who pressed send. Null when the platform sent it on a schedule.
+  sentById       String?
+  /// SENT, or FAILED with the reason — a message that did not go must say so.
+  status         String        @default("SENT")
+  error          String?
+  sentAt         DateTime      @default(now())
+
+  @@index([tenantId, sentAt])
+  @@index([tenantId, threadKey])
+  @@map("outbound_emails")
+}
+
+/// Something a customer did in their own portal.
+///
+/// The three things customers actually want to do and almost no portal in
+/// this category lets them: send the proof of payment they just made, ask a
+/// question about an invoice, and correct their own details. Each lands here
+/// and is answered by a person — nothing a customer sends changes the books
+/// on its own.
+model PortalSubmission {
+  id            String       @id @default(cuid())
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
+  partyId       String
+  party         Party        @relation(fields: [partyId], references: [id])
+  /// payment_proof | message | details
+  kind          String
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+  body          String?
+  /// The file they attached, inline. Images are shrunk in the browser first.
+  fileName      String?
+  fileDataUrl   String?
+  handledAt     DateTime?
+  handledById   String?
+  createdAt     DateTime     @default(now())
+
+  @@index([tenantId, handledAt])
+  @@index([tenantId, createdAt])
+  @@map("portal_submissions")
 }

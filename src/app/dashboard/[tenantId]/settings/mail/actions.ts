@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireTenantAccess } from "@/lib/auth/tenant-access";
 import { assertCan } from "@/lib/core/access";
 import { connectImapAccount, connectFlowHostedAccount, disconnectEmailAccount } from "@/lib/core/email";
+import { setSmtp } from "@/lib/core/mailbox";
 
 export async function connectImapAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
@@ -42,5 +43,23 @@ export async function disconnectAccountAction(formData: FormData) {
   assertCan(access.role, "staff:manage");
 
   await disconnectEmailAccount(tenantId, String(formData.get("accountId") ?? ""));
+  revalidatePath(`/dashboard/${tenantId}/settings/mail`);
+}
+
+/** Sending details, so replies leave from the business's own address. */
+export async function setSmtpAction(formData: FormData) {
+  const tenantId = String(formData.get("tenantId") ?? "");
+  const access = await requireTenantAccess(tenantId);
+  assertCan(access.role, "staff:manage");
+
+  const accountId = String(formData.get("accountId") ?? "");
+  await setSmtp(tenantId, accountId, {
+    host: String(formData.get("smtpHost") ?? ""),
+    port: Number(formData.get("smtpPort") ?? 465),
+    user: String(formData.get("smtpUser") ?? ""),
+    password: String(formData.get("smtpPassword") ?? "") || undefined,
+    secure: String(formData.get("smtpSecure") ?? "on") === "on",
+    fromName: String(formData.get("fromName") ?? ""),
+  });
   revalidatePath(`/dashboard/${tenantId}/settings/mail`);
 }
