@@ -100,6 +100,7 @@ export function buildAdminaNav(params: {
         { href: `${d}/messages`, label: "Messages" },
         { href: `${d}/ai-drafts`, label: "AI Drafts" },
         { href: `${d}/connections`, label: "Connections", ...q(`${d}/connections`) },
+        { href: `${d}/systems`, label: "What else you run" },
         ...(is("NONPROFIT") ? [{ href: `${d}/members`, label: "Members & Donors" }] : []),
       ],
     },

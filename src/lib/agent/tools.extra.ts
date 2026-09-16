@@ -57,6 +57,7 @@ import {
   signatureStillMatches,
 } from "@/lib/core/agreements";
 import { draftAgreement, kindFromDraft, withDisclaimer } from "@/lib/ai/agreement";
+import { SYSTEM_BY_KEY, addSystem, listSystems, switchover } from "@/lib/core/systems";
 import { formatMoney } from "@/lib/format/money";
 import type { AgreementState } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -547,6 +548,36 @@ export const EXTRA_READ_TOOLS: Record<string, ExtraToolDef> = {
       }),
   },
 
+  whatElseTheyRun: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The other systems this business still uses — till, accounting package, online shop, spreadsheets — how " +
+          "much of the business actually runs here yet, and the specific things this workspace cannot do because the " +
+          "data is still somewhere else. Read it before claiming a figure is complete, before suggesting a report " +
+          "that depends on data nobody has brought over, and when asked what to set up next.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [systems, move] = await Promise.all([listSystems(ctx.tenantId), switchover(ctx.tenantId)]);
+          return {
+            percentOnFlow: move.percent,
+            working: move.onFlow,
+            // Each of these is something a figure here is currently wrong about.
+            cannotDoYet: move.gaps.map((g) => ({ what: g.missing, needs: g.needs, heldBy: g.heldBy ?? null })),
+            systems: systems.map((s) => ({
+              key: s.systemKey,
+              name: s.label ?? s.def.label,
+              category: s.category,
+              recordsStillLiveThere: s.isSystemOfRecord && !s.retiredAt,
+              movedOffOn: s.retiredAt?.toISOString().slice(0, 10) ?? null,
+              broughtOver: s.importedRecords,
+              howToBringItOver: s.def.exportPath ?? null,
+            })),
+          };
+        },
+      }),
+  },
+
   agreementTemplates: {
     build: () =>
       tool({
@@ -959,6 +990,41 @@ export const EXTRA_WRITE_TOOLS: Record<string, ExtraToolDef> = {
         execute: async ({ invoiceId, feePercent }) => {
           await applyLateFee({ invoiceId, feePercent, tenantId: ctx.tenantId });
           return { ok: true };
+        },
+      }),
+  },
+
+  noteAnotherSystem: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Write down that this business uses another system — a till, an accounting package, a shop, a spreadsheet " +
+          "— when they mention one in conversation. Nothing is replaced and nothing is imported by this; it only " +
+          "records what they run, so what this workspace is missing can be explained honestly.",
+        inputSchema: z.object({
+          systemKey: z
+            .string()
+            .describe("yoco | sumup | loyverse | square | lightspeed | sage | xero | quickbooks | zoho-books | woocommerce | shopify | takealot | excel | word | simplepay | other"),
+          label: z.string().optional().describe("What they call it — required when the key is 'other'."),
+          recordsStillLiveThere: z.boolean().default(true),
+          notes: z.string().optional(),
+        }),
+        execute: async ({ systemKey, label, recordsStillLiveThere, notes }) => {
+          const row = await addSystem({
+            tenantId: ctx.tenantId,
+            systemKey,
+            label: label ?? null,
+            isSystemOfRecord: recordsStillLiveThere,
+            notes: notes ?? null,
+          });
+          const def = SYSTEM_BY_KEY[systemKey];
+          return {
+            ok: true,
+            name: row.label ?? def?.label ?? systemKey,
+            howToBringItOver: def?.exportPath ?? null,
+            brings: def?.brings ?? null,
+          };
         },
       }),
   },

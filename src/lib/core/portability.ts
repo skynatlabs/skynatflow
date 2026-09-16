@@ -111,6 +111,7 @@ const EXPORTS: Array<{
   // Proposals and contracts, signatures and all. The one table in here a
   // business is most likely to be asked for by somebody else's attorney.
   { key: "agreements", label: "Proposals and contracts", direct: true, fetch: (t) => prisma.agreement.findMany({ where: { tenantId: t } }) },
+  { key: "connected_systems", label: "The other systems you run", direct: true, fetch: (t) => prisma.connectedSystem.findMany({ where: { tenantId: t } }) },
   // What customers sent in from their own portal link. The attachments are
   // inline data URLs, so the proof of payment travels with the record rather
   // than pointing at a file that will not be there.

@@ -276,6 +276,7 @@ model Tenant {
   outboundEmails  OutboundEmail[]
   portalSubmissions PortalSubmission[]
   agreements        Agreement[]
+  connectedSystems  ConnectedSystem[]
 
   @@map("tenants")
 }
@@ -3543,4 +3544,40 @@ model Agreement {
   @@index([tenantId, status])
   @@index([tenantId, partyId])
   @@map("agreements")
+}
+
+/// Something else the business runs, that flow sits underneath rather than
+/// replacing on day one.
+///
+/// Nobody rips out the till on a Tuesday because a new system asked them to.
+/// The honest way in is to be the engine under whatever they already use —
+/// take their history, keep taking their daily numbers, and let the case for
+/// moving the rest of it be made by what they can see here and cannot see
+/// there. This row is what the business says they run, and what has actually
+/// come across from it so far.
+model ConnectedSystem {
+  id               String    @id @default(cuid())
+  tenantId         String
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  /// A key from the catalogue in core/systems.ts, or "other".
+  systemKey        String
+  /// What they call it, when it is not one in the catalogue.
+  label            String?
+  /// till | accounting | store | spreadsheet | documents | payroll | other
+  category         String
+  /// Whether the business's real records still live there rather than here.
+  /// The whole switchover arc is this flag going false, one system at a time.
+  isSystemOfRecord Boolean   @default(true)
+  lastImportAt     DateTime?
+  importedRecords  Int       @default(0)
+  notes            String?
+  /// Set when they stop using it. Kept rather than deleted: what somebody
+  /// moved off, and when, is the most useful thing to know a year later.
+  retiredAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([tenantId, systemKey])
+  @@index([tenantId])
+  @@map("connected_systems")
 }

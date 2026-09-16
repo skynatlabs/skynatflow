@@ -112,6 +112,7 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}/ai-drafts`, label: "AI Drafts", icon: SparkleIcon },
     { href: `/dashboard/${tenantId}/disputes`, label: "Reports", icon: SignatureIcon },
     { href: `/dashboard/${tenantId}/connections`, label: "Connections", icon: LinkIcon },
+    { href: `/dashboard/${tenantId}/systems`, label: "What else you run", icon: LinkIcon },
     { href: `/dashboard/${tenantId}/tasks`, label: "Tasks", icon: CheckSquareIcon },
     { href: `/dashboard/${tenantId}/notes`, label: "Notes", icon: SignatureIcon },
     { href: `/dashboard/${tenantId}/messages`, label: "Messages", icon: SparkleIcon },
