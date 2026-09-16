@@ -14,7 +14,16 @@ import { useRef, useState } from "react";
 
 const MAX_EDGE = 1800;
 const SHRINK_OVER_BYTES = 700 * 1024;
-const MAX_BYTES = 3 * 1024 * 1024;
+
+/**
+ * The server's limit, which is on the encoded string rather than the file.
+ *
+ * These have to be the same number or the check here is theatre: base64
+ * inflates by a third, so a 3 MB file passing a 3 MB check arrives as a 4 MB
+ * string and is refused after the upload. Check the encoded length, which is
+ * the thing that is actually too big.
+ */
+const MAX_DATA_URL_CHARS = 4 * 1024 * 1024;
 
 async function toDataUrl(file: File): Promise<{ name: string; dataUrl: string } | { error: string }> {
   let out: Blob = file;
@@ -42,7 +51,6 @@ async function toDataUrl(file: File): Promise<{ name: string; dataUrl: string } 
     }
   }
 
-  if (out.size > MAX_BYTES) return { error: "That file is too big. A photograph of the slip works better than a scan." };
   if (!/^(image\/(png|jpe?g|webp)|application\/pdf)$/.test(out.type)) {
     return { error: "Send a photograph or a PDF." };
   }
@@ -53,6 +61,10 @@ async function toDataUrl(file: File): Promise<{ name: string; dataUrl: string } 
     reader.onerror = () => reject(new Error("read failed"));
     reader.readAsDataURL(out);
   });
+
+  if (dataUrl.length > MAX_DATA_URL_CHARS) {
+    return { error: "That file is too big. A photograph of the slip works better than a scan of it." };
+  }
   return { name, dataUrl };
 }
 
