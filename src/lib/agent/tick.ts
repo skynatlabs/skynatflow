@@ -32,6 +32,7 @@ import { runLegal } from "@/lib/agent/officers/legal";
 import { ninetyDayCheckIn } from "@/lib/agent/arrival";
 import { realiseValue, recordPlatformCost } from "@/lib/core/valueLedger";
 import { runCFO } from "@/lib/agent/officers/cfo";
+import { expireStaleAgreements } from "@/lib/core/agreements";
 
 /** How long between open-ended reviews of one workspace. */
 const REVIEW_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -166,6 +167,15 @@ async function rounds(base: TickOutcome, now: Date): Promise<void> {
   } catch (err) {
     // A failure here must not cost the workspace its event handling.
     console.error(`[agent:tick] ${tenantId} compliance watch failed:`, err);
+  }
+
+  // A proposal past its valid-until date is not still on the table, and a
+  // list that says it is makes the pipeline figure a lie. Arithmetic, so it
+  // sits here with the rest of the work that needs no model.
+  try {
+    await expireStaleAgreements(tenantId, now);
+  } catch (err) {
+    console.error(`[agent:tick] ${tenantId} expiring agreements failed:`, err);
   }
 
   // --- 1. The officers do their rounds --------------------------------------

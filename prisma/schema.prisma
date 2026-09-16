@@ -275,6 +275,7 @@ model Tenant {
   deliveryNotes   DeliveryNote[]
   outboundEmails  OutboundEmail[]
   portalSubmissions PortalSubmission[]
+  agreements        Agreement[]
 
   @@map("tenants")
 }
@@ -463,6 +464,7 @@ model Party {
   inboundEmails InboundEmail[]
   outboundEmails OutboundEmail[]
   portalSubmissions PortalSubmission[]
+  agreements        Agreement[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -675,6 +677,7 @@ model Transaction {
   tripStops     TripStop[]
   deliveryNotes DeliveryNote[]
   portalSubmissions PortalSubmission[]
+  agreements        Agreement[]
 
   // Which branch this was sold from. Null on a single-site business.
   branchId String?
@@ -3463,4 +3466,81 @@ model PortalSubmission {
   @@index([tenantId, handledAt])
   @@index([tenantId, createdAt])
   @@map("portal_submissions")
+}
+
+enum AgreementKind {
+  PROPOSAL
+  SERVICE
+  RETAINER
+  SUPPLY
+  NDA
+  SUBCONTRACT
+  OTHER
+}
+
+enum AgreementState {
+  DRAFT
+  SENT
+  SIGNED
+  DECLINED
+  EXPIRED
+}
+
+/// A proposal or a contract — the document a deal is actually made on.
+///
+/// A quote is a price. The thing that wins the work, and the thing that
+/// settles the argument eighteen months later, is prose: what is being done,
+/// by when, what it costs, who owns what, and what happens when somebody
+/// stops paying. Every small business writes these in Word, keeps them in a
+/// folder, and cannot tell you which ones are signed.
+///
+/// Clauses are stored as ordered prose rather than a rigid field per term,
+/// because a maintenance retainer and a sub-contract share almost no fields
+/// and every attempt to model them as one shape produces a form nobody can
+/// fill in. The library in agreements.ts supplies the starting points.
+model Agreement {
+  id                  String          @id @default(cuid())
+  tenantId            String
+  tenant              Tenant          @relation(fields: [tenantId], references: [id])
+  partyId             String
+  party               Party           @relation(fields: [partyId], references: [id])
+  number              String
+  kind                AgreementKind   @default(PROPOSAL)
+  status              AgreementState  @default(DRAFT)
+  title               String
+  /// Ordered prose: [{ heading, body }]. The document, in the order it reads.
+  clauses             Json
+  /// What it is worth, and how often — null on something with no money in it.
+  valueCents          Int?
+  /// once | monthly | quarterly | annually
+  recurrence          String?
+  currency            String?
+  startsAt            DateTime?
+  endsAt              DateTime?
+  /// A proposal goes stale; a contract does not.
+  validUntil          DateTime?
+  /// The quote this prices, where it came from one.
+  transactionId       String?
+  transaction         Transaction?    @relation(fields: [transactionId], references: [id])
+  sentAt              DateTime?
+  /// Countersigned by the customer, through their own portal link. The hash
+  /// binds the clauses, the value and the signature together, so any later
+  /// edit to the text is detectable by recomputing it.
+  signedAt            DateTime?
+  signatureDataUrl    String?
+  signerName          String?
+  signerIp            String?
+  acceptanceHash      String?
+  declinedAt          DateTime?
+  /// Signed on the business's side before it went out.
+  ourSignerName       String?
+  ourSignatureDataUrl String?
+  createdById         String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status])
+  @@index([tenantId, partyId])
+  @@map("agreements")
 }

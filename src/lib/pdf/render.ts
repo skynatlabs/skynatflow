@@ -8,10 +8,12 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import type { Transaction, TransactionLine, Item, Party, Tenant, Membership, User } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { DocumentTemplate, type DocumentData } from "./DocumentTemplate";
+import { AgreementTemplate } from "./AgreementTemplate";
 import { getPdfStyle, type PdfStyleConfig } from "./styles";
 import { resolveSections } from "./sections";
 import { generateQrDataUrl } from "./qr";
 import { totalPaid, totalRefunded } from "@/lib/core/money";
+import { formatMoney } from "@/lib/format/money";
 
 type TxWithLines = Transaction & {
   itemLines: (TransactionLine & { item: Item })[];
@@ -416,4 +418,120 @@ export async function renderDeliveryNotePdf(params: {
   };
 
   return renderToBuffer(DocumentTemplate({ style, data }));
+}
+
+const AGREEMENT_KIND_LABEL: Record<string, string> = {
+  PROPOSAL: "Proposal",
+  SERVICE: "Service agreement",
+  RETAINER: "Maintenance agreement",
+  SUPPLY: "Supply agreement",
+  NDA: "Non-disclosure agreement",
+  SUBCONTRACT: "Sub-contract",
+  OTHER: "Agreement",
+};
+
+/**
+ * A proposal or contract, which is prose rather than a table.
+ *
+ * It borrows the workspace's accent, typeface and paper from whatever
+ * template the invoices use, so the two documents look like they came from
+ * the same business — but the layout is AgreementTemplate's, because a
+ * contract read end to end wants numbered clauses and a signature block, not
+ * an items table with everything switched off.
+ */
+export async function renderAgreementPdf(params: {
+  agreement: {
+    number: string;
+    title: string;
+    kind: string;
+    createdAt: Date;
+    startsAt: Date | null;
+    endsAt: Date | null;
+    validUntil: Date | null;
+    valueCents: number | null;
+    recurrence: string | null;
+    currency: string | null;
+    clauses: Array<{ heading: string; body: string }>;
+    signerName: string | null;
+    signedAt: Date | null;
+    signatureDataUrl: string | null;
+    acceptanceHash: string | null;
+    ourSignerName: string | null;
+    ourSignatureDataUrl: string | null;
+  };
+  party: Party;
+  tenant: Tenant;
+}): Promise<Buffer> {
+  const template = await getTemplateFor(params.tenant.id, "QUOTE");
+  const base = getPdfStyle(template?.styleKey ?? "minimal-serif");
+  const style: PdfStyleConfig = {
+    ...base,
+    // Prose wants more air than a table does, whatever the invoice uses.
+    pageMargin: base.pageMargin ?? "roomy",
+    ...(template?.accentColorHex ? { accentColor: template.accentColorHex } : {}),
+    ...(template?.fontFamily ? { fontFamily: template.fontFamily as PdfStyleConfig["fontFamily"] } : {}),
+    ...(template?.pageSize ? { pageSize: template.pageSize as PdfStyleConfig["pageSize"] } : {}),
+  };
+
+  const currency = params.agreement.currency ?? params.tenant.currency;
+  const date = (d: Date | null) =>
+    d ? d.toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" }) : null;
+  const per =
+    params.agreement.recurrence === "monthly"
+      ? " a month"
+      : params.agreement.recurrence === "quarterly"
+        ? " a quarter"
+        : params.agreement.recurrence === "annually"
+          ? " a year"
+          : "";
+
+  return renderToBuffer(
+    AgreementTemplate({
+      style,
+      data: {
+        kindLabel: AGREEMENT_KIND_LABEL[params.agreement.kind] ?? "Agreement",
+        number: params.agreement.number,
+        title: params.agreement.title,
+        date: date(params.agreement.createdAt)!,
+        startsAt: date(params.agreement.startsAt),
+        endsAt: date(params.agreement.endsAt),
+        validUntil: date(params.agreement.validUntil),
+        valueLine:
+          params.agreement.valueCents === null
+            ? null
+            : `${formatMoney(params.agreement.valueCents, currency, { decimals: true })}${per}`,
+        business: {
+          name: params.tenant.name,
+          companyName: params.tenant.name,
+          registrationNumber: params.tenant.registrationNumber,
+          vatNumber: params.tenant.vatNumber,
+          address: params.tenant.businessAddress,
+          email: params.tenant.businessEmail,
+          phone: params.tenant.businessPhone,
+        },
+        customer: {
+          name: params.party.name,
+          companyName: params.party.companyName,
+          vatNumber: params.party.vatNumber,
+          address: params.party.addressLine,
+          email: params.party.email,
+          phone: params.party.phone,
+        },
+        clauses: params.agreement.clauses,
+        logoDataUrl: template?.logoDataUrl ?? null,
+        signature:
+          params.agreement.signedAt && params.agreement.signerName
+            ? {
+                signerName: params.agreement.signerName,
+                signedAt: date(params.agreement.signedAt)!,
+                signatureDataUrl: params.agreement.signatureDataUrl,
+                hash: params.agreement.acceptanceHash,
+              }
+            : null,
+        ourSignature: params.agreement.ourSignerName
+          ? { signerName: params.agreement.ourSignerName, signatureDataUrl: params.agreement.ourSignatureDataUrl }
+          : null,
+      },
+    })
+  );
 }

@@ -113,12 +113,18 @@ export async function setPlatformColorSkin(skin: ColorSkin): Promise<void> {
   });
 }
 
+// The model each provider is called with. Named here rather than at each of
+// the dozen call sites, because the whole point of this module is that moving
+// to a newer model is one edit and no redeploy of anything else.
+export const ANTHROPIC_MODEL = "claude-sonnet-5";
+export const GOOGLE_MODEL = "gemini-3.1-pro-preview";
+
 async function modelFor(provider: AiProvider) {
   const apiKey = await getProviderKey(provider);
   if (!apiKey) return null;
   return provider === "google"
-    ? createGoogleGenerativeAI({ apiKey })("gemini-3.1-pro-preview")
-    : createAnthropic({ apiKey })("claude-sonnet-4-5");
+    ? createGoogleGenerativeAI({ apiKey })(GOOGLE_MODEL)
+    : createAnthropic({ apiKey })(ANTHROPIC_MODEL);
 }
 
 // Returns null when nothing is configured — every call site already

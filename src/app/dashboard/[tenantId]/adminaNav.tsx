@@ -93,6 +93,7 @@ export function buildAdminaNav(params: {
         { href: `${d}/customers`, label: customerLabel + "s" },
         { href: `${d}/quotes`, label: "Quotes" },
         { href: `${d}/unsent-quotes`, label: "Unsent Quotes" },
+        { href: `${d}/agreements`, label: "Proposals & contracts" },
         { href: `${d}/pipeline`, label: "Pipeline" },
         { href: `${d}/inbox`, label: "Inbox", badge: unread || undefined },
         { href: `${d}/mail`, label: "Mail" },

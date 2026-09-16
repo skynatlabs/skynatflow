@@ -47,6 +47,18 @@ import { logDelivery } from "@/lib/core/movement";
 import { getQuoteSlaBreaches } from "@/lib/core/sla";
 import { listNotifications } from "@/lib/core/notifications2";
 import { acceptDetails, listSubmissions, markSubmissionHandled } from "@/lib/core/portal";
+import {
+  AGREEMENT_TEMPLATES,
+  agreementPipeline,
+  createAgreement,
+  getAgreement,
+  listAgreements,
+  sendAgreement,
+  signatureStillMatches,
+} from "@/lib/core/agreements";
+import { draftAgreement, kindFromDraft, withDisclaimer } from "@/lib/ai/agreement";
+import { formatMoney } from "@/lib/format/money";
+import type { AgreementState } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 export interface ExtraToolDef {
@@ -471,6 +483,80 @@ export const EXTRA_READ_TOOLS: Record<string, ExtraToolDef> = {
       }),
   },
 
+  agreements: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Proposals and contracts — what has been sent, what is signed, what is still a draft, and what each is " +
+          "worth. Use it for 'what is waiting on a signature', 'did they ever sign', and before drafting another one " +
+          "for the same customer.",
+        inputSchema: z.object({
+          partyId: z.string().optional().describe("Only this customer's."),
+          status: z.enum(["DRAFT", "SENT", "SIGNED", "DECLINED", "EXPIRED"]).optional(),
+        }),
+        execute: async ({ partyId, status }) => {
+          const [rows, pipeline] = await Promise.all([
+            listAgreements(ctx.tenantId, { partyId, status: status as AgreementState | undefined }),
+            agreementPipeline(ctx.tenantId),
+          ]);
+          return {
+            summary: pipeline,
+            agreements: rows.map((a) => ({
+              id: a.id,
+              number: a.number,
+              title: a.title,
+              kind: a.kind,
+              status: a.status,
+              customer: a.party.companyName ?? a.party.name,
+              customerId: a.partyId,
+              valueCents: a.valueCents,
+              recurrence: a.recurrence,
+              starts: a.startsAt?.toISOString().slice(0, 10) ?? null,
+              ends: a.endsAt?.toISOString().slice(0, 10) ?? null,
+              signedBy: a.signerName,
+              signedOn: a.signedAt?.toISOString().slice(0, 10) ?? null,
+            })),
+          };
+        },
+      }),
+  },
+
+  readAgreement: {
+    build: (ctx) =>
+      tool({
+        description: "The full text of one proposal or contract, clause by clause. Use it when asked what a document actually says.",
+        inputSchema: z.object({ agreementId: z.string() }),
+        execute: async ({ agreementId }) => {
+          const agreement = await getAgreement(ctx.tenantId, agreementId);
+          if (!agreement) throw new Error("That agreement is not in this workspace.");
+          return {
+            number: agreement.number,
+            title: agreement.title,
+            kind: agreement.kind,
+            status: agreement.status,
+            customer: agreement.party.companyName ?? agreement.party.name,
+            valueCents: agreement.valueCents,
+            recurrence: agreement.recurrence,
+            clauses: agreement.clauseList,
+            signedBy: agreement.signerName,
+            signedOn: agreement.signedAt?.toISOString().slice(0, 10) ?? null,
+            // Worth saying out loud when it is false.
+            wordingStillMatchesSignature: signatureStillMatches(agreement),
+          };
+        },
+      }),
+  },
+
+  agreementTemplates: {
+    build: () =>
+      tool({
+        description: "The kinds of proposal and contract that can be started from a template, and what each is for.",
+        inputSchema: z.object({}),
+        execute: async () =>
+          AGREEMENT_TEMPLATES.map((t) => ({ key: t.key, kind: t.kind, label: t.label, purpose: t.purpose })),
+      }),
+  },
+
   customerPortalMessages: {
     build: (ctx) =>
       tool({
@@ -873,6 +959,96 @@ export const EXTRA_WRITE_TOOLS: Record<string, ExtraToolDef> = {
         execute: async ({ invoiceId, feePercent }) => {
           await applyLateFee({ invoiceId, feePercent, tenantId: ctx.tenantId });
           return { ok: true };
+        },
+      }),
+  },
+
+  writeAgreement: {
+    capability: "quote:create",
+    build: (ctx) =>
+      tool({
+        description:
+          "Draft a proposal or contract for a customer. Say what it is for in a sentence and it is written; name a " +
+          "template instead and the standard wording is used. It is created as a draft that nobody has seen — sending " +
+          "it for signature is a separate step. The value and the dates come from here, never from the writing.",
+        inputSchema: z.object({
+          partyId: z.string().describe("The customer it is with."),
+          instruction: z
+            .string()
+            .optional()
+            .describe("What the agreement is for, in a sentence or two. Leave it out to use the template as written."),
+          templateKey: z
+            .string()
+            .optional()
+            .describe("proposal | service | retainer | supply | nda | subcontract. Used when there is no instruction, or nothing to draft with."),
+          valueCents: z.number().int().optional(),
+          recurrence: z.enum(["once", "monthly", "quarterly", "annually"]).optional(),
+          startsAt: z.string().optional().describe("YYYY-MM-DD"),
+          endsAt: z.string().optional().describe("YYYY-MM-DD"),
+          validUntil: z.string().optional().describe("YYYY-MM-DD — when a proposal goes stale."),
+        }),
+        execute: async ({ partyId, instruction, templateKey, valueCents, recurrence, startsAt, endsAt, validUntil }) => {
+          const [party, tenant] = await Promise.all([
+            prisma.party.findFirst({ where: { id: partyId, tenantId: ctx.tenantId } }),
+            prisma.tenant.findUniqueOrThrow({
+              where: { id: ctx.tenantId },
+              select: { name: true, currency: true, niche: true, countryCode: true },
+            }),
+          ]);
+          if (!party) throw new Error("That customer is not in this workspace.");
+
+          const when = (s?: string) => (s ? new Date(s) : null);
+          const draft = instruction
+            ? await draftAgreement({
+                instruction,
+                business: tenant.name,
+                customer: party.companyName ?? party.name,
+                value: valueCents === undefined ? undefined : formatMoney(valueCents, tenant.currency, { decimals: true }),
+                starts: startsAt,
+                ends: endsAt,
+                niche: tenant.niche,
+                country: tenant.countryCode ?? undefined,
+              })
+            : null;
+
+          const agreement = await createAgreement({
+            tenantId: ctx.tenantId,
+            partyId,
+            templateKey: draft ? null : templateKey ?? "service",
+            kind: draft ? kindFromDraft(draft.kind) : undefined,
+            title: draft?.title,
+            clauses: draft ? withDisclaimer(draft.clauses) : undefined,
+            valueCents: valueCents ?? null,
+            recurrence: recurrence ?? null,
+            startsAt: when(startsAt),
+            endsAt: when(endsAt),
+            validUntil: when(validUntil),
+            createdById: ctx.membershipId ?? null,
+          });
+
+          return {
+            id: agreement.id,
+            number: agreement.number,
+            title: agreement.title,
+            drafted: Boolean(draft),
+            status: agreement.status,
+            note: draft ? "Written from what you said." : "Written from the standard template.",
+          };
+        },
+      }),
+  },
+
+  sendAgreementForSignature: {
+    capability: "quote:send",
+    build: (ctx) =>
+      tool({
+        description:
+          "Send a proposal or contract to the customer to sign. From here they can open it on their portal link and " +
+          "sign it, so read it back to whoever asked before sending.",
+        inputSchema: z.object({ agreementId: z.string() }),
+        execute: async ({ agreementId }) => {
+          const sent = await sendAgreement(ctx.tenantId, agreementId);
+          return { ok: true, number: sent.number, status: sent.status };
         },
       }),
   },

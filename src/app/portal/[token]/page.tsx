@@ -40,7 +40,7 @@ export default async function PortalHomePage({
   const overview = await portalOverview(token);
   if (!overview) notFound();
 
-  const { party, business, documents, deliveries, submissions } = overview;
+  const { party, business, documents, deliveries, agreements, submissions } = overview;
   const money = (cents: number) => formatMoney(cents, business.currency, { decimals: true });
 
   const quotes = documents.filter((d) => d.kind === "QUOTE");
@@ -53,6 +53,7 @@ export default async function PortalHomePage({
     .filter((i) => i.outstandingCents > 0)
     .sort((a, b) => (a.dueAt ?? a.issuedAt).getTime() - (b.dueAt ?? b.issuedAt).getTime());
   const openSubmissions = submissions.filter((s) => !s.handledAt);
+  const toSign = agreements.filter((a) => a.status === "SENT");
 
   return (
     <main className="mx-auto max-w-3xl p-4 pb-16 sm:p-8">
@@ -139,6 +140,21 @@ export default async function PortalHomePage({
         </section>
       )}
 
+      {toSign.length > 0 && (
+        <section className="kb-card mt-4 p-5" style={{ background: "var(--kb-tint-violet)" }}>
+          <p className="text-sm font-medium text-[var(--kb-text)]">
+            {toSign.length === 1 ? "There is an agreement to read and sign." : `${toSign.length} agreements are waiting for your signature.`}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {toSign.map((a) => (
+              <Link key={a.id} href={`/portal/${token}/agreements/${a.id}`} className="kb-pill kb-pill-primary text-xs">
+                {a.number} · {a.title}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       <h2 className="mt-8 text-sm font-semibold text-[var(--kb-text)]">Your documents</h2>
       <ul className="kb-card mt-2 divide-y divide-[var(--kb-panel-border)] p-0">
         {documents.map((d) => {
@@ -181,6 +197,40 @@ export default async function PortalHomePage({
         })}
         {documents.length === 0 && <li className="p-4 text-sm text-[var(--kb-text-dim)]">Nothing here yet.</li>}
       </ul>
+
+      {agreements.filter((a) => a.status !== "SENT").length > 0 && (
+        <>
+          <h2 className="mt-8 text-sm font-semibold text-[var(--kb-text)]">Agreements</h2>
+          <ul className="kb-card mt-2 divide-y divide-[var(--kb-panel-border)] p-0">
+            {agreements
+              .filter((a) => a.status !== "SENT")
+              .map((a) => (
+                <li key={a.id}>
+                  <Link
+                    href={`/portal/${token}/agreements/${a.id}`}
+                    className="flex items-center justify-between gap-3 p-4 hover:bg-black/[0.02]"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-[var(--kb-text)]">
+                        {a.number} · {a.title}
+                      </p>
+                      <p className="text-xs text-[var(--kb-text-dim)]">
+                        {when(a.createdAt)}
+                        {a.valueCents !== null ? ` · ${money(a.valueCents)}` : ""}
+                      </p>
+                    </div>
+                    <span
+                      className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide"
+                      style={{ background: "var(--kb-tint-mint)", color: "var(--kb-tint-mint-ink)" }}
+                    >
+                      {a.status.toLowerCase()}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+          </ul>
+        </>
+      )}
 
       {deliveries.length > 0 && (
         <>

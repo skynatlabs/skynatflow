@@ -108,6 +108,9 @@ const EXPORTS: Array<{
   { key: "intake_documents", label: "Documents read while setting up", direct: true, fetch: (t) => prisma.intakeDocument.findMany({ where: { tenantId: t } }) },
   { key: "delivery_notes", label: "Delivery notes", direct: true, fetch: (t) => prisma.deliveryNote.findMany({ where: { tenantId: t } }) },
   { key: "outbound_emails", label: "Mail sent", direct: true, fetch: (t) => prisma.outboundEmail.findMany({ where: { tenantId: t } }) },
+  // Proposals and contracts, signatures and all. The one table in here a
+  // business is most likely to be asked for by somebody else's attorney.
+  { key: "agreements", label: "Proposals and contracts", direct: true, fetch: (t) => prisma.agreement.findMany({ where: { tenantId: t } }) },
   // What customers sent in from their own portal link. The attachments are
   // inline data URLs, so the proof of payment travels with the record rather
   // than pointing at a file that will not be there.

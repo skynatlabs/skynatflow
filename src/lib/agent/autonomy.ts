@@ -23,6 +23,9 @@ const ALWAYS_ASK = new Set([
   "convertQuoteToInvoice",
   // A message from the business's own mailbox is the business speaking.
   "sendMailMessage",
+  // A contract the customer can sign the moment it lands. Nothing in this app
+  // binds the business to more than this does.
+  "sendAgreementForSignature",
 ]);
 
 /**

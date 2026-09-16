@@ -90,6 +90,7 @@ export default async function TenantShellLayout({
     { href: `/dashboard/${tenantId}/products`, label: "Products", icon: BoxIcon },
     { href: `/dashboard/${tenantId}/inventory`, label: "Inventory", icon: BoxIcon },
     { href: `/dashboard/${tenantId}/quotes`, label: "Quotes", icon: QuoteIcon },
+    { href: `/dashboard/${tenantId}/agreements`, label: "Proposals & contracts", icon: SignatureIcon },
     { href: `/dashboard/${tenantId}/invoices`, label: "Invoices", icon: QuoteIcon },
     { href: `/dashboard/${tenantId}/statements`, label: "Statements", icon: SignatureIcon },
     { href: `/dashboard/${tenantId}/cash-forecast`, label: "Cash forecast", icon: SignatureIcon },

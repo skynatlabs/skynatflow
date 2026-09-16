@@ -37,6 +37,7 @@ export interface PortalOverview {
   balanceCents: number;
   overdueCents: number;
   deliveries: Array<{ id: string; number: string; status: string; createdAt: Date; deliveredAt: Date | null; lines: number }>;
+  agreements: Array<{ id: string; number: string; title: string; kind: string; status: string; createdAt: Date; valueCents: number | null }>;
   submissions: Array<{ id: string; kind: string; body: string | null; createdAt: Date; handledAt: Date | null }>;
 }
 
@@ -51,7 +52,7 @@ export async function portalOverview(token: string): Promise<PortalOverview | nu
   const party = await resolvePortal(token);
   if (!party) return null;
 
-  const [tenant, template, transactions, deliveries, submissions, balances] = await Promise.all([
+  const [tenant, template, transactions, deliveries, agreements, submissions, balances] = await Promise.all([
     prisma.tenant.findUniqueOrThrow({ where: { id: party.tenantId } }),
     prisma.tenantPdfTemplate.findFirst({ where: { tenantId: party.tenantId, isDefault: true }, select: { logoDataUrl: true } }),
     prisma.transaction.findMany({
@@ -65,6 +66,13 @@ export async function portalOverview(token: string): Promise<PortalOverview | nu
       orderBy: { createdAt: "desc" },
       take: 20,
       select: { id: true, number: true, status: true, createdAt: true, deliveredAt: true, lines: { select: { id: true } } },
+    }),
+    // A draft has not been sent to anybody, so on this side it does not exist.
+    prisma.agreement.findMany({
+      where: { tenantId: party.tenantId, partyId: party.id, status: { not: "DRAFT" } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: { id: true, number: true, title: true, kind: true, status: true, createdAt: true, valueCents: true },
     }),
     prisma.portalSubmission.findMany({
       where: { tenantId: party.tenantId, partyId: party.id },
@@ -125,6 +133,7 @@ export async function portalOverview(token: string): Promise<PortalOverview | nu
     balanceCents: balances.get(party.id) ?? 0,
     overdueCents,
     deliveries: deliveries.map((d) => ({ ...d, lines: d.lines.length })),
+    agreements,
     submissions,
   };
 }
