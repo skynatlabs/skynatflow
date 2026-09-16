@@ -40,7 +40,7 @@ export default async function DashboardIndexPage() {
   const theme = cookieStore.get("kb-theme")?.value === "dark" ? "dark" : "light";
 
   return (
-    <div className="kb-shell min-h-screen p-8" data-theme={theme}>
+    <div className="kb-shell kb-warm min-h-screen p-8" data-theme={theme}>
       <main className="mx-auto max-w-2xl">
         <h1 className="text-2xl font-bold text-[var(--kb-text)]">Your workspaces</h1>
         <p className="mt-1 text-sm text-[var(--kb-text-dim)]">

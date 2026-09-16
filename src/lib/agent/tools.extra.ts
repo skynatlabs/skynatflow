@@ -58,6 +58,7 @@ import {
 } from "@/lib/core/agreements";
 import { draftAgreement, kindFromDraft, withDisclaimer } from "@/lib/ai/agreement";
 import { SYSTEM_BY_KEY, addSystem, listSystems, switchover } from "@/lib/core/systems";
+import { kpiBoard } from "@/lib/core/kpis";
 import { formatMoney } from "@/lib/format/money";
 import type { AgreementState } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -543,6 +544,38 @@ export const EXTRA_READ_TOOLS: Record<string, ExtraToolDef> = {
             signedOn: agreement.signedAt?.toISOString().slice(0, 10) ?? null,
             // Worth saying out loud when it is false.
             wordingStillMatchesSignature: signatureStillMatches(agreement),
+          };
+        },
+      }),
+  },
+
+  theNumbers: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Every figure on this person's home dashboard, grouped the way it is grouped there — money, selling, " +
+          "work, stock, people, the road, deadlines — narrowed to what their role may see and what this trade " +
+          "actually has. Use it for 'how are we doing', for any question spanning more than one part of the " +
+          "business, and to answer with the same numbers the screen in front of them is showing.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { niche: true } });
+          const board = await kpiBoard(ctx.tenantId, ctx.role, tenant.niche);
+          return {
+            scope: board.scope,
+            groups: board.groups.map((g) => ({
+              area: g.title,
+              figures: g.panels.map((p) => ({
+                name: p.title,
+                value: p.value ?? null,
+                changePercent: p.deltaPercent ?? null,
+                means: p.note ?? null,
+                // The series and slices matter for a question about direction
+                // rather than level — "is it getting better" needs the shape.
+                byMonth: p.series ?? null,
+                breakdown: p.slices?.map((s) => ({ name: s.name, value: s.value })) ?? null,
+              })),
+            })),
           };
         },
       }),

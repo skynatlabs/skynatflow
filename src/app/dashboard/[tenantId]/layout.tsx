@@ -232,7 +232,7 @@ export default async function TenantShellLayout({
   // it. Every other skin keeps the original single-column sidebar.
   if (skin === "admina") {
     return (
-      <div className="kb-shell" data-theme={theme} data-skin={skin} data-accent={accent}>
+      <div className="kb-shell kb-warm" data-theme={theme} data-skin={skin} data-accent={accent}>
         <TwinSidebar
           groups={buildAdminaNav({
             tenantId,
@@ -282,7 +282,7 @@ export default async function TenantShellLayout({
   }
 
   return (
-    <div className="kb-shell flex" data-theme={theme} data-skin={skin} data-accent={accent}>
+    <div className="kb-shell kb-warm flex" data-theme={theme} data-skin={skin} data-accent={accent}>
       <SidebarShell
         sidebar={sidebarContent}
         topbar={<TopBar tenantId={tenantId} unread={unread} customerLabel={niche.customerLabel} />}

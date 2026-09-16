@@ -31,7 +31,7 @@ export default async function OnboardingPage() {
   const niches = Object.values(NICHE_CONFIGS).map((n) => ({ skin: n.skin, label: n.label, tagline: n.tagline }));
 
   return (
-    <div className="kb-shell min-h-screen" data-theme="light" data-skin="admina">
+    <div className="kb-shell kb-warm-loud min-h-screen" data-theme="light" data-skin="admina">
       <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6">
         <div className="flex items-center gap-2">
           <FlowMark size={30} />

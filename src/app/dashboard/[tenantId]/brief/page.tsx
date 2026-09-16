@@ -21,6 +21,7 @@ import { currentBrief, approvalQueue, type RankedItem, type QueueItem } from "@/
 import { onboardingState } from "@/lib/onboarding/progress";
 import { PageHeader } from "../PageHeader";
 import { Figure } from "@/components/dashboard/Figure";
+import { formatMoney } from "@/lib/format/money";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { decideObservation } from "./actions";
 
@@ -44,10 +45,11 @@ const OFFICER: Record<Officer, { name: string; title: string; tint: string; ink:
 // Formatted exactly as the officers write it. The figure under a headline
 // that reads "R45 000" must not read "ZAR 45,000" — two spellings of one
 // number on one card makes a person wonder whether they are the same number.
-// (Workspaces have no currency of their own yet; bank accounts do. When that
-// changes, this and the officers' sentences change together.)
-function money(cents: number) {
-  return `R${Math.abs(cents / 100).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`;
+// It used to hardcode the rand, with a comment saying workspaces had no
+// currency of their own. They do, so a brief for a workspace trading in
+// pounds no longer quotes its own figures in rands.
+function money(cents: number, currency: string) {
+  return formatMoney(Math.abs(cents), currency);
 }
 
 // `now` is the brief's own timestamp rather than Date.now(), so one render
@@ -77,7 +79,7 @@ export default async function BriefPage({
   const [tenant, brief, queue, setup] = await Promise.all([
     prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { name: true, arrivalShownAt: true, turnaroundMode: true, onboardedAt: true },
+      select: { name: true, currency: true, arrivalShownAt: true, turnaroundMode: true, onboardedAt: true },
     }),
     currentBrief(tenantId),
     approvalQueue(tenantId),
@@ -90,6 +92,10 @@ export default async function BriefPage({
   // Observations already appear on the desk above; showing them again under
   // "waiting on you" would make one list look like two piles of work.
   const waiting = queue.filter((q) => q.kind !== "observation");
+
+  // Which officers actually have something on the desk today, in the order
+  // their findings are ranked.
+  const reporting = [...new Set(brief.items.map((i) => i.handedTo ?? i.officer))];
 
   return (
     <div className="pb-10">
@@ -126,17 +132,30 @@ export default async function BriefPage({
         <EmptyDesk tenantId={tenantId} />
       ) : (
         <>
-          <section className="kb-card mb-5 px-5 py-4">
-            <p className="text-[10px] font-medium tracking-wide uppercase text-[var(--kb-text-dim)]">
-              {brief.generatedAt.toLocaleDateString(undefined, {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}
-            </p>
-            <h3 className="mt-1 text-lg leading-snug font-semibold text-[var(--kb-text)]">
-              {brief.headline}
-            </h3>
+          {/* The letterhead. Who reported today sits beside the date, as
+              faces rather than a sentence — the point of six officers is that
+              you can see at a glance which of them had something to say. */}
+          <section className="kb-card mb-5 flex flex-wrap items-start justify-between gap-4 px-5 py-5">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-medium tracking-wide uppercase text-[var(--kb-text-dim)]">
+                {brief.generatedAt.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}
+              </p>
+              <h3 className="mt-1.5 text-xl leading-snug font-semibold text-balance text-[var(--kb-text)]">
+                {brief.headline}
+              </h3>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-1.5">
+              {reporting.map((o) => (
+                <span
+                  key={o}
+                  title={OFFICER[o].title}
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-[10px] font-semibold"
+                  style={{ background: OFFICER[o].tint, color: OFFICER[o].ink }}
+                >
+                  {OFFICER[o].name.slice(0, 3)}
+                </span>
+              ))}
+            </div>
           </section>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -147,6 +166,7 @@ export default async function BriefPage({
                 rank={i + 1}
                 tenantId={tenantId}
                 now={brief.generatedAt}
+                currency={tenant.currency}
               />
             ))}
           </div>
@@ -184,11 +204,13 @@ function FindingCard({
   rank,
   tenantId,
   now,
+  currency,
 }: {
   item: RankedItem;
   rank: number;
   tenantId: string;
   now: Date;
+  currency: string;
 }) {
   const who = OFFICER[item.handedTo ?? item.officer];
   const due = whenDue(item.urgentBy, now);
@@ -196,71 +218,68 @@ function FindingCard({
   const decideHere = decideObservation.bind(null, tenantId);
 
   return (
-    <article
-      className="kb-card flex flex-col overflow-hidden p-0"
-      style={{ borderTop: `3px solid ${who.ink}` }}
-    >
-      <div className="flex flex-1 flex-col gap-3 px-5 pt-4 pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span
-              className="kb-pill text-[10px] font-semibold uppercase"
-              style={{ background: who.tint, color: who.ink }}
-              title={who.title}
-            >
-              {who.name}
-            </span>
-            {/* Two officers arriving at the same place independently is a
-                stronger signal than either alone, and the ranking already
-                counts it — so it should be visible, not just felt. */}
-            {item.alsoNoticedBy.map((o) => (
-              <span
-                key={o}
-                className="kb-pill text-[10px] text-[var(--kb-text-dim)]"
-                title={`${OFFICER[o].title} raised this too`}
-              >
-                + {OFFICER[o].name}
-              </span>
-            ))}
+    // No coloured rail across the top. The officer's identity is carried by
+    // the disc with their initials, which reads as somebody reporting; a
+    // stripe on a rounded card reads as a template.
+    <article className="kb-card kb-float flex flex-col overflow-hidden p-0">
+      <div className="flex flex-1 flex-col gap-3 px-5 pt-5 pb-3">
+        <div className="flex items-start gap-3">
+          <span
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold"
+            style={{ background: who.tint, color: who.ink }}
+            title={who.title}
+          >
+            {who.name.slice(0, 3)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-[var(--kb-text)]">{who.title}</p>
+            <p className="text-[11px] text-[var(--kb-text-dim)]">
+              {item.confidence}% sure
+              {/* Two officers arriving at the same place independently is a
+                  stronger signal than either alone, and the ranking already
+                  counts it — so it should be visible, not just felt. */}
+              {item.alsoNoticedBy.length > 0 &&
+                ` · ${item.alsoNoticedBy.map((o) => OFFICER[o].title).join(" and ")} raised it too`}
+            </p>
           </div>
-          <span className="text-[10px] tabular-nums text-[var(--kb-text-dim)]">#{rank}</span>
+          <span className="shrink-0 text-[10px] tabular-nums text-[var(--kb-text-dim)]" title="Where this ranks on today's desk">
+            {rank}
+          </span>
         </div>
 
-        <h3 className="leading-snug font-semibold text-balance text-[var(--kb-text)]">
+        <h3 className="text-[15px] leading-snug font-semibold text-balance text-[var(--kb-text)]">
           {item.headline}
         </h3>
+
+        {/* The money is the loudest thing on the card, because it is the
+            reason the card is on the desk. It used to be the same size as the
+            date beside it, which made a R45 000 finding look like a note. */}
+        {item.moneyCents !== null && item.moneyCents > 0 && (
+          <Figure
+            className="text-2xl font-semibold tabular-nums text-[var(--kb-text)]"
+            workings={item.evidence.map((e) => ({ label: e.label, value: e.value }))}
+            note={`${item.confidence}% sure. ${item.alsoNoticedBy.length ? `Also raised by ${item.alsoNoticedBy.map((o) => OFFICER[o].name).join(", ")}.` : ""}`}
+          >
+            {money(item.moneyCents, currency)}
+          </Figure>
+        )}
 
         {item.detail && (
           <p className="text-xs leading-relaxed text-[var(--kb-text-dim)]">{item.detail}</p>
         )}
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-          {item.moneyCents !== null && item.moneyCents > 0 && (
-            <Figure
-              className="font-semibold tabular-nums text-[var(--kb-text)]"
-              workings={item.evidence.map((e) => ({ label: e.label, value: e.value }))}
-              note={`${item.confidence}% sure. ${item.alsoNoticedBy.length ? `Also raised by ${item.alsoNoticedBy.map((o) => OFFICER[o].name).join(", ")}.` : ""}`}
-            >
-              {money(item.moneyCents)}
-            </Figure>
-          )}
-          {due && (
-            <span
-              className="tabular-nums"
-              style={{
-                color: late ? "var(--kb-tint-peach-ink)" : "var(--kb-text-dim)",
-              }}
-            >
-              {due}
-            </span>
-          )}
-          {/* Confidence is stated rather than hidden. A forecast presented with
-              the same certainty as a bank statement is how trust in the whole
-              suite gets spent. */}
-          <span className="text-[var(--kb-text-dim)]" title="How sure the officer is">
-            {item.confidence}% sure
+        {due && (
+          <span
+            className="w-fit rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums"
+            style={
+              late
+                ? { background: "var(--kb-status-danger)", color: "var(--kb-status-danger-ink)" }
+                : { background: "var(--kb-tint-blue)", color: "var(--kb-text-dim)" }
+            }
+          >
+            {due}
           </span>
-        </div>
+        )}
 
         {item.evidence.length > 0 && (
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-md bg-[var(--kb-tint-blue)]/35 px-3 py-2 text-[11px]">

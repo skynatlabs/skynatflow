@@ -67,7 +67,7 @@ export default async function OnboardingStepPage({
   const at = STEP_KEYS.indexOf(current);
 
   return (
-    <div className="kb-shell min-h-screen" data-theme="light" data-skin="admina">
+    <div className="kb-shell kb-warm-loud min-h-screen" data-theme="light" data-skin="admina">
       <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">

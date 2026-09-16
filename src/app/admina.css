@@ -809,6 +809,14 @@
 .kb-shell[data-skin="admina"] {
   --ts-rail-w: 72px;
   --ts-panel-w: 248px;
+  /* Like --primary-600 below, the template refers to --ts-surface all over
+     and never defines it — so every `background: var(--ts-surface)` was an
+     invalid declaration and those surfaces fell through to transparent. It
+     went unnoticed while the page behind them was flat white. On the warm
+     gradient the shell now carries it would read as holes cut in the page,
+     so it is bound to the theme's own panel colour, which is white in light
+     and the dark panel in dark. */
+  --ts-surface: var(--kb-panel);
   /* --primary-600 is NOT defined as a CSS custom property in this project,
      so it needs a concrete fallback or every active-state style silently fails. */
   --ts-purple: var(--primary-600, #487FFF);
@@ -4051,22 +4059,33 @@
 }
 
 /* --------------------------------------------------------------------------
-   Card geometry — Admina's cards are flat on the neutral canvas at a 20px
-   radius with 24px padding, no border and no lift. This app's default card is
-   14px with a hairline border and a soft shadow, which reads as a different
-   product entirely, so it is restated here for this skin.
+   Card geometry — Admina's 20px radius and 24px padding, kept; Admina's flat
+   card, dropped.
+   
+   The template paints its cards with no border and no lift, which was fine
+   when the canvas was flat white. It is not fine beside the composer and the
+   dock at the foot of every page, both of which float: with the cards flat,
+   the two halves of the interface looked like two different products. So the
+   geometry stays and the lift comes back — a hairline edge and the shared
+   --kb-lift shadow, which is the dock's own shadow family at about half its
+   strength. Soft and distinct rather than loud, and it holds on the warm
+   gradient the shell now carries, where a flat white panel reads as a hole.
    -------------------------------------------------------------------------- */
 .kb-shell[data-skin="admina"] .kb-card,
 .kb-shell[data-skin="admina"] .kb-glass {
   border-radius: 20px;
-  border: 0;
-  box-shadow: none;
+  border: 1px solid var(--kb-panel-border);
+  box-shadow: var(--kb-lift);
   background: var(--ts-surface);
 }
 .kb-shell[data-skin="admina"] .kb-tile {
   border-radius: 20px;
   padding: 24px;
-  box-shadow: none;
+  border: 1px solid var(--kb-panel-border);
+  box-shadow: var(--kb-lift);
+}
+.kb-shell[data-skin="admina"] .kb-float:hover {
+  box-shadow: var(--kb-lift-high);
 }
 .kb-shell[data-skin="admina"] .kb-pill {
   border-radius: 8px;
@@ -4213,7 +4232,18 @@
     radial-gradient(60rem 32rem at 8% -6%, rgba(46, 57, 79, 0.6), transparent 60%),
     radial-gradient(52rem 30rem at 92% 4%, rgba(39, 49, 66, 0.8), transparent 62%);
 }
-.kb-shell[data-skin="admina"] .navbar-header { background: transparent; border-bottom: 0; }
+/* The top bar is sticky, so whatever is on the page slides underneath it.
+   Transparent was fine while the page behind it was flat white; against the
+   warm wash and with cards that now lift, a card sliding under the avatar
+   reads as a collision. A translucent ground with a blur behind it lets the
+   page show through as a soft smear instead — the same treatment the dock at
+   the foot of the screen gets, so the two ends of the page match. */
+.kb-shell[data-skin="admina"] .navbar-header {
+  background: color-mix(in srgb, var(--kb-bg) 72%, transparent);
+  -webkit-backdrop-filter: saturate(150%) blur(12px);
+  backdrop-filter: saturate(150%) blur(12px);
+  border-bottom: 0;
+}
 
 /* Panel footer — the template's upgrade card, carrying account links. */
 .kb-shell[data-skin="admina"] .twin-panel__foot {

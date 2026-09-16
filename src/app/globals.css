@@ -204,6 +204,12 @@ body:has(.kb-shell[data-skin="admina"]:not([data-theme="dark"])) { background: #
   --kb-tint-mint: #f4f4fa;
   --kb-tint-mint-ink: #059669;
 
+  /* The lift every card and tile stands on. A wide soft shadow for the
+     float and a short tight one for the contact edge, both in the text
+     navy rather than black so they read as light rather than grime. */
+  --kb-lift: 0 10px 26px -16px rgba(23, 23, 37, 0.28), 0 2px 5px -3px rgba(23, 23, 37, 0.10);
+  --kb-lift-high: 0 18px 38px -18px rgba(23, 23, 37, 0.34), 0 3px 8px -4px rgba(23, 23, 37, 0.12);
+
   background: var(--kb-bg);
   color: var(--kb-text);
   min-height: 100vh;
@@ -234,32 +240,49 @@ body:has(.kb-shell[data-skin="admina"]:not([data-theme="dark"])) { background: #
   --kb-tint-violet-ink: #f4f4fa;
   --kb-tint-mint: #1e1c2e;
   --kb-tint-mint-ink: #2dd4bf;
+
+  /* A shadow in the same navy is invisible on a dark ground, so dark mode
+     goes to black and deeper — the lift has to come from the shadow, since
+     there is no white page behind the card to lose. */
+  --kb-lift: 0 12px 30px -16px rgba(0, 0, 0, 0.7), 0 2px 6px -3px rgba(0, 0, 0, 0.5);
+  --kb-lift-high: 0 20px 44px -18px rgba(0, 0, 0, 0.78), 0 4px 10px -4px rgba(0, 0, 0, 0.55);
 }
 
 /* A soft warm wash behind a page — lit rather than printed.
-   Three very low-saturation pools of the palette's own accents over the
-   normal ground, so the surface has some warmth in it without anything on
-   top of it changing colour. Deliberately weak: at these alphas the
-   contrast of every piece of text on it is unchanged, which is the whole
-   trick — warmth that reads as light, not as a coloured page.
-   Applied to the shell, so cards float on it rather than sit in it. */
+
+   Two layers doing different jobs. A full-height linear wash carries the
+   warmth the whole way down, because a dashboard scrolls for thousands of
+   pixels and a pool placed at the top of the element is a corner glow
+   nobody sees again after the first screen. Then two low-saturation pools
+   of the palette's own accents give the top of the page some character.
+
+   Sized in viewport units and repeated so the wash tiles down a long page
+   rather than stretching — background-attachment: fixed would be the
+   obvious answer and is the wrong one, because a fixed background on a
+   full-height scrolling element is the classic mobile Safari scroll-jank.
+
+   Deliberately weak: at these alphas the contrast of every piece of text on
+   it is unchanged, which is the whole trick — warmth that reads as light
+   rather than as a coloured page. Applied to the shell, so cards float on
+   it rather than sit in it. */
 .kb-warm {
   background-color: var(--kb-bg);
   background-image:
-    radial-gradient(58rem 38rem at 10% -12%, rgba(251, 146, 60, 0.13), transparent 62%),
-    radial-gradient(50rem 34rem at 94% 2%, rgba(251, 93, 107, 0.10), transparent 64%),
-    radial-gradient(72rem 52rem at 52% 110%, rgba(20, 121, 232, 0.05), transparent 66%);
-  background-repeat: no-repeat;
+    radial-gradient(60vw 42vh at 8% 0%, rgba(251, 146, 60, 0.15), transparent 68%),
+    radial-gradient(52vw 36vh at 96% 6%, rgba(251, 93, 107, 0.11), transparent 66%),
+    linear-gradient(170deg, rgba(251, 146, 60, 0.07) 0%, rgba(251, 176, 120, 0.045) 38%, rgba(20, 121, 232, 0.035) 100%);
+  background-repeat: no-repeat, no-repeat, repeat-y;
+  background-size: auto, auto, 100% 100vh;
 }
 
-/* Dark mode wants the same shape at a fraction of the strength — the pools
-   are there to keep the ground from reading as flat black, not to tint it. */
+/* Dark mode wants the same shape at a fraction of the strength — the wash is
+   there to keep the ground from reading as flat black, not to tint it. */
 .kb-warm[data-theme="dark"],
 [data-theme="dark"] .kb-warm {
   background-image:
-    radial-gradient(58rem 38rem at 10% -12%, rgba(251, 146, 60, 0.07), transparent 62%),
-    radial-gradient(50rem 34rem at 94% 2%, rgba(251, 93, 107, 0.06), transparent 64%),
-    radial-gradient(72rem 52rem at 52% 110%, rgba(20, 121, 232, 0.05), transparent 66%);
+    radial-gradient(60vw 42vh at 8% 0%, rgba(251, 146, 60, 0.08), transparent 68%),
+    radial-gradient(52vw 36vh at 96% 6%, rgba(251, 93, 107, 0.06), transparent 66%),
+    linear-gradient(170deg, rgba(251, 146, 60, 0.04) 0%, rgba(251, 176, 120, 0.03) 38%, rgba(20, 121, 232, 0.03) 100%);
 }
 
 /* The louder version, for onboarding only — the one page in the product
@@ -709,16 +732,29 @@ body:has(.kb-shell[data-skin="admina"]:not([data-theme="dark"])) { background: #
   color: var(--kb-text);
 }
 
-/* Cards: sharp radius, a crisp border doing the work a soft shadow used
-   to — a thin 1px edge reads as considered/premium, a colorful blurred
-   glow reads as a template trying to look "modern". Shadow is now just
-   enough to lift off the canvas, no color in it. */
+/* Cards: a crisp 1px edge, and a shadow that actually lifts.
+   The flat 1px-of-black they used to carry read as a printed page — the
+   chat box and the dock at the foot of every screen float, and nothing
+   else in the app did, so the two halves of the interface looked like two
+   products. Two shadows do it: a wide soft one for the lift, a short tight
+   one for the contact edge that keeps it from reading as a blur. Colour is
+   the text navy rather than pure black, which is what makes it read soft
+   rather than dirty. Same family as the dock, at about half its strength —
+   distinct, not loud. */
 .kb-card {
   background: var(--kb-panel);
   border: 1px solid var(--kb-panel-border);
   border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--kb-lift);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+/* Opt-in on a card that is also a link or a control: it rises to meet the
+   cursor. Not on every card — a static panel that moves when the mouse
+   passes over it is noise, not affordance. */
+.kb-float:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--kb-lift-high);
 }
 
 /* Same surface as .kb-card without the lift — for a box that sits inside a
@@ -736,7 +772,7 @@ body:has(.kb-shell[data-skin="admina"]:not([data-theme="dark"])) { background: #
   background: var(--kb-panel);
   border: 1px solid var(--kb-panel-border);
   border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--kb-lift);
 }
 
 .kb-gradient-text {
@@ -942,7 +978,7 @@ body:has(.kb-shell[data-skin="admina"]:not([data-theme="dark"])) { background: #
   overflow: hidden;
   background: var(--kb-panel);
   border: 1px solid var(--kb-panel-border);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--kb-lift);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .kb-tile::before {
