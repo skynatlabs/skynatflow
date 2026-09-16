@@ -202,6 +202,36 @@ export const IMPORT_PRESETS: Record<
       reference: ["*InvoiceNumber", "InvoiceNumber"],
     },
   },
+  // Sage Business Cloud and Pastel, which between them are most of the
+  // accounting done in South Africa and were the gap in this list. Their
+  // exports name the same fields differently in every version, which is why
+  // each key here carries several spellings.
+  sage: {
+    label: "Sage Business Cloud / Pastel",
+    customers: {
+      name: ["Customer Name", "Name", "Account Description", "Description"],
+      phone: ["Telephone", "Telephone 1", "Phone"],
+      email: ["E-Mail", "Email", "Email Address"],
+    },
+    products: {
+      name: ["Item Description", "Description", "Item Name"],
+      sku: ["Item Code", "Code", "Stock Code"],
+      unitPriceCents: ["Selling Price", "Unit Price", "Price 1"],
+      category: ["Category", "Item Group"],
+    },
+    invoices: {
+      customerName: ["Customer Name", "Account Description", "Customer"],
+      amountCents: ["Total", "Document Total", "Amount"],
+      status: ["Status", "Document Status"],
+      date: ["Document Date", "Date", "Invoice Date"],
+      dueDate: ["Due Date"],
+      reference: ["Document Number", "Invoice Number", "Reference"],
+      itemName: ["Item Description", "Description"],
+      itemQuantity: ["Quantity", "Qty"],
+      itemRate: ["Unit Price", "Price"],
+      itemTaxPercent: ["Tax Percentage", "VAT %"],
+    },
+  },
   generic: { label: "Generic CSV (map columns manually)" },
 };
 

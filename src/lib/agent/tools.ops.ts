@@ -51,7 +51,7 @@ import {
   reportIncident, addToIncident, incidentPack, listIncidents, routeDeviations,
 } from "@/lib/core/fleetOps";
 import { winRate, readingNotAnswering, quietCustomers, discountLeak } from "@/lib/core/salesHealth";
-import { packFor, setTurnaroundMode } from "@/lib/core/industryPacks";
+import { applyPack, packFor, setTurnaroundMode } from "@/lib/core/industryPacks";
 import { tenderReadiness } from "@/lib/agent/officers/legal";
 import { sharedMemory } from "@/lib/agent/observations";
 import { find } from "@/lib/core/find";
@@ -84,6 +84,8 @@ import { costOfDarkness, getSchedule, isDark, nextOutage, setSchedule } from "@/
 import { MARKETPLACE_BY_KEY, trueMargin } from "@/lib/core/marketplaces";
 import { chargeableWeight, collectionManifest, suggestCourier } from "@/lib/core/couriers";
 import { whoAreThey } from "@/lib/core/companyLookup";
+import { usage, usageSummary } from "@/lib/core/quotas";
+import { scanWebsite } from "@/lib/core/websiteScan";
 import { prisma } from "@/lib/db";
 import { composeQuoteFromText } from "@/lib/core/quoteComposer";
 import { buildWhatsAppShareLink, quoteWhatsAppMessage, invoiceWhatsAppMessage } from "@/lib/core/whatsappShare";
@@ -2059,6 +2061,50 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
         },
       }),
   },
+
+  allowanceUsed: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What this workspace has used of the month's allowances, and whether anything that runs on its own would be " +
+          "held back. Work somebody asks for is never stopped by this.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const rows = await usage(ctx.tenantId);
+          return {
+            summary: await usageSummary(ctx.tenantId),
+            meters: rows.map((row) => ({ what: row.label, used: row.used, of: row.allowance, unit: row.unit, standing: row.standing, note: row.note })),
+          };
+        },
+      }),
+  },
+
+  readTheirWebsite: {
+    build: () =>
+      tool({
+        description:
+          "Read a business's own website and pull out its name, contact details, registration numbers and what it sells. " +
+          "Everything comes back as a suggestion with where it was found — nothing is saved.",
+        inputSchema: z.object({ website: z.string().describe("Their address, like yourbusiness.co.za.") }),
+        execute: async ({ website }) => {
+          const result = await scanWebsite(website);
+          if (!result.ok) return { found: false as const, why: result.reason };
+          const { facts } = result;
+          return {
+            found: true as const,
+            name: facts.name?.value ?? null,
+            description: facts.description?.value ?? null,
+            email: facts.email?.value ?? null,
+            phone: facts.phone?.value ?? null,
+            address: facts.address?.value ?? null,
+            vatNumber: facts.vatNumber?.value ?? null,
+            registrationNumber: facts.registrationNumber?.value ?? null,
+            seemsToSell: facts.services,
+            couldNotFind: facts.notes,
+          };
+        },
+      }),
+  },
 };
 
 // ------------------------------------------------------------------ writing
@@ -3354,6 +3400,29 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
         execute: async ({ on }) => {
           await setTurnaroundMode(ctx.tenantId, on);
           return { turnaroundMode: on };
+        },
+      }),
+  },
+
+  applyIndustryPack: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Set this workspace up the way its trade works: the accounts that trade needs, and the handful of things it " +
+          "actually sells, at zero so the owner prices them. Safe to run again — nothing is added twice.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const result = await applyPack(ctx.tenantId);
+          return {
+            trade: result.label,
+            accountsAdded: result.accounts,
+            catalogueLinesAdded: result.catalogue,
+            note:
+              result.catalogue > 0
+                ? "The prices are zero on purpose — a made-up price that reaches a customer is worse than an empty one."
+                : "Everything this trade's pack sets up was already here.",
+          };
         },
       }),
   },

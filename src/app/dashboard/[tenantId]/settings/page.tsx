@@ -50,6 +50,7 @@ const GROUPS: {
     items: [
       { href: "banking", label: "Banking & verification", description: "EFT details and your WhatsApp verify number — owner-only." },
       { href: "audit-log", label: "Audit log", description: "Every sensitive action taken on this workspace, by who and when." },
+      { href: "usage", label: "This month's usage", description: "What has been used of the month's allowances. Work you ask for is never stopped by it." },
       { href: "close-account", label: "Close this account", description: "Take a copy of your records and remove the business — owner-only, and it cannot be undone." },
     ],
   },

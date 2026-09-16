@@ -43,6 +43,9 @@ const EXACT: Record<string, string> = {
   parcelAdvice: "Work out what the parcel will cost to send",
   buildCollectionManifest: "Make the courier's collection sheet",
   whoAreThey: "Check who this customer really is",
+  allowanceUsed: "Check what has been used this month",
+  readTheirWebsite: "Read their website",
+  applyIndustryPack: "Set the workspace up for this trade",
 };
 
 /**

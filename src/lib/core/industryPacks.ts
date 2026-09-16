@@ -17,6 +17,18 @@ export interface IndustryPack {
   accounts: Array<{ code: string; name: string; type: "INCOME" | "EXPENSE" | "ASSET" | "LIABILITY" }>;
   /** What each officer watches, in this trade's words. */
   watches: Partial<Record<"CEO" | "CFO" | "COO" | "LEGAL" | "SALES" | "EFFICIENCY", string>>;
+  /**
+   * The handful of things this trade actually sells, as a starting catalogue.
+   *
+   * Not a price list — the prices are deliberately left at zero, because a
+   * made-up price that reaches a customer is far worse than an empty one, and
+   * a business will correct a zero. What this saves is the blank-catalogue
+   * problem: a new workspace with nothing in it cannot quote, so nobody
+   * quotes, so the workspace is abandoned. Three or four recognisable lines
+   * is enough to get the first quote out, and everything after that is
+   * theirs.
+   */
+  starterCatalogue: Array<{ name: string; unit: string; note?: string }>;
 }
 
 export const PACKS: Record<NicheSkin, IndustryPack> = {
@@ -35,6 +47,12 @@ export const PACKS: Record<NicheSkin, IndustryPack> = {
       LEGAL: "PDPs, operator cards, cross-border permits, and owner-drivers whose cover lapses.",
       CEO: "Which lanes lose money on every run, and which vehicle earns its keep.",
     },
+    starterCatalogue: [
+      { name: "Local delivery", unit: "trip" },
+      { name: "Long-distance load", unit: "km" },
+      { name: "Standing time", unit: "hour", note: "Charged after the free waiting period." },
+      { name: "Pallet handling", unit: "pallet" },
+    ],
   },
   SERVICES: {
     label: "Trades & field services",
@@ -48,6 +66,12 @@ export const PACKS: Record<NicheSkin, IndustryPack> = {
       SALES: "Quotes being read and not answered, customers whose call-outs have stopped.",
       CFO: "Materials bought for a job and never billed, retention still held.",
     },
+    starterCatalogue: [
+      { name: "Call-out", unit: "each", note: "What it costs to come out, before any work." },
+      { name: "Labour", unit: "hour" },
+      { name: "Materials", unit: "each", note: "Bought for the job and billed on." },
+      { name: "After-hours labour", unit: "hour" },
+    ],
   },
   RETAIL: {
     label: "Retail",
@@ -61,6 +85,10 @@ export const PACKS: Record<NicheSkin, IndustryPack> = {
       CFO: "Margin per product after supplier price rises, tax collected at the till.",
       EFFICIENCY: "The same stock bought from several suppliers at several prices.",
     },
+    starterCatalogue: [
+      { name: "Shop sale", unit: "each", note: "A placeholder until the real stock is loaded." },
+      { name: "Delivery", unit: "each" },
+    ],
   },
   WHOLESALE: {
     label: "Wholesale & distribution",
@@ -70,6 +98,11 @@ export const PACKS: Record<NicheSkin, IndustryPack> = {
       SALES: "Trade customers whose order rhythm has broken.",
       CFO: "Debtor days, and margin after supplier increases.",
     },
+    starterCatalogue: [
+      { name: "Case", unit: "case" },
+      { name: "Pallet", unit: "pallet" },
+      { name: "Delivery to customer", unit: "trip" },
+    ],
   },
   MEDICAL: {
     label: "Practices & clinics",
@@ -79,6 +112,12 @@ export const PACKS: Record<NicheSkin, IndustryPack> = {
       CFO: "Claims unpaid by medical aids, and patient balances.",
       LEGAL: "Practice numbers, professional registrations and indemnity cover.",
     },
+    starterCatalogue: [
+      { name: "Consultation", unit: "each" },
+      { name: "Follow-up consultation", unit: "each" },
+      { name: "Procedure", unit: "each" },
+      { name: "Missed appointment", unit: "each", note: "Only if the practice charges for one." },
+    ],
   },
   CORPORATE: {
     label: "Professional services",
@@ -89,6 +128,12 @@ export const PACKS: Record<NicheSkin, IndustryPack> = {
       EFFICIENCY: "Subscriptions that overlap.",
       LEGAL: "Contracts renewing by themselves.",
     },
+    starterCatalogue: [
+      { name: "Professional time", unit: "hour" },
+      { name: "Retainer", unit: "month" },
+      { name: "Project fee", unit: "each" },
+      { name: "Disbursements", unit: "each", note: "Costs paid on the client's behalf." },
+    ],
   },
   ECOMMERCE: {
     label: "Online retail",
@@ -101,6 +146,11 @@ export const PACKS: Record<NicheSkin, IndustryPack> = {
       CFO: "Margin after gateway fees, couriers and returns.",
       EFFICIENCY: "App subscriptions that overlap.",
     },
+    starterCatalogue: [
+      { name: "Online order", unit: "each", note: "A placeholder until the store's products sync." },
+      { name: "Shipping", unit: "each" },
+      { name: "Gift wrapping", unit: "each" },
+    ],
   },
   NONPROFIT: {
     label: "Non-profit",
@@ -110,6 +160,11 @@ export const PACKS: Record<NicheSkin, IndustryPack> = {
       CFO: "Cash runway against committed programmes.",
       LEGAL: "NPO registration, annual reports and funder compliance.",
     },
+    starterCatalogue: [
+      { name: "Donation", unit: "each" },
+      { name: "Programme cost recovery", unit: "each" },
+      { name: "Training or workshop", unit: "day" },
+    ],
   },
 };
 
@@ -128,6 +183,52 @@ export async function ensurePackAccounts(tenantId: string): Promise<number> {
     await prisma.account.createMany({ data: missing.map((a) => ({ tenantId, code: a.code, name: a.name, type: a.type })) });
   }
   return missing.length;
+}
+
+/**
+ * Give a workspace the handful of lines its trade actually sells.
+ *
+ * The prices stay at zero on purpose. A business will correct a zero the
+ * first time it quotes; it will not notice a made-up price until a customer
+ * has it in writing. Nothing is added twice, and anything the owner has
+ * already put in wins — so this is safe to run again after setup.
+ */
+export async function ensureStarterCatalogue(tenantId: string): Promise<number> {
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { niche: true } });
+  if (!tenant) return 0;
+
+  const pack = packFor(tenant.niche);
+  const existing = await prisma.item.findMany({ where: { tenantId }, select: { name: true } });
+  const have = new Set(existing.map((item) => item.name.trim().toLowerCase()));
+
+  const missing = pack.starterCatalogue.filter((line) => !have.has(line.name.toLowerCase()));
+  if (missing.length === 0) return 0;
+
+  await prisma.item.createMany({
+    data: missing.map((line) => ({
+      tenantId,
+      name: line.name,
+      unitPriceCents: 0,
+      description: line.note,
+      unit: line.unit,
+    })),
+  });
+
+  return missing.length;
+}
+
+/**
+ * Everything a trade's pack sets up, in one call.
+ *
+ * The accounts and the catalogue together, because "set me up as a plumber"
+ * is one decision and asking somebody to make it twice is how a setup screen
+ * gets abandoned.
+ */
+export async function applyPack(tenantId: string): Promise<{ accounts: number; catalogue: number; label: string }> {
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { niche: true } });
+  const pack = packFor(tenant?.niche ?? "SERVICES");
+  const [accounts, catalogue] = await Promise.all([ensurePackAccounts(tenantId), ensureStarterCatalogue(tenantId)]);
+  return { accounts, catalogue, label: pack.label };
 }
 
 // ---------------------------------------------------------------- turnaround
