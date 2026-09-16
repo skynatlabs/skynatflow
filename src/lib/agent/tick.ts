@@ -33,6 +33,9 @@ import { ninetyDayCheckIn } from "@/lib/agent/arrival";
 import { realiseValue, recordPlatformCost } from "@/lib/core/valueLedger";
 import { runCFO } from "@/lib/agent/officers/cfo";
 import { expireStaleAgreements } from "@/lib/core/agreements";
+import { raiseDueVisits } from "@/lib/core/maintenance";
+import { wakeSnoozed } from "@/lib/core/conversations";
+import { drainQueue } from "@/lib/core/offlineQueue";
 
 /** How long between open-ended reviews of one workspace. */
 const REVIEW_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -176,6 +179,23 @@ async function rounds(base: TickOutcome, now: Date): Promise<void> {
     await expireStaleAgreements(tenantId, now);
   } catch (err) {
     console.error(`[agent:tick] ${tenantId} expiring agreements failed:`, err);
+  }
+
+  // Housekeeping that has to happen whether or not anybody logs in: a signed
+  // maintenance agreement raises its next visit, a snoozed conversation comes
+  // back when its moment arrives, and anything a phone captured with no
+  // signal is applied. None of it needs a model, and all of it is wrong by
+  // tomorrow if it waits for somebody to press something.
+  for (const [what, run] of [
+    ["maintenance visits", () => raiseDueVisits(tenantId, now)],
+    ["waking snoozed conversations", () => wakeSnoozed(tenantId, now)],
+    ["applying field captures", () => drainQueue({ tenantId })],
+  ] as const) {
+    try {
+      await run();
+    } catch (err) {
+      console.error(`[agent:tick] ${tenantId} ${what} failed:`, err);
+    }
   }
 
   // --- 1. The officers do their rounds --------------------------------------

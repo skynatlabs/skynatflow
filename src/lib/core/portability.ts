@@ -124,6 +124,9 @@ const EXPORTS: Array<{
   { key: "lead_forms", label: "Enquiry forms", direct: true, fetch: (t) => prisma.leadForm.findMany({ where: { tenantId: t } }) },
   { key: "lead_submissions", label: "Enquiries", direct: true, fetch: (t) => prisma.leadSubmission.findMany({ where: { tenantId: t } }) },
   { key: "broadcasts", label: "Messages sent to many people at once", direct: true, fetch: (t) => prisma.broadcast.findMany({ where: { tenantId: t } }) },
+  { key: "checklists", label: "Checklists", direct: true, fetch: (t) => prisma.checklist.findMany({ where: { tenantId: t } }) },
+  { key: "certificates", label: "Certificates issued", direct: true, fetch: (t) => prisma.certificate.findMany({ where: { tenantId: t } }) },
+  { key: "offline_changes", label: "Captured in the field", direct: true, fetch: (t) => prisma.offlineChange.findMany({ where: { tenantId: t } }) },
   // What customers sent in from their own portal link. The attachments are
   // inline data URLs, so the proof of payment travels with the record rather
   // than pointing at a file that will not be there.
@@ -167,6 +170,7 @@ const EXCLUDED: Record<string, string> = {
   payment_plan_instalments: "Exported through their plans.",
   fx_rates: "Exchange rates for a day, shared by every workspace and owned by none.",
   conversation_notes: "Exported through their conversations.",
+  checklist_items: "Exported through their checklists.",
 };
 
 export const EXPORT_EXCLUSIONS = EXCLUDED;

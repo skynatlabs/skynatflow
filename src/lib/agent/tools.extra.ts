@@ -69,6 +69,22 @@ import { workKindMargins } from "@/lib/core/workKinds";
 import { feedStatus, syncFeed } from "@/lib/core/bankFeeds";
 import { lastDays } from "@/lib/core/costing";
 import { customerTimeline } from "@/lib/core/timeline";
+import { canWeFitIt, dispatchBoard, nextDayItFits, orderTheDay, scheduleJob, setJobSite } from "@/lib/core/dispatch";
+import {
+  adoptFromLibrary,
+  attachChecklist,
+  blockedByChecklist,
+  CHECKLIST_LIBRARY,
+  checklistProgress,
+  createChecklist,
+  listChecklists,
+  mayComplete,
+  tickItem,
+} from "@/lib/core/checklists";
+import { CERTIFICATE_TEMPLATES, certificateHealth, expiringCertificates, issueCertificate, listCertificates } from "@/lib/core/certificates";
+import { clockOntoJob, hoursOnJob, jobBudgets, jobsRunningOver, setJobBudget } from "@/lib/core/jobBudget";
+import { queueHealth, stuckChanges } from "@/lib/core/offlineQueue";
+import { dueVisits, lapsedRetainers, raiseDueVisits, retainerHealth } from "@/lib/core/maintenance";
 import { CHANNELS, consentFor, consentSummary, mayContact, setConsent, type Channel } from "@/lib/core/consent";
 import {
   addConversationNote,
@@ -571,6 +587,190 @@ export const EXTRA_READ_TOOLS: Record<string, ExtraToolDef> = {
             // Worth saying out loud when it is false.
             wordingStillMatchesSignature: signatureStillMatches(agreement),
           };
+        },
+      }),
+  },
+
+  theDay: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The dispatch board: every job by the day it sits on, who it is assigned to, how long each takes, how " +
+          "loaded each day is, and the pile with no date on it at all. Read it for 'what is on this week' and before " +
+          "promising anybody a date.",
+        inputSchema: z.object({ days: z.number().int().positive().default(7), assignedToId: z.string().optional() }),
+        execute: async ({ days, assignedToId }) => {
+          const board = await dispatchBoard({ tenantId: ctx.tenantId, days, assignedToId });
+          return {
+            days: board.days.map((d) => ({
+              date: d.date,
+              loadPercent: d.loadPercent,
+              hoursBooked: Math.round((d.minutesBooked / 60) * 10) / 10,
+              routeKm: d.routeKm,
+              jobs: d.jobs.map((j) => ({
+                id: j.id,
+                title: j.title,
+                customer: j.customer,
+                minutes: j.estimatedMinutes,
+                who: j.assignedTo ?? j.subcontractor ?? null,
+                blockedBy: j.blockedBy,
+              })),
+            })),
+            withNoDate: board.unscheduled.map((j) => ({ id: j.id, title: j.title, customer: j.customer })),
+          };
+        },
+      }),
+  },
+
+  canWeFitItIn: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Whether a day can take another job, worked out from what is already booked and the hours the team works. " +
+          "Use it whenever somebody asks for a date — and if the answer is no, the next day that would take it.",
+        inputSchema: z.object({
+          date: z.string().describe("YYYY-MM-DD"),
+          minutes: z.number().int().positive().optional().describe("How long the job takes."),
+        }),
+        execute: async ({ date, minutes }) => {
+          const answer = await canWeFitIt({ tenantId: ctx.tenantId, date: new Date(date), minutes });
+          if (answer.fits) return answer;
+          const alternative = await nextDayItFits({ tenantId: ctx.tenantId, minutes, from: new Date(date) });
+          return { ...answer, nextDayItWouldFit: alternative?.date ?? null };
+        },
+      }),
+  },
+
+  jobBudgets: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What each job was going to cost against what it has cost so far — materials tagged to it, hours clocked " +
+          "against it at each person's rate, and a subcontractor's price. Read it for 'is this job making money' " +
+          "while something can still be done about it.",
+        inputSchema: z.object({ openOnly: z.boolean().default(true) }),
+        execute: async ({ openOnly }) => {
+          const [budgets, over] = await Promise.all([
+            jobBudgets(ctx.tenantId, { openOnly }),
+            jobsRunningOver(ctx.tenantId),
+          ]);
+          return { warning: over.summary, jobs: budgets };
+        },
+      }),
+  },
+
+  hoursOnAJob: {
+    build: (ctx) =>
+      tool({
+        description: "Who has clocked how long against one job, and what those hours cost.",
+        inputSchema: z.object({ jobCardId: z.string() }),
+        execute: async ({ jobCardId }) => hoursOnJob(ctx.tenantId, jobCardId),
+      }),
+  },
+
+  jobChecklist: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What still has to happen before a job can be called done, and whether anything is blocking it. Check " +
+          "before telling anybody a job is finished.",
+        inputSchema: z.object({ jobCardId: z.string() }),
+        execute: async ({ jobCardId }) => {
+          const [progress, verdict] = await Promise.all([
+            checklistProgress(ctx.tenantId, jobCardId),
+            mayComplete(ctx.tenantId, jobCardId),
+          ]);
+          return { progress, canBeCompleted: verdict };
+        },
+      }),
+  },
+
+  checklistsAndWhatIsBlocked: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The checklists this workspace keeps, the ready-made ones it could adopt, and every job currently held up " +
+          "by one.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [mine, blocked] = await Promise.all([listChecklists(ctx.tenantId), blockedByChecklist(ctx.tenantId)]);
+          return {
+            checklists: mine.map((c) => ({ id: c.id, name: c.name, forWork: c.forWork, enforced: c.enforced, items: c.items.length })),
+            readyMade: CHECKLIST_LIBRARY.map((c) => ({ name: c.name, forWork: c.forWork, items: c.items.length })),
+            jobsHeldUp: blocked,
+          };
+        },
+      }),
+  },
+
+  certificates: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Certificates this business has issued, and the ones coming up for renewal. Each expiring certificate is a " +
+          "service due and a renewal worth selling — and a customer who would otherwise find out from an inspector.",
+        inputSchema: z.object({ partyId: z.string().optional(), expiringWithinDays: z.number().int().positive().default(90) }),
+        execute: async ({ partyId, expiringWithinDays }) => {
+          const [rows, health, expiring] = await Promise.all([
+            listCertificates(ctx.tenantId, { partyId }),
+            certificateHealth(ctx.tenantId),
+            expiringCertificates(ctx.tenantId, expiringWithinDays),
+          ]);
+          return {
+            summary: health.summary,
+            kinds: CERTIFICATE_TEMPLATES.map((t) => ({ kind: t.kind, label: t.label, purpose: t.purpose, validMonths: t.validMonths })),
+            expiring,
+            issued: rows.map((c) => ({
+              id: c.id,
+              number: c.number,
+              title: c.title,
+              customer: c.party?.companyName ?? c.party?.name ?? null,
+              issuedOn: c.issuedOn.toISOString().slice(0, 10),
+              expiresOn: c.expiresOn?.toISOString().slice(0, 10) ?? null,
+            })),
+          };
+        },
+      }),
+  },
+
+  maintenanceContracts: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Signed maintenance agreements, what they are worth a month, which visits are due, and which have lapsed " +
+          "without anybody renewing them. A business that forgets to turn up is in breach of a document it wrote.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [health, due, lapsed] = await Promise.all([
+            retainerHealth(ctx.tenantId),
+            dueVisits(ctx.tenantId),
+            lapsedRetainers(ctx.tenantId),
+          ]);
+          return {
+            summary: health.summary,
+            monthlyCents: health.monthlyCents,
+            due: due.map((v) => ({
+              agreementId: v.agreementId,
+              customer: v.customer,
+              dueOn: v.dueOn.toISOString().slice(0, 10),
+              onTheBoard: Boolean(v.jobCardId),
+            })),
+            lapsed,
+          };
+        },
+      }),
+  },
+
+  capturedInTheField: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What phones captured with no signal and whether it has all been applied — including anything that could " +
+          "not be, with the reason. A change stuck here is somebody's afternoon on site that the books do not know about.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [health, stuck] = await Promise.all([queueHealth(ctx.tenantId), stuckChanges(ctx.tenantId)]);
+          return { ...health, stuck: stuck.map((c) => ({ id: c.id, what: c.kind, when: c.happenedAt.toISOString(), why: c.error })) };
         },
       }),
   },
@@ -1427,6 +1627,215 @@ export const EXTRA_WRITE_TOOLS: Record<string, ExtraToolDef> = {
           await applyLateFee({ invoiceId, feePercent, tenantId: ctx.tenantId });
           return { ok: true };
         },
+      }),
+  },
+
+  putJobOnADay: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Put a job on a date, give it to somebody, and say how long it takes. Check the day can take it first — a " +
+          "date promised into a full day is a date somebody has to ring back and change.",
+        inputSchema: z.object({
+          jobCardId: z.string(),
+          date: z.string().nullable().describe("YYYY-MM-DD, or null to take it off the board."),
+          assignedToId: z.string().optional(),
+          minutes: z.number().int().positive().optional(),
+        }),
+        execute: async ({ jobCardId, date, assignedToId, minutes }) => {
+          await scheduleJob({
+            tenantId: ctx.tenantId,
+            jobCardId,
+            scheduledAt: date ? new Date(date) : null,
+            assignedToId: assignedToId ?? undefined,
+            estimatedMinutes: minutes ?? undefined,
+          });
+          return { ok: true };
+        },
+      }),
+  },
+
+  setWhereTheJobIs: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Record where a job actually happens, when it is not the customer's own address. A stop with no location " +
+          "cannot be put in a sensible order with the others.",
+        inputSchema: z.object({
+          jobCardId: z.string(),
+          address: z.string().optional(),
+          lat: z.number().optional(),
+          lng: z.number().optional(),
+        }),
+        execute: async ({ jobCardId, address, lat, lng }) => {
+          await setJobSite({ tenantId: ctx.tenantId, jobCardId, address: address ?? null, lat: lat ?? null, lng: lng ?? null });
+          return { ok: true };
+        },
+      }),
+  },
+
+  putTheDayInOrder: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Order a day's stops so the driver stops doubling back, and say how many kilometres it saved. Leaves the " +
+          "order alone when it is already about as short as it goes.",
+        inputSchema: z.object({ date: z.string().describe("YYYY-MM-DD"), assignedToId: z.string().optional() }),
+        execute: async ({ date, assignedToId }) => orderTheDay({ tenantId: ctx.tenantId, date: new Date(date), assignedToId }),
+      }),
+  },
+
+  setJobBudget: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Say what a job should cost, and what a subcontractor is being paid to do it. What the sub is paid is not " +
+          "what the customer is charged, and keeping them apart is the whole of knowing whether the job made money.",
+        inputSchema: z.object({
+          jobCardId: z.string(),
+          budgetCents: z.number().int().nonnegative().optional(),
+          subcontractorId: z.string().optional(),
+          subcontractCents: z.number().int().nonnegative().optional(),
+        }),
+        execute: async ({ jobCardId, budgetCents, subcontractorId, subcontractCents }) => {
+          await setJobBudget({
+            tenantId: ctx.tenantId,
+            jobCardId,
+            budgetCents: budgetCents ?? undefined,
+            subcontractorId: subcontractorId ?? undefined,
+            subcontractCents: subcontractCents ?? undefined,
+          });
+          return { ok: true };
+        },
+      }),
+  },
+
+  makeChecklist: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Write down what must happen before a kind of job is done, or adopt one of the ready-made lists. Say " +
+          "whether it blocks completion — right for a compliance job, wrong for a tidy-up.",
+        inputSchema: z.object({
+          adoptFromLibrary: z.string().optional().describe("The name of a ready-made list."),
+          name: z.string().optional(),
+          forWork: z.string().optional(),
+          enforced: z.boolean().default(true),
+          items: z.array(z.object({ text: z.string(), needsPhoto: z.boolean().default(false) })).optional(),
+        }),
+        execute: async ({ adoptFromLibrary: adopt, name, forWork, enforced, items }) => {
+          if (adopt) {
+            const list = await adoptFromLibrary(ctx.tenantId, adopt);
+            return { ok: true, checklistId: list.id, adopted: adopt };
+          }
+          if (!name || !items?.length) throw new Error("A new checklist needs a name and at least one item.");
+          const list = await createChecklist({ tenantId: ctx.tenantId, name, forWork: forWork ?? null, enforced, items });
+          return { ok: true, checklistId: list.id, items: list.items.length };
+        },
+      }),
+  },
+
+  putChecklistOnJob: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description: "Attach a checklist to a job, or take it off. Leave the checklist out to remove it.",
+        inputSchema: z.object({ jobCardId: z.string(), checklistId: z.string().optional() }),
+        execute: async ({ jobCardId, checklistId }) => {
+          await attachChecklist({ tenantId: ctx.tenantId, jobCardId, checklistId: checklistId ?? null });
+          return { ok: true };
+        },
+      }),
+  },
+
+  tickChecklistItem: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description:
+          "Tick something off a job's checklist. An item that needs a photograph is not ticked without one — proof " +
+          "that can be produced without doing the work is not proof.",
+        inputSchema: z.object({ jobCardId: z.string(), itemId: z.string(), photoUrl: z.string().optional() }),
+        execute: async ({ jobCardId, itemId, photoUrl }) =>
+          tickItem({
+            tenantId: ctx.tenantId,
+            jobCardId,
+            itemId,
+            photoUrl: photoUrl ?? null,
+            byId: ctx.membershipId ?? null,
+          }),
+      }),
+  },
+
+  clockOntoJob: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description:
+          "Clock somebody on to a job rather than just on to the day, so the hours can be costed against the work. " +
+          "Anybody already clocked on somewhere else is moved, not double-counted.",
+        inputSchema: z.object({ jobCardId: z.string(), membershipId: z.string().optional(), notes: z.string().optional() }),
+        execute: async ({ jobCardId, membershipId, notes }) => {
+          const who = membershipId ?? ctx.membershipId;
+          if (!who) throw new Error("Somebody has to be clocking on.");
+          const entry = await clockOntoJob({ tenantId: ctx.tenantId, membershipId: who, jobCardId, notes: notes ?? null });
+          return { ok: true, entryId: entry.id };
+        },
+      }),
+  },
+
+  issueCertificate: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description:
+          "Issue the certificate a job produces — a certificate of compliance, a test report, a service record. " +
+          "Issue it from the job so the date, the customer and the work are the ones that actually happened; a " +
+          "certificate written from memory a week later is the one that is wrong.",
+        inputSchema: z.object({
+          kind: z.enum(["coc", "plumbing-coc", "test-report", "service-record"]),
+          jobCardId: z.string().optional(),
+          partyId: z.string().optional(),
+          title: z.string().optional(),
+          issuedBy: z.string().optional(),
+          issuerRef: z.string().optional().describe("The registration number the trade requires."),
+          sections: z.array(z.object({ heading: z.string(), body: z.string() })).optional(),
+        }),
+        execute: async ({ kind, jobCardId, partyId, title, issuedBy, issuerRef, sections }) => {
+          const cert = await issueCertificate({
+            tenantId: ctx.tenantId,
+            kind,
+            jobCardId: jobCardId ?? null,
+            partyId: partyId ?? null,
+            title,
+            issuedBy: issuedBy ?? null,
+            issuerRef: issuerRef ?? null,
+            sections,
+          });
+          return {
+            ok: true,
+            certificateId: cert.id,
+            number: cert.number,
+            expiresOn: cert.expiresOn?.toISOString().slice(0, 10) ?? null,
+          };
+        },
+      }),
+  },
+
+  raiseMaintenanceVisits: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Put the visits due under signed maintenance agreements on the board. One period ahead, never twelve — a " +
+          "year of jobs raised at once makes the capacity figure meaningless.",
+        inputSchema: z.object({}),
+        execute: async () => raiseDueVisits(ctx.tenantId),
       }),
   },
 

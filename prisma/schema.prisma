@@ -289,6 +289,9 @@ model Tenant {
   leadForms         LeadForm[]
   leadSubmissions   LeadSubmission[]
   broadcasts        Broadcast[]
+  checklists        Checklist[]
+  certificates      Certificate[]
+  offlineQueue      OfflineChange[]
 
   @@map("tenants")
 }
@@ -404,9 +407,40 @@ model JobCard {
   createdAt          DateTime      @default(now())
   completedAt        DateTime?
 
-  tasks     JobCardTask[]
-  expenses  Expense[]
-  tripStops TripStop[]
+  // ---- the day, and what it costs ------------------------------------
+  //
+  // Scheduling a job needs three things a date alone cannot give: how long it
+  // takes, where it is, and what order the day runs in. Without the first two
+  // a dispatch board can only stack jobs on a date and hope; without the third
+  // a driver gets a list rather than a route.
+  /// How long it is expected to take. The number capacity planning divides by.
+  estimatedMinutes   Int?
+  /// Where it happens, when that is not the customer's own address.
+  siteAddress        String?
+  siteLat            Float?
+  siteLng            Float?
+  /// Position within its day, once somebody has put the day in order.
+  routeOrder         Int?
+  /// What was expected to be spent on it. Compared against what was.
+  budgetCents        Int?
+  /// A subcontractor doing it instead of somebody on the team.
+  subcontractorId    String?
+  subcontractor      Party?        @relation("JobCardSubcontractor", fields: [subcontractorId], references: [id])
+  /// What the sub is being paid, which is not what the customer is charged.
+  subcontractCents   Int?
+  /// The checklist this job was started from, so it can be told what is missing.
+  checklistId        String?
+  checklist          Checklist?    @relation(fields: [checklistId], references: [id])
+  /// Jobs this one cannot start before. A dependency, for the timeline view.
+  dependsOnId        String?
+  dependsOn          JobCard?      @relation("JobCardOrder", fields: [dependsOnId], references: [id])
+  blocks             JobCard[]     @relation("JobCardOrder")
+  certificates       Certificate[]
+
+  tasks       JobCardTask[]
+  expenses    Expense[]
+  tripStops   TripStop[]
+  timeEntries TimeEntry[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -489,6 +523,8 @@ model Party {
   conversations     Conversation[]
   callLogs          CallLog[]
   leadSubmissions   LeadSubmission[]
+  jobCardsSubcontracted JobCard[] @relation("JobCardSubcontractor")
+  certificates      Certificate[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -1370,6 +1406,10 @@ model TimeEntry {
   clockInAt    DateTime  @default(now())
   clockOutAt   DateTime?
   notes        String?
+  /// The job these hours were on. Clocking on to a day says somebody was at
+  /// work; clocking on to a job is what lets the hours be costed against it.
+  jobCardId    String?
+  jobCard      JobCard?  @relation(fields: [jobCardId], references: [id])
 
   @@index([tenantId, membershipId])
   @@map("time_entries")
@@ -4015,4 +4055,108 @@ model Broadcast {
 
   @@index([tenantId, createdAt])
   @@map("broadcasts")
+}
+
+// ----------------------------------------------------------- work and site
+// Phases 35-46: the parts of doing the work that decide the margin, and the
+// paperwork that decides whether it can be done at all.
+
+/// A list of things that must happen before a job can be called done.
+///
+/// Not a nicety. In half the trades this list is the difference between work
+/// that passes inspection and work that has to be redone, and it lives in
+/// somebody's head — so when that person is off, the job is done differently.
+model Checklist {
+  id        String          @id @default(cuid())
+  tenantId  String
+  tenant    Tenant          @relation(fields: [tenantId], references: [id])
+  name      String
+  /// What kind of job this is for, so the right list is offered.
+  forWork   String?
+  /// Whether a job using it can be completed with items outstanding.
+  enforced  Boolean         @default(true)
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  items     ChecklistItem[]
+  jobCards  JobCard[]
+
+  @@index([tenantId])
+  @@map("checklists")
+}
+
+model ChecklistItem {
+  id          String    @id @default(cuid())
+  checklistId String
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  text        String
+  /// Whether a photograph is required to tick it. What makes proof, proof.
+  needsPhoto  Boolean   @default(false)
+  sortOrder   Int       @default(0)
+
+  @@index([checklistId])
+  @@map("checklist_items")
+}
+
+/// The certificate a job produces — a certificate of compliance, a test
+/// report, a service record.
+///
+/// Issued from the job rather than typed afterwards, because a certificate
+/// written from memory a week later is the one that is wrong.
+model Certificate {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  jobCardId   String?
+  jobCard     JobCard?  @relation(fields: [jobCardId], references: [id])
+  partyId     String?
+  party       Party?    @relation(fields: [partyId], references: [id])
+  /// coc | test-report | service-record | other
+  kind        String
+  number      String
+  title       String
+  /// The findings, in the order they are printed. [{ heading, body }]
+  body        Json
+  issuedOn    DateTime  @default(now())
+  /// When it stops being valid. What the compliance calendar watches.
+  expiresOn   DateTime?
+  issuedBy    String?
+  /// The person's registration number, where the trade requires one.
+  issuerRef   String?
+  signatureDataUrl String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([tenantId, number])
+  @@index([tenantId, expiresOn])
+  @@map("certificates")
+}
+
+/// Something captured on a phone with no signal, waiting to be applied.
+///
+/// The field already has a sync route for trips and proof; this is the
+/// general version, so anything a phone can do offline queues the same way
+/// and is applied in the order it happened rather than the order it arrives.
+model OfflineChange {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  /// Who made it, so it is attributed to them and not to whoever synced.
+  membershipId String
+  /// The idempotency key the phone generated. A change applied twice is the
+  /// whole failure mode of an offline queue.
+  clientRef   String
+  /// What to do: job.complete | checklist.tick | time.clockIn | expense.capture …
+  kind        String
+  payload     Json
+  /// When it actually happened, which is not when it arrived.
+  happenedAt  DateTime
+  appliedAt   DateTime?
+  /// Set when it could not be applied, with the reason, rather than dropped.
+  failedAt    DateTime?
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([tenantId, clientRef])
+  @@index([tenantId, appliedAt])
+  @@map("offline_changes")
 }
