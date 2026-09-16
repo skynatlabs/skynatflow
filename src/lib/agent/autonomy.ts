@@ -30,6 +30,14 @@ const ALWAYS_ASK = new Set([
   "recordCashSale",
   // Emails a stranger an invitation and gives them a view of the business.
   "addSomebodyToTheTeam",
+  // Money leaving the account, and the books saying so.
+  "paySupplierBill",
+  // Assembles every approved bill due into one batch. Nothing has gone yet,
+  // but a run built wrong is a run somebody releases without re-reading.
+  "buildPaymentRun",
+  // Says out loud to a customer that they are late. The wording matters and
+  // a business should see it before its name is on it.
+  "recordTheChase",
 ]);
 
 /**

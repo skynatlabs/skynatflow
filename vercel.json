@@ -36,6 +36,10 @@
     {
       "path": "/api/cron/purge-deleted",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/bank-feeds",
+      "schedule": "0 3 * * *"
     }
   ],
   "functions": {

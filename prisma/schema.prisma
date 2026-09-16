@@ -277,6 +277,12 @@ model Tenant {
   portalSubmissions PortalSubmission[]
   agreements        Agreement[]
   connectedSystems  ConnectedSystem[]
+  paymentPlans      PaymentPlan[]
+  supplierBills     SupplierBill[]
+  paymentRuns       PaymentRun[]
+  vatReturns        VatReturn[]
+  collectionAttempts CollectionAttempt[]
+  expenseCodingRules ExpenseCodingRule[]
 
   @@map("tenants")
 }
@@ -461,11 +467,18 @@ model Party {
   // fixed list of languages is the same mistake as a fixed list of countries.
   language String?
 
+  /// The currency this customer is billed in. Null means the workspace's own.
+  /// Set here rather than per document so a customer who pays in dollars is
+  /// quoted in dollars without anybody remembering to switch it each time.
+  currency String?
+
   deliveryNotes DeliveryNote[]
   inboundEmails InboundEmail[]
   outboundEmails OutboundEmail[]
   portalSubmissions PortalSubmission[]
   agreements        Agreement[]
+  supplierBills     SupplierBill[]
+  collectionAttempts CollectionAttempt[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -679,6 +692,8 @@ model Transaction {
   deliveryNotes DeliveryNote[]
   portalSubmissions PortalSubmission[]
   agreements        Agreement[]
+  paymentPlan       PaymentPlan?
+  collectionAttempts CollectionAttempt[]
 
   // Which branch this was sold from. Null on a single-site business.
   branchId String?
@@ -2570,6 +2585,30 @@ model BankAccount {
   // inferred.
   lastStatementBalanceCents Int?
   lastStatementAt           DateTime?
+
+  // ---- the feed ------------------------------------------------------
+  //
+  // A feed is the same statement arriving by itself instead of being
+  // downloaded and uploaded. Everything downstream — matching, the rules,
+  // the books — is identical, which is the point: the importer stays the
+  // one path, and a feed is just what calls it.
+  //
+  // A provider key from bankFeeds.ts, or null for an account somebody
+  // imports by hand. Credentials are encrypted at rest and, like every
+  // other secret in this app, are excluded from the export.
+  feedProvider     String?
+  feedRef          String?
+  feedSecretEnc    String?
+  feedConnectedAt  DateTime?
+  feedLastSyncAt   DateTime?
+  /// Set when a sync fails, cleared when one works. A feed that quietly
+  /// stopped is worse than one that never started.
+  feedError        String?
+  /// Auto-accept matches at or above this confidence. Null means never —
+  /// the deliberate default, because a wrong entry posted automatically is
+  /// found weeks later by somebody who did not make it.
+  autoMatchAtOrAbove Int?
+
   createdAt                 DateTime  @default(now())
 
   transactions BankTransaction[]
@@ -3580,4 +3619,212 @@ model ConnectedSystem {
   @@unique([tenantId, systemKey])
   @@index([tenantId])
   @@map("connected_systems")
+}
+
+// ---------------------------------------------------------------- the money
+// Phases 16-22: the parts of getting paid, and of paying, that a business
+// does every month and that no amount of invoicing software covers on its own.
+
+/// An invoice somebody is paying off over time.
+///
+/// Most small businesses already do this — "half now, half end of month" — and
+/// record it nowhere, so the overdue list says the whole amount is late from
+/// the day after the invoice date. A plan is what makes the arrears figure
+/// tell the truth: only the instalments actually past their day are overdue.
+model PaymentPlan {
+  id            String                 @id @default(cuid())
+  tenantId      String
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id])
+  transactionId String                 @unique
+  transaction   Transaction            @relation(fields: [transactionId], references: [id])
+  /// Taken up front, before the schedule starts.
+  depositCents  Int                    @default(0)
+  note          String?
+  agreedById    String?
+  cancelledAt   DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  instalments   PaymentPlanInstalment[]
+
+  @@index([tenantId])
+  @@map("payment_plans")
+}
+
+model PaymentPlanInstalment {
+  id          String      @id @default(cuid())
+  planId      String
+  plan        PaymentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  dueOn       DateTime
+  amountCents Int
+  sortOrder   Int         @default(0)
+
+  @@index([planId])
+  @@map("payment_plan_instalments")
+}
+
+/// A rate between two currencies on a day.
+///
+/// Cached rather than fetched per document, because the rate that matters is
+/// the one on the day the document was issued and that rate never changes
+/// again. A row here is a fact about a past day, so it is written once.
+model FxRate {
+  id     String   @id @default(cuid())
+  base   String
+  quote  String
+  rate   Float
+  onDate DateTime
+  /// Where it came from, so a hand-typed rate is never mistaken for a fetched one.
+  source String   @default("manual")
+
+  @@unique([base, quote, onDate])
+  @@index([base, quote])
+  @@map("fx_rates")
+}
+
+enum BillStatus {
+  AWAITING_APPROVAL
+  APPROVED
+  PAID
+  VOID
+}
+
+/// A supplier's invoice, before it is paid.
+///
+/// An expense is money that has already gone. A bill is money that has not
+/// gone yet and has a date by which it must — which is the whole of what a
+/// payables ledger is, and what tells an owner on the 25th what Friday costs.
+model SupplierBill {
+  id              String      @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  supplierId      String?
+  supplier        Party?      @relation(fields: [supplierId], references: [id])
+  /// The name off the invoice when the supplier is not on file yet.
+  supplierName    String?
+  reference       String?
+  issuedOn        DateTime    @default(now())
+  dueOn           DateTime
+  amountCents     Int
+  taxCents        Int?
+  currency        String?
+  status          BillStatus  @default(AWAITING_APPROVAL)
+  approvedById    String?
+  approvedAt      DateTime?
+  paidCents       Int         @default(0)
+  paidAt          DateTime?
+  paymentRunId    String?
+  paymentRun      PaymentRun? @relation(fields: [paymentRunId], references: [id])
+  purchaseOrderId String?
+  /// The cost row this became once it was paid.
+  expenseId       String?
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, dueOn])
+  @@index([tenantId, supplierId])
+  @@map("supplier_bills")
+}
+
+/// A batch of bills paid together, which is how anybody with more than a
+/// handful of suppliers actually pays: once a week, everything due.
+model PaymentRun {
+  id          String         @id @default(cuid())
+  tenantId    String
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+  runOn       DateTime
+  /// DRAFT while it is being assembled; RELEASED once the money has gone.
+  status      String         @default("DRAFT")
+  totalCents  Int            @default(0)
+  createdById String?
+  releasedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  bills       SupplierBill[]
+
+  @@index([tenantId, status])
+  @@map("payment_runs")
+}
+
+/// A VAT period, with its boxes frozen at the moment it was filed.
+///
+/// The figures are recomputed from the ledger until the return is filed, and
+/// never afterwards — a return that silently restates when a backdated invoice
+/// arrives is worse than no return, because it disagrees with the one the
+/// revenue service already has.
+model VatReturn {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  periodStart DateTime
+  periodEnd   DateTime
+  /// [{ code, label, cents }] in the order they appear on the form.
+  boxes       Json
+  outputCents Int
+  inputCents  Int
+  netCents    Int
+  /// DRAFT | FILED
+  status      String    @default("DRAFT")
+  filedAt     DateTime?
+  filedById   String?
+  /// The reference the revenue service gave back.
+  reference   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([tenantId, periodStart, periodEnd])
+  @@index([tenantId, status])
+  @@map("vat_returns")
+}
+
+/// One rung of the chasing ladder, on one invoice.
+///
+/// Recorded so the next message knows what the last one said. A business that
+/// sends the same polite reminder six times is not chasing, and one that opens
+/// with a lawyer's letter loses the customer — the ladder is the difference,
+/// and it only works if every rung is written down.
+model CollectionAttempt {
+  id            String      @id @default(cuid())
+  tenantId      String
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  partyId       String
+  party         Party       @relation(fields: [partyId], references: [id])
+  /// Which rung: 1 is a nudge, the last is a final demand.
+  step          Int
+  /// whatsapp | email | call | letter
+  channel       String
+  /// gentle | firm | final
+  tone          String
+  body          String?
+  sentById      String?
+  sentAt        DateTime    @default(now())
+
+  @@index([tenantId, transactionId])
+  @@index([tenantId, sentAt])
+  @@map("collection_attempts")
+}
+
+/// What somebody corrected about a coded cost, so it is not asked twice.
+///
+/// The machine reads a slip and codes it; a person disagrees and fixes it.
+/// Without this the same supplier is miscoded every month forever, which is
+/// how people stop trusting the reading and go back to typing.
+model ExpenseCodingRule {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  /// Lowercased supplier name, or a phrase off the slip.
+  matchOn        String
+  accountId      String?
+  category       String?
+  isOwnerDrawing Boolean?
+  timesApplied   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([tenantId, matchOn])
+  @@index([tenantId])
+  @@map("expense_coding_rules")
 }

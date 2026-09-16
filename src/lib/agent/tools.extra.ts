@@ -59,11 +59,20 @@ import {
 import { draftAgreement, kindFromDraft, withDisclaimer } from "@/lib/ai/agreement";
 import { SYSTEM_BY_KEY, addSystem, listSystems, switchover } from "@/lib/core/systems";
 import { kpiBoard } from "@/lib/core/kpis";
+import { cancelPaymentPlan, createPaymentPlan, evenInstalments, paymentPlanFor } from "@/lib/core/paymentPlans";
+import { currencyForCustomer, fxPosition, rateOn, setCustomerCurrency, setRate } from "@/lib/core/fx";
+import { approveBill, buildPaymentRun, listBills, payablesSummary, payBill, recordBill } from "@/lib/core/supplierBills";
+import { computeVatReturn, driftSinceFiling, listVatReturns, saveDraftReturn, vatPeriodFor } from "@/lib/core/vatReturn";
+import { chaseHistory, chaseList, draftChase, ladderEffect, recordChase } from "@/lib/core/collectionsLadder";
+import { applyCoding, forgetCodingRule, listCodingRules, rememberCorrection } from "@/lib/core/expenseCoding";
+import { workKindMargins } from "@/lib/core/workKinds";
+import { feedStatus, syncFeed } from "@/lib/core/bankFeeds";
+import { lastDays } from "@/lib/core/costing";
 import { disputeHealth, listDisputes, resolveDispute } from "@/lib/core/disputes";
 import { inviteStaff } from "@/lib/core/staff";
 import { recordCashSale } from "@/lib/core/money";
 import { formatMoney } from "@/lib/format/money";
-import type { AgreementState, DisputeStatus } from "@prisma/client";
+import type { AgreementState, BillStatus, DisputeStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 export interface ExtraToolDef {
@@ -549,6 +558,190 @@ export const EXTRA_READ_TOOLS: Record<string, ExtraToolDef> = {
             wordingStillMatchesSignature: signatureStillMatches(agreement),
           };
         },
+      }),
+  },
+
+  whoOwesWhatToSuppliers: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What this business owes its suppliers and how late each one is — the mirror image of the debtors list, " +
+          "and the half that decides whether a supplier keeps delivering. Read it for 'what does Friday cost' and " +
+          "before agreeing to spend anything.",
+        inputSchema: z.object({}),
+        execute: async () => payablesSummary(ctx.tenantId),
+      }),
+  },
+
+  supplierBills: {
+    build: (ctx) =>
+      tool({
+        description: "Individual supplier invoices — what is awaiting approval, approved and waiting to be paid, or settled.",
+        inputSchema: z.object({
+          status: z.enum(["AWAITING_APPROVAL", "APPROVED", "PAID", "VOID"]).optional(),
+          supplierId: z.string().optional(),
+        }),
+        execute: async ({ status, supplierId }) => {
+          const bills = await listBills(ctx.tenantId, { status: status as BillStatus | undefined, supplierId });
+          return bills.map((b) => ({
+            id: b.id,
+            supplier: b.supplier?.companyName ?? b.supplier?.name ?? b.supplierName,
+            reference: b.reference,
+            amountCents: b.amountCents,
+            paidCents: b.paidCents,
+            dueOn: b.dueOn.toISOString().slice(0, 10),
+            status: b.status,
+          }));
+        },
+      }),
+  },
+
+  paymentPlan: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The agreed instalments on an invoice, and what of it is genuinely late today. Read this before saying an " +
+          "invoice is overdue — somebody paying exactly as agreed is not late, whatever the invoice date says.",
+        inputSchema: z.object({ invoiceId: z.string() }),
+        execute: async ({ invoiceId }) => {
+          const plan = await paymentPlanFor(ctx.tenantId, invoiceId);
+          return plan ?? { plan: null, note: "There is no payment plan on that invoice." };
+        },
+      }),
+  },
+
+  whoToChase: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Everybody who could be chased for money today, which rung of the ladder each is on, what the last message " +
+          "said, and how that customer normally behaves. Anybody on a payment plan and up to date is listed with the " +
+          "reason they are being skipped. Nothing is sent by reading this.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [list, effect] = await Promise.all([chaseList(ctx.tenantId), ladderEffect(ctx.tenantId)]);
+          return {
+            howItIsGoing: effect,
+            candidates: list.map((c) => ({
+              invoiceId: c.transactionId,
+              number: c.number,
+              customer: c.customer,
+              customerId: c.partyId,
+              outstandingCents: c.outstandingCents,
+              daysLate: c.daysLate,
+              nextRung: c.rung ? { step: c.rung.step, tone: c.rung.tone, label: c.rung.label, why: c.rung.intent } : null,
+              chasedBefore: c.attemptsSoFar,
+              lastChasedAt: c.lastAttemptAt?.toISOString().slice(0, 10) ?? null,
+              theyUsuallyPayOnTime: c.history.usuallyOnTime,
+              skipBecause: c.skip,
+            })),
+          };
+        },
+      }),
+  },
+
+  chasingHistory: {
+    build: (ctx) =>
+      tool({
+        description: "Every message already sent chasing one invoice, so the next one does not repeat the last.",
+        inputSchema: z.object({ invoiceId: z.string() }),
+        execute: async ({ invoiceId }) => chaseHistory(ctx.tenantId, invoiceId),
+      }),
+  },
+
+  vatReturn: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The VAT return for a period: every box, what was counted in it, and the caveats. Use it for 'what do we " +
+          "owe SARS' and before agreeing to spend money that is really the revenue service's. Leave the dates out " +
+          "for the period covering today.",
+        inputSchema: z.object({
+          periodStart: z.string().optional().describe("YYYY-MM-DD"),
+          periodEnd: z.string().optional().describe("YYYY-MM-DD"),
+        }),
+        execute: async ({ periodStart, periodEnd }) => {
+          const period =
+            periodStart && periodEnd
+              ? { start: new Date(periodStart), end: new Date(periodEnd) }
+              : vatPeriodFor(new Date());
+          const [computed, filed] = await Promise.all([
+            computeVatReturn(ctx.tenantId, period.start, period.end),
+            listVatReturns(ctx.tenantId),
+          ]);
+          return {
+            period: { from: period.start.toISOString().slice(0, 10), to: period.end.toISOString().slice(0, 10) },
+            boxes: computed.boxes,
+            netCents: computed.netCents,
+            payable: computed.netCents > 0,
+            caveats: computed.caveats,
+            alreadyFiled: filed
+              .filter((f) => f.status === "FILED")
+              .map((f) => ({ from: f.periodStart.toISOString().slice(0, 10), netCents: f.netCents, reference: f.reference })),
+          };
+        },
+      }),
+  },
+
+  foreignCurrencyPosition: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Gain and loss on invoices issued in another currency and since settled — real money made or lost by the " +
+          "rate moving between issue and payment, which nothing else in the books shows.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const position = await fxPosition(ctx.tenantId);
+          return { ...position, rows: position.rows.slice(0, 20) };
+        },
+      }),
+  },
+
+  whichWorkLosesMoney: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Margin grouped by the kind of work rather than by job — which sort of job is quietly losing money. A " +
+          "business rarely loses it evenly; it loses it on one kind, and the total hides it. The question owners " +
+          "most want answered.",
+        inputSchema: z.object({ days: z.number().int().positive().default(365) }),
+        execute: async ({ days }) => {
+          const report = await workKindMargins(ctx.tenantId, lastDays(days));
+          return {
+            finding: report.finding,
+            kinds: report.kinds.map((k) => ({
+              kind: k.label,
+              jobs: k.jobs,
+              revenueCents: k.revenueCents,
+              marginCents: k.marginCents,
+              marginPercent: k.marginPercent,
+              lossMaking: k.lossMaking,
+              worstJob: k.worst,
+            })),
+          };
+        },
+      }),
+  },
+
+  howCostsAreCoded: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What this workspace has taught the system about coding its costs — which supplier goes to which account, " +
+          "and how often each rule has been used. A rule never used is one worth removing.",
+        inputSchema: z.object({}),
+        execute: async () => listCodingRules(ctx.tenantId),
+      }),
+  },
+
+  bankFeeds: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Whether each bank account is fed automatically or imported by hand, when it last updated, and whether a " +
+          "connected feed is actually working. Check it before trusting a bank balance or a reconciliation.",
+        inputSchema: z.object({}),
+        execute: async () => feedStatus(ctx.tenantId),
       }),
   },
 
@@ -1062,6 +1255,328 @@ export const EXTRA_WRITE_TOOLS: Record<string, ExtraToolDef> = {
           await applyLateFee({ invoiceId, feePercent, tenantId: ctx.tenantId });
           return { ok: true };
         },
+      }),
+  },
+
+  agreePaymentPlan: {
+    capability: "invoice:create",
+    build: (ctx) =>
+      tool({
+        description:
+          "Write down instalments a customer has agreed on an invoice — 'half now, half end of month'. This is what " +
+          "stops the chaser going out to somebody paying exactly as agreed, and what makes the arrears figure true. " +
+          "The deposit plus the instalments must come to the invoice total.",
+        inputSchema: z.object({
+          invoiceId: z.string(),
+          depositCents: z.number().int().nonnegative().default(0),
+          instalments: z.number().int().positive().describe("How many, after the deposit."),
+          firstDueOn: z.string().describe("YYYY-MM-DD"),
+          every: z.enum(["weekly", "fortnightly", "monthly"]).default("monthly"),
+          note: z.string().optional(),
+        }),
+        execute: async ({ invoiceId, depositCents, instalments, firstDueOn, every, note }) => {
+          const invoice = await prisma.transaction.findFirst({
+            where: { id: invoiceId, tenantId: ctx.tenantId, type: "INVOICE" },
+            select: { amountCents: true },
+          });
+          if (!invoice) throw new Error("That invoice is not in this workspace.");
+
+          const plan = await createPaymentPlan({
+            tenantId: ctx.tenantId,
+            transactionId: invoiceId,
+            depositCents,
+            note: note ?? null,
+            agreedById: ctx.membershipId ?? null,
+            instalments: evenInstalments({
+              totalCents: invoice.amountCents - depositCents,
+              count: instalments,
+              firstDueOn: new Date(firstDueOn),
+              every,
+            }),
+          });
+          return { ok: true, planId: plan.id, instalments: plan.instalments.length };
+        },
+      }),
+  },
+
+  cancelPaymentPlan: {
+    capability: "invoice:create",
+    build: (ctx) =>
+      tool({
+        description: "Cancel a payment plan. From then the whole outstanding amount is due and chased as normal.",
+        inputSchema: z.object({ invoiceId: z.string() }),
+        execute: async ({ invoiceId }) => {
+          await cancelPaymentPlan(ctx.tenantId, invoiceId);
+          return { ok: true };
+        },
+      }),
+  },
+
+  recordSupplierBill: {
+    capability: "invoice:create",
+    build: (ctx) =>
+      tool({
+        description:
+          "Record a supplier's invoice that has not been paid yet, with the date it must be. This is what makes the " +
+          "payables list and the cash forecast see money going out before it goes.",
+        inputSchema: z.object({
+          supplierId: z.string().optional(),
+          supplierName: z.string().optional().describe("The name off the invoice when the supplier is not on file."),
+          reference: z.string().optional(),
+          amountCents: z.number().int().positive(),
+          taxCents: z.number().int().nonnegative().optional(),
+          dueOn: z.string().describe("YYYY-MM-DD"),
+          issuedOn: z.string().optional().describe("YYYY-MM-DD"),
+          notes: z.string().optional(),
+        }),
+        execute: async ({ supplierId, supplierName, reference, amountCents, taxCents, dueOn, issuedOn, notes }) => {
+          const bill = await recordBill({
+            tenantId: ctx.tenantId,
+            supplierId: supplierId ?? null,
+            supplierName: supplierName ?? null,
+            reference: reference ?? null,
+            amountCents,
+            taxCents: taxCents ?? null,
+            dueOn: new Date(dueOn),
+            issuedOn: issuedOn ? new Date(issuedOn) : undefined,
+            notes: notes ?? null,
+          });
+          return { ok: true, billId: bill.id, status: bill.status };
+        },
+      }),
+  },
+
+  approveSupplierBill: {
+    capability: "invoice:create",
+    build: (ctx) =>
+      tool({
+        description: "Approve a supplier bill for payment. It can then go into a payment run.",
+        inputSchema: z.object({ billId: z.string() }),
+        execute: async ({ billId }) => {
+          const bill = await approveBill(ctx.tenantId, billId, ctx.membershipId ?? null);
+          return { ok: true, status: bill.status };
+        },
+      }),
+  },
+
+  paySupplierBill: {
+    capability: "payment:record",
+    build: (ctx) =>
+      tool({
+        description:
+          "Record that a supplier bill has been paid. This writes the cost to the books — money that has gone, " +
+          "rather than money that must go — so only do it once it has actually left the account.",
+        inputSchema: z.object({
+          billId: z.string(),
+          amountCents: z.number().int().positive().optional().describe("Leave it out to settle the whole bill."),
+          paidOn: z.string().optional().describe("YYYY-MM-DD"),
+        }),
+        execute: async ({ billId, amountCents, paidOn }) => {
+          if (!ctx.membershipId) throw new Error("A cost has to be recorded by somebody.");
+          const bill = await payBill({
+            tenantId: ctx.tenantId,
+            billId,
+            amountCents,
+            paidOn: paidOn ? new Date(paidOn) : undefined,
+            submittedById: ctx.membershipId,
+          });
+          return { ok: true, paidCents: bill.paidCents, status: bill.status };
+        },
+      }),
+  },
+
+  buildPaymentRun: {
+    capability: "payment:record",
+    build: (ctx) =>
+      tool({
+        description:
+          "Gather every approved bill due by a date into one batch, ready to be released. Building the run pays " +
+          "nothing — releasing it does.",
+        inputSchema: z.object({ runOn: z.string().describe("YYYY-MM-DD"), dueBefore: z.string().optional() }),
+        execute: async ({ runOn, dueBefore }) =>
+          buildPaymentRun({
+            tenantId: ctx.tenantId,
+            runOn: new Date(runOn),
+            dueBefore: dueBefore ? new Date(dueBefore) : undefined,
+            createdById: ctx.membershipId ?? null,
+          }),
+      }),
+  },
+
+  draftTheChase: {
+    capability: "quote:send",
+    build: (ctx) =>
+      tool({
+        description:
+          "Write the next chasing message for an invoice, at the rung the ladder says it is on and in the tone that " +
+          "goes with it. It writes the words and records nothing — sending is a separate step, and the wording " +
+          "should be read back to whoever asked first.",
+        inputSchema: z.object({ invoiceId: z.string() }),
+        execute: async ({ invoiceId }) => {
+          const [list, tenant] = await Promise.all([
+            chaseList(ctx.tenantId),
+            prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { name: true, currency: true } }),
+          ]);
+          const candidate = list.find((c) => c.transactionId === invoiceId);
+          if (!candidate) throw new Error("That invoice is not one of the ones outstanding.");
+          if (candidate.skip) return { skip: candidate.skip };
+          if (!candidate.rung) return { skip: "It is not far enough past its date for the next message yet." };
+
+          const party = await prisma.party.findUnique({ where: { id: candidate.partyId }, select: { portalToken: true } });
+          const base = process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com";
+          const draft = draftChase({
+            candidate,
+            businessName: tenant.name,
+            currency: tenant.currency,
+            portalUrl: party?.portalToken ? `${base}/portal/${party.portalToken}` : null,
+          });
+          return { ...draft, customer: candidate.customer, outstandingCents: candidate.outstandingCents };
+        },
+      }),
+  },
+
+  recordTheChase: {
+    capability: "quote:send",
+    build: (ctx) =>
+      tool({
+        description:
+          "Write down that a chasing message went out, so the next one knows which rung was reached. Record it after " +
+          "it has actually been sent, whichever way it went.",
+        inputSchema: z.object({
+          invoiceId: z.string(),
+          step: z.number().int().positive(),
+          channel: z.enum(["whatsapp", "email", "call", "letter"]),
+          tone: z.enum(["gentle", "firm", "final"]),
+          body: z.string().optional(),
+        }),
+        execute: async ({ invoiceId, step, channel, tone, body }) => {
+          await recordChase({
+            tenantId: ctx.tenantId,
+            transactionId: invoiceId,
+            step,
+            channel,
+            tone,
+            body: body ?? null,
+            sentById: ctx.membershipId ?? null,
+          });
+          return { ok: true };
+        },
+      }),
+  },
+
+  saveVatReturn: {
+    capability: "invoice:create",
+    build: (ctx) =>
+      tool({
+        description:
+          "Save the working figures for a VAT period so a part-finished return survives. This does not file it — " +
+          "filing is a person's decision and freezes the numbers for good.",
+        inputSchema: z.object({ periodStart: z.string().optional(), periodEnd: z.string().optional() }),
+        execute: async ({ periodStart, periodEnd }) => {
+          const period =
+            periodStart && periodEnd ? { start: new Date(periodStart), end: new Date(periodEnd) } : vatPeriodFor(new Date());
+          const saved = await saveDraftReturn(ctx.tenantId, period.start, period.end);
+          return { ok: true, id: saved.id, netCents: saved.netCents, status: saved.status };
+        },
+      }),
+  },
+
+  rememberHowToCodeThis: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Remember that costs from this supplier are coded a particular way, so the same correction is not needed " +
+          "every month. Use it when somebody fixes a coded cost and says how it should have been.",
+        inputSchema: z.object({
+          supplierName: z.string().optional(),
+          description: z.string().optional(),
+          accountId: z.string().optional(),
+          category: z.string().optional(),
+          isOwnerDrawing: z.boolean().optional(),
+        }),
+        execute: async ({ supplierName, description, accountId, category, isOwnerDrawing }) => {
+          const rule = await rememberCorrection({
+            tenantId: ctx.tenantId,
+            supplierName: supplierName ?? null,
+            description: description ?? null,
+            accountId: accountId ?? undefined,
+            category: category ?? undefined,
+            isOwnerDrawing: isOwnerDrawing ?? undefined,
+          });
+          return rule
+            ? { ok: true, remembered: rule.matchOn }
+            : { ok: false, note: "There was not enough to key a rule on, or nothing to remember." };
+        },
+      }),
+  },
+
+  forgetHowToCodeThis: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description: "Remove a coding rule that is getting it wrong.",
+        inputSchema: z.object({ ruleId: z.string() }),
+        execute: async ({ ruleId }) => forgetCodingRule(ctx.tenantId, ruleId),
+      }),
+  },
+
+  codeThisCost: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Apply what this workspace already knows to a cost that has just come in. Only fills what is empty — it " +
+          "never overwrites something a person set.",
+        inputSchema: z.object({ expenseId: z.string() }),
+        execute: async ({ expenseId }) => applyCoding(ctx.tenantId, expenseId),
+      }),
+  },
+
+  setExchangeRate: {
+    capability: "invoice:create",
+    build: () =>
+      tool({
+        description:
+          "Record the rate between two currencies on a day. Used to price a foreign invoice at issue and to work " +
+          "out the gain or loss when it settles.",
+        inputSchema: z.object({
+          base: z.string().describe("Three-letter code, e.g. USD"),
+          quote: z.string().describe("Three-letter code, e.g. ZAR"),
+          rate: z.number().positive(),
+          onDate: z.string().optional().describe("YYYY-MM-DD, or leave out for today"),
+        }),
+        execute: async ({ base, quote, rate, onDate }) => {
+          const saved = await setRate({ base, quote, rate, onDate: onDate ? new Date(onDate) : undefined });
+          return { ok: true, base: saved.base, quote: saved.quote, rate: saved.rate, onDate: saved.onDate.toISOString().slice(0, 10) };
+        },
+      }),
+  },
+
+  setCustomerCurrency: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Set the currency a customer is billed in, so their documents come out in it without anybody remembering " +
+          "to switch each time. Leave the currency out to put them back on the workspace's own.",
+        inputSchema: z.object({ partyId: z.string(), currency: z.string().optional() }),
+        execute: async ({ partyId, currency }) => {
+          await setCustomerCurrency(ctx.tenantId, partyId, currency ?? null);
+          return { ok: true, currency: await currencyForCustomer(ctx.tenantId, partyId) };
+        },
+      }),
+  },
+
+  syncBankFeed: {
+    capability: "payment:record",
+    build: (ctx) =>
+      tool({
+        description:
+          "Pull whatever is new from a connected bank feed and put it through the ordinary import. Says plainly when " +
+          "nothing could be fetched rather than reporting a quiet zero.",
+        inputSchema: z.object({ bankAccountId: z.string() }),
+        execute: async ({ bankAccountId }) => syncFeed({ tenantId: ctx.tenantId, bankAccountId }),
       }),
   },
 

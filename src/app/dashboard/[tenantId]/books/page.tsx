@@ -168,6 +168,10 @@ export default async function BooksPage({
           <a href={`/dashboard/${tenantId}/books/vat-summary?grouping=sars`} className="kb-pill kb-pill-ghost text-xs">
             VAT summary
           </a>
+          {/* And the return itself, box by box, for the period being filed. */}
+          <a href={`/dashboard/${tenantId}/books/vat`} className="kb-pill kb-pill-ghost text-xs">
+            VAT return
+          </a>
         </div>
       </div>
 

@@ -112,6 +112,12 @@ const EXPORTS: Array<{
   // business is most likely to be asked for by somebody else's attorney.
   { key: "agreements", label: "Proposals and contracts", direct: true, fetch: (t) => prisma.agreement.findMany({ where: { tenantId: t } }) },
   { key: "connected_systems", label: "The other systems you run", direct: true, fetch: (t) => prisma.connectedSystem.findMany({ where: { tenantId: t } }) },
+  { key: "payment_plans", label: "Payment plans", direct: true, fetch: (t) => prisma.paymentPlan.findMany({ where: { tenantId: t } }) },
+  { key: "supplier_bills", label: "Supplier bills", direct: true, fetch: (t) => prisma.supplierBill.findMany({ where: { tenantId: t } }) },
+  { key: "payment_runs", label: "Payment runs", direct: true, fetch: (t) => prisma.paymentRun.findMany({ where: { tenantId: t } }) },
+  { key: "vat_returns", label: "VAT returns", direct: true, fetch: (t) => prisma.vatReturn.findMany({ where: { tenantId: t } }) },
+  { key: "collection_attempts", label: "Chasing history", direct: true, fetch: (t) => prisma.collectionAttempt.findMany({ where: { tenantId: t } }) },
+  { key: "expense_coding_rules", label: "How you code your costs", direct: true, fetch: (t) => prisma.expenseCodingRule.findMany({ where: { tenantId: t } }) },
   // What customers sent in from their own portal link. The attachments are
   // inline data URLs, so the proof of payment travels with the record rather
   // than pointing at a file that will not be there.
@@ -152,6 +158,8 @@ const EXCLUDED: Record<string, string> = {
   asset_movements: "Exported alongside their assets.",
   page_sections: "Exported through their pages.",
   agent_messages: "Exported through their threads.",
+  payment_plan_instalments: "Exported through their plans.",
+  fx_rates: "Exchange rates for a day, shared by every workspace and owned by none.",
 };
 
 export const EXPORT_EXCLUSIONS = EXCLUDED;

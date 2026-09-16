@@ -48,8 +48,9 @@ export function buildAdminaNav(params: {
       icon: <TagIcon />,
       items: [
         { href: `${d}/invoices`, label: "Invoices" },
-        { href: `${d}/overdue`, label: "Overdue" },
+        { href: `${d}/overdue`, label: "Who to chase" },
         { href: `${d}/expenses`, label: "Expenses" },
+        { href: `${d}/payables`, label: "What you owe" },
         { href: `${d}/books`, label: "The books" },
         { href: `${d}/banking`, label: "Bank & reconciliation" },
         { href: `${d}/cash-forecast`, label: "Cash forecast" },
