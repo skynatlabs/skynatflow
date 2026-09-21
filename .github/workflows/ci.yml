@@ -67,6 +67,14 @@ jobs:
       - name: Generate the client
         run: npx prisma generate
 
+      # Next generates the route and layout prop types (LayoutProps,
+      # PageProps) into .next/types. Locally they exist because somebody has
+      # built; in CI nothing has, so typecheck fails on names that are
+      # perfectly real. Generating them is the documented step and is much
+      # faster than a full build.
+      - name: Generate route types
+        run: npx next typegen
+
       - name: Typecheck
         run: npx tsc --noEmit -p tsconfig.json
 
