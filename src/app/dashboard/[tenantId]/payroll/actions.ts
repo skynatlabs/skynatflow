@@ -30,7 +30,7 @@ export async function runPayrollAction(formData: FormData): Promise<PayrollResul
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
   // What people are paid is the most sensitive thing in a small business.
-  if (!can(access.role, "staff:manage")) throw new Error("Only an owner can see payroll.");
+  if (!can(access, "staff:manage")) throw new Error("Only an owner can see payroll.");
 
   const month = String(formData.get("month") ?? "");
   const base = month ? new Date(`${month}-01T00:00:00.000Z`) : new Date();

@@ -10,7 +10,7 @@ async function guard(tenantId: string) {
   const access = await requireTenantAccess(tenantId);
   // Saying what the business runs, and pulling its history in, is the same
   // bar as maintaining the catalogue those records land in.
-  assertCan(access.role, "product:manage");
+  assertCan(access, "product:manage");
   return access;
 }
 

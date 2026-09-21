@@ -57,14 +57,15 @@ export function PricingTeaser() {
       </div>
       <div className="pricing-row">
         {PRICING_PLANS.map((plan) => {
-          const variant = plan.id === "growth" ? "card-accent" : plan.id === "enterprise" ? "card-dark" : "card-outline";
+          const isFeatured = plan.cardVariant === "kb-card-accent";
+          const isDark = plan.cardVariant === "kb-card-dark";
+          const variant = isFeatured ? "card-accent" : isDark ? "card-dark" : "card-outline";
           const mutedClass = variant === "card-outline" ? "" : "muted";
           return (
-            <div key={plan.id} className={`price-card scatter-card ${variant} ${plan.id === "growth" ? "price-featured" : ""}`}>
+            <div key={plan.id} className={`price-card scatter-card ${variant} ${isFeatured ? "price-featured" : ""}`}>
               <p className="price-tier">{plan.name}</p>
               <p className="price-amount">
                 {plan.price}
-                {plan.id !== "enterprise" && <span style={{ fontSize: "0.9rem", opacity: 0.7 }}>/mo</span>}
               </p>
               <p className={`price-desc ${mutedClass}`}>{plan.priceNote}</p>
               <ul style={{ marginTop: 14, paddingLeft: 0, listStyle: "none", fontSize: "0.85rem", lineHeight: 1.65 }}>
@@ -215,6 +216,8 @@ export function MarketingFooterStatic() {
           <Link href="/industries/services">Industries</Link>
           <Link href="/case-studies">Customers</Link>
           <Link href="/about">About</Link>
+          <Link href="/legal/terms">Terms</Link>
+          <Link href="/legal/privacy">Privacy</Link>
         </div>
       </div>
       <div className="footer-bottom">
@@ -438,10 +441,17 @@ export const MARKETING_CSS = `
   .mkt .t-name { margin: 0; font-weight: 700; font-size: 0.9rem; text-align: left; }
   .mkt .t-role { margin: 0; font-size: 0.8rem; text-align: left; }
 
-  .mkt .pricing-row { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 30px 24px; padding: 14px 0 20px; }
-  .mkt .price-card { border-radius: 20px; padding: 30px 26px; width: 250px; box-shadow: 0 16px 34px -18px rgba(23, 23, 37, 0.2); }
+  /* A grid with explicit breakpoints rather than flex-wrap: with four plans,
+     wrapping greedily leaves one card orphaned on its own row at every
+     middling width. Two-by-two is the honest shape between phone and wide. */
+  .mkt .pricing-row { display: grid; grid-template-columns: 1fr; gap: 24px; padding: 14px 0 20px; max-width: 1140px; margin: 0 auto; align-items: start; }
+  @media (min-width: 620px) { .mkt .pricing-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1140px) { .mkt .pricing-row { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .mkt .price-card { border-radius: 20px; padding: 30px 26px; box-shadow: 0 16px 34px -18px rgba(23, 23, 37, 0.2); }
   .mkt .price-card:hover { box-shadow: 0 26px 46px -18px rgba(23, 23, 37, 0.3); z-index: 2; }
-  .mkt .price-featured { width: 280px; z-index: 1; }
+  /* Emphasis by lift rather than by width, which a grid column cannot give. */
+  .mkt .price-featured { z-index: 1; box-shadow: 0 22px 44px -18px rgba(23, 23, 37, 0.34); }
+  @media (min-width: 620px) { .mkt .price-featured { transform: translateY(-8px); } }
   .mkt .price-tier { font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; margin: 0; }
   .mkt .price-amount { font-family: "Fraunces", serif; font-size: 1.5rem; font-weight: 500; margin: 10px 0 12px; }
   .mkt .price-desc { margin: 0; font-size: 0.9rem; line-height: 1.55; opacity: 0.85; }

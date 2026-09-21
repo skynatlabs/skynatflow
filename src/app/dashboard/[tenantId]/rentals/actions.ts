@@ -9,7 +9,7 @@ import { markItemRentable, createRental, returnRental } from "@/lib/core/rentals
 export async function markRentableAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "product:manage");
+  assertCan(access, "product:manage");
 
   const itemId = String(formData.get("itemId") ?? "");
   const rentalRateCents = Math.round(Number(formData.get("rateRand") ?? 0) * 100);
@@ -22,7 +22,7 @@ export async function markRentableAction(formData: FormData) {
 export async function createRentalAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:create");
+  assertCan(access, "quote:create");
 
   const itemId = String(formData.get("itemId") ?? "");
   const partyId = String(formData.get("partyId") ?? "");

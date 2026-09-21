@@ -13,6 +13,7 @@ import { PartyRole } from "@prisma/client";
 import { prisma } from "../../src/lib/db";
 import { buildAgentTools, agentToolNames, MUTATING_TOOLS } from "../../src/lib/agent/tools";
 import type { AgentContext } from "../../src/lib/agent/tools";
+import { capabilitiesOfBuiltIn } from "../../src/lib/core/access";
 
 let tenantId: string;
 let otherTenantId: string;
@@ -22,6 +23,7 @@ let itemId: string;
 const ctxFor = (role: AgentContext["role"], tid = tenantId): AgentContext => ({
   tenantId: tid,
   role,
+  capabilities: capabilitiesOfBuiltIn(role),
   userId: "user-test",
   membershipId: null,
   currency: "ZAR",

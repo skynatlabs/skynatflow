@@ -6,7 +6,6 @@
 import { prisma } from "@/lib/db";
 import { InvolvementRole } from "@prisma/client";
 import { sendEmail } from "@/lib/email/client";
-import { tenantCurrency } from "./currency";
 import { formatMoney } from "@/lib/format/money";
 
 export async function startInvolvement(params: {

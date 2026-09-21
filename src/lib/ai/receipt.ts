@@ -44,7 +44,7 @@ export type ReceiptReading = z.infer<typeof Reading>;
  * model is configured or the image is not a receipt.
  */
 export async function readReceipt(imageDataUrl: string): Promise<ReceiptReading | null> {
-  const model = await getAiModel();
+  const model = await getAiModel("fast");
   if (!model) return null;
   if (!imageDataUrl.startsWith("data:image/")) return null;
 

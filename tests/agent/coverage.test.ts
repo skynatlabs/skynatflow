@@ -27,6 +27,12 @@ const NOT_TOOL_SURFACE = new Set([
   // A static list of ISO country codes with names resolved by Intl. Nothing
   // to drive and no state to change.
   "countries",
+  // Defining who in a business may do what. Deliberately not conversational:
+  // a tool that mints roles is a privilege-escalation path with a friendly
+  // interface, and "make me a role that can move money" is exactly the
+  // sentence it would be asked. Roles are changed on a settings page by
+  // somebody who already holds staff:manage.
+  "roles",
   // Curated rows loaded into the shared obligation library the first time a
   // jurisdiction is asked about.
   // The agent reads the library through proposeComplianceCalendar and writes

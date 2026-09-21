@@ -51,7 +51,7 @@ export default async function MonthEndPage({
   const { tenantId } = await params;
   const sp = await searchParams;
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true } });
   if (!tenant) notFound();

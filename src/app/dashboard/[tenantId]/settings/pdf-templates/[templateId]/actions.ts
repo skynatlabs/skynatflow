@@ -16,7 +16,7 @@ async function guard(tenantId: string) {
   const access = await requireTenantAccess(tenantId);
   // How every document from this business looks is an owner-level decision,
   // not something any signed-in staff member should be able to rewrite.
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   return access;
 }
 

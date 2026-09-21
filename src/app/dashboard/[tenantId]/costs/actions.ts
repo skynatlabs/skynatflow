@@ -14,7 +14,7 @@ function refresh(tenantId: string) {
 /** Owner-level: what an hour of a person costs is not a number every colleague should see or set. */
 export async function setCostRateAction(tenantId: string, formData: FormData) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   const raw = String(formData.get("ratePerHour") ?? "").trim();
   const cents = raw ? Math.round(Number(raw) * 100) : null;
   if (cents !== null && !Number.isFinite(cents)) throw new Error("That is not a number.");
@@ -24,7 +24,7 @@ export async function setCostRateAction(tenantId: string, formData: FormData) {
 
 export async function setAssetCapacityAction(tenantId: string, formData: FormData) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   const unit = String(formData.get("capacityUnit") ?? "").trim();
   await setAssetCapacity(tenantId, String(formData.get("assetId") ?? ""), {
     capacityUnit: unit ? (unit as CapacityUnit) : null,

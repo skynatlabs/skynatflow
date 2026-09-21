@@ -32,7 +32,7 @@ export async function requestLeaveAction(formData: FormData) {
   // Anybody may request for themselves; requesting on somebody else's behalf
   // is a manager's act.
   if (membershipId && membershipId !== access.membershipId) {
-    assertCan(access.role, "staff:manage");
+    assertCan(access, "staff:manage");
   }
 
   await requestLeave({
@@ -49,7 +49,7 @@ export async function requestLeaveAction(formData: FormData) {
 export async function decideLeaveAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   await decideLeave({
     tenantId,
@@ -63,7 +63,7 @@ export async function decideLeaveAction(formData: FormData) {
 export async function addHolidayAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   await addHoliday({
     tenantId,

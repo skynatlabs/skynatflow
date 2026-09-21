@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function DocumentCopiesPage({ params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
   const access = await requireTenantAccess(tenantId);
-  const isOwner = can(access.role, "staff:manage");
+  const isOwner = can(access, "staff:manage");
 
   const [status, would] = await Promise.all([backupStatus(tenantId), whatWouldBeCopied(tenantId)]);
 

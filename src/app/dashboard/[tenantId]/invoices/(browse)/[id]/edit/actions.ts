@@ -13,7 +13,7 @@ export async function updateInvoiceLinesAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "invoice:create");
+  assertCan(access, "invoice:create");
 
   const invoice = await prisma.transaction.findUnique({ where: { id: invoiceId } });
   if (!invoice || invoice.tenantId !== tenantId || invoice.type !== "INVOICE") throw new Error("Invoice not found.");

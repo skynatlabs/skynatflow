@@ -11,7 +11,7 @@ async function guard(tenantId: string) {
   const access = await requireTenantAccess(tenantId);
   // Reconciling writes to the books. That is an owner-level act even though
   // the individual clicks look small.
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   return access;
 }
 

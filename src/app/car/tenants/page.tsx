@@ -7,8 +7,8 @@ export default function CarTenantsPage() {
       <p className="mt-1 text-sm text-[var(--kb-text-dim)]">
         Every business on the platform. This is visibility only, not access: opening a tenant&apos;s
         actual dashboard still requires a real membership on that tenant, same as anyone else.
-        Billing/subscription status isn&apos;t tracked yet — there&apos;s no plan or
-        payment-gateway model for platform billing built so far.
+        What each one pays, and what its agent costs us to run, is on{" "}
+        <a href="/car/margins" className="underline">Margins</a>.
       </p>
 
       <div className="mt-6">

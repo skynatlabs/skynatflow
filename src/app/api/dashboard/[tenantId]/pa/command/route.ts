@@ -19,6 +19,7 @@ import { nicheConfig } from "@/lib/niches/config";
 import { describePage } from "@/lib/agent/pageContext";
 import { deriveReviewUrl } from "@/lib/agent/reviewUrl";
 import { prisma } from "@/lib/db";
+import { mayCallAgent } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
   const access = await requireTenantAccess(tenantId);
+
+  // A model call is the one thing here that turns a keypress straight into a
+  // bill, so the expensive endpoints are limited per person. Well above
+  // normal working use; this stops a loop, not a busy afternoon.
+  const gate = await mayCallAgent({ tenantId, userId: access.userId, kind: "agent" });
+  if (!gate.allowed) {
+    return NextResponse.json(
+      { error: gate.message },
+      { status: 429, headers: { "Retry-After": String(gate.retryAfterSeconds) } }
+    );
+  }
 
   const body = await req.json().catch(() => ({}));
   const text = typeof body?.text === "string" ? body.text.trim() : "";
@@ -67,6 +79,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     ctx: {
       tenantId,
       role: access.role,
+      capabilities: access.capabilities,
       userId: access.userId,
       membershipId: access.membershipId,
       customerLabel: nicheConfig(tenant.niche).customerLabel,

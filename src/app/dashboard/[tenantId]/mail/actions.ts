@@ -9,7 +9,7 @@ import { archiveThread, markThreadRead, replyToMessage, sendMail, threadKeyFor }
 async function guard(tenantId: string) {
   const access = await requireTenantAccess(tenantId);
   // Writing to a customer is the same permission as messaging one anywhere else.
-  assertCan(access.role, "quote:send");
+  assertCan(access, "quote:send");
   return access;
 }
 

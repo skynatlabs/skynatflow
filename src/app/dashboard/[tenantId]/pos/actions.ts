@@ -8,7 +8,7 @@ import { openTill, closeTill, checkoutSale } from "@/lib/core/pos";
 export async function openTillAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "payment:record");
+  assertCan(access, "payment:record");
 
   const openingFloatRand = Number(formData.get("openingFloatRand") ?? 0);
   await openTill({
@@ -22,7 +22,7 @@ export async function openTillAction(formData: FormData) {
 export async function closeTillAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "payment:record");
+  assertCan(access, "payment:record");
 
   const sessionId = String(formData.get("sessionId") ?? "");
   const closingCountedRand = Number(formData.get("closingCountedRand") ?? 0);
@@ -33,7 +33,7 @@ export async function closeTillAction(formData: FormData) {
 export async function checkoutAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "payment:record");
+  assertCan(access, "payment:record");
 
   const itemId = String(formData.get("itemId") ?? "");
   const quantityRaw = String(formData.get("quantity") ?? "").trim();

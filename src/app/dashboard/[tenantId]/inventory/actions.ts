@@ -8,7 +8,7 @@ import { recordBatch } from "@/lib/core/inventory";
 export async function recordBatchAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "product:manage");
+  assertCan(access, "product:manage");
 
   const itemId = String(formData.get("itemId") ?? "");
   const quantity = Number(formData.get("quantity") ?? 0);

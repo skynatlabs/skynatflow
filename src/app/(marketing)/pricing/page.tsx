@@ -12,8 +12,12 @@ const FAQS = [
     a: "No. No multi-year lock-in, no cancellation penalty — the opposite of what some field-service platforms are known for.",
   },
   {
-    q: "What happens to my data if I downgrade or leave?",
-    a: "It's always yours. One-click CSV export of everything, any time, whether you're upgrading, downgrading, or leaving entirely.",
+    q: "What happens to my data if I leave?",
+    a: "You take a complete copy with you. Closing an account offers a full download of your records first — every table, as JSON for fidelity and CSV for the ones you'll actually open in a spreadsheet — and nothing is deleted until you've had the chance to take it.",
+  },
+  {
+    q: "Do you keep anything after that?",
+    a: "Invoices and tax records, for as long as the law where you trade requires — five years for SARS, longer in some countries. That obligation is yours as much as ours, which is why the copy comes first and the deletion comes after.",
   },
   {
     q: "Do I need a credit card to try it?",
@@ -48,12 +52,16 @@ export default function PricingPage() {
       <section className="section">
         <div className="section-head">
           <span className="kicker">Plans</span>
-          <h2>Three plans, no surprise tiers hiding basic features</h2>
+          <h2>Four plans, no surprise tiers hiding basic features</h2>
         </div>
         <div className="pricing-row">
           {PRICING_PLANS.map((plan) => {
-            const isFeatured = plan.id === "growth";
-            const isDark = plan.id === "enterprise";
+            // Which card is featured is a presentation decision and lives
+            // with the other presentation decisions, in marketing/pricing.ts.
+            // It used to be hardcoded to a plan key here, which is how the
+            // page kept referring to a plan that no longer exists.
+            const isFeatured = plan.cardVariant === "kb-card-accent";
+            const isDark = plan.cardVariant === "kb-card-dark";
             const variant = isFeatured ? "card-accent" : isDark ? "card-dark" : "card-outline";
             const mutedClass = variant === "card-outline" ? "" : "muted";
             return (
@@ -64,7 +72,6 @@ export default function PricingPage() {
                 <p className="price-tier">{plan.name}</p>
                 <p className="price-amount">
                   {plan.price}
-                  {plan.id !== "enterprise" && <span style={{ fontSize: "0.9rem", opacity: 0.7 }}>/mo</span>}
                 </p>
                 <p className={`price-desc ${mutedClass}`}>{plan.priceNote}</p>
                 <p className={`price-desc ${mutedClass}`} style={{ marginTop: 12 }}>

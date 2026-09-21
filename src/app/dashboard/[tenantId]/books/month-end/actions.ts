@@ -9,7 +9,7 @@ import { monthEndPack } from "@/lib/core/bookkeeper";
 
 async function guard(tenantId: string) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   return access;
 }
 

@@ -17,7 +17,7 @@
 
 import type { NicheSkin } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import type { Role } from "./access";
+import type { CapabilityHolder, Role } from "./access";
 import { formatMoney } from "@/lib/format/money";
 
 export type PanelKind = "stat" | "trend" | "breakdown" | "donut";
@@ -124,8 +124,18 @@ function delta(series: number[]): number | null {
  * does. Both narrow what is built — a panel nobody will look at is a query
  * nobody should pay for.
  */
-export async function kpiBoard(tenantId: string, role: Role, niche: NicheSkin): Promise<KpiBoard> {
-  const allowed = new Set(GROUPS_FOR_ROLE[role] ?? GROUPS_FOR_ROLE.STAFF);
+export async function kpiBoard(
+  tenantId: string,
+  // A role name or a resolved holder — the board hides the rows somebody may
+  // not act on, and a workspace may have invented the role it is given.
+  role: Role | CapabilityHolder,
+  niche: NicheSkin
+): Promise<KpiBoard> {
+  // The board is grouped by role NAME. A workspace's own role has no entry,
+  // so it falls back to the staff view — the safe direction, since the rows
+  // themselves are still gated by capability further down.
+  const roleName = typeof role === "string" ? role : role.role;
+  const allowed = new Set(GROUPS_FOR_ROLE[roleName as Role] ?? GROUPS_FOR_ROLE.STAFF);
   const has = new Set(GROUPS_FOR_NICHE[niche] ?? GROUPS_FOR_NICHE.SERVICES);
   const wanted = [...allowed].filter((g) => has.has(g));
   const want = (g: string) => wanted.includes(g);

@@ -13,7 +13,7 @@ export async function updateQuoteLinesAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const quoteId = String(formData.get("quoteId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:create");
+  assertCan(access, "quote:create");
 
   const quote = await prisma.transaction.findUnique({ where: { id: quoteId } });
   if (!quote || quote.tenantId !== tenantId || quote.type !== "QUOTE") throw new Error("Quote not found.");

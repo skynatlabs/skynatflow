@@ -10,7 +10,7 @@ async function guard(tenantId: string) {
   // Accepting or rejecting what the CFO found is an owner's call. A finding
   // dismissed here stays dismissed for ninety days, so this is not a button
   // that should be available to everyone who can open the dashboard.
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   return access;
 }
 

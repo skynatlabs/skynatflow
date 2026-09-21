@@ -14,6 +14,7 @@
 
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
+import { billFor } from "@/lib/core/billing";
 import type { Capability } from "@/lib/core/access";
 import type { AgentContext } from "@/lib/agent/tools";
 import { rememberFact, forgetFact, loadFacts } from "@/lib/agent/memory";
@@ -807,6 +808,30 @@ export const EXTRA_READ_TOOLS: Record<string, ExtraToolDef> = {
       }),
   },
 
+  whatWePay: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What this workspace pays for flow itself: which plan, how many seats of each kind, what that comes to " +
+          "a month, and how much of the included assistant allowance has been used. Read-only — it can see this " +
+          "workspace's own plan and nothing about anybody else's.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const bill = await billFor(ctx.tenantId);
+          return {
+            plan: bill.plan.name,
+            status: bill.status,
+            seats: bill.seats,
+            monthlyCents: bill.totalCents,
+            allowanceUsedPercent: bill.allowanceUsedPercent,
+            trialDaysLeft: bill.trialDaysLeft,
+            summary: bill.summary,
+            note: "Seats are counted exactly, never rounded up into blocks.",
+          };
+        },
+      }),
+  },
+
   howAmIDoing: {
     build: (ctx) =>
       tool({
@@ -1402,7 +1427,7 @@ export const EXTRA_READ_TOOLS: Record<string, ExtraToolDef> = {
         inputSchema: z.object({}),
         execute: async () => {
           const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { niche: true } });
-          const board = await kpiBoard(ctx.tenantId, ctx.role, tenant.niche);
+          const board = await kpiBoard(ctx.tenantId, ctx, tenant.niche);
           return {
             scope: board.scope,
             groups: board.groups.map((g) => ({
@@ -1900,7 +1925,7 @@ export const EXTRA_WRITE_TOOLS: Record<string, ExtraToolDef> = {
           const result = await installRecipe({
             tenantId: ctx.tenantId,
             slug,
-            role: ctx.role,
+            role: ctx,
             createdById: ctx.membershipId ?? null,
           });
           return {

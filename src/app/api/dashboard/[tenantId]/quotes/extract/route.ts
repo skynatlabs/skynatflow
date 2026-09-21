@@ -77,7 +77,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     });
   }
 
-  const model = await getAiModel();
+  const model = await getAiModel("fast");
   if (!model) {
     return NextResponse.json(
       {

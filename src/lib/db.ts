@@ -5,6 +5,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { withQueryTiming } from "@/lib/perf";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
@@ -26,13 +27,39 @@ function createClient() {
   const connectionString = isSupabase
     ? rawConnectionString!.replace(/([?&])sslmode=[^&]*&?/, "$1").replace(/[?&]$/, "")
     : rawConnectionString ?? "";
-  // Connections are already TLS-encrypted via the pooler infra, so skip CA
-  // verification here instead.
-  const adapter = new PrismaPg({
-    connectionString,
-    ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
-  });
-  return new PrismaClient({ adapter });
+  // TLS, and whether we check who is on the other end of it.
+  //
+  // The connection is encrypted either way. What `rejectUnauthorized: false`
+  // gives up is authentication of the server — which makes the link
+  // confidential but not proof against somebody sitting in the middle of it.
+  // An auditor will flag that, correctly, and they should.
+  //
+  // The honest position: supply DATABASE_CA_CERT (the pooler's CA chain, in
+  // PEM) and the connection is verified properly. Without it, verification
+  // against Supabase's pooler chain fails outright and the app cannot reach
+  // its own database, so the unverified path stays as the fallback — with a
+  // warning at boot rather than a comment nobody reads, because a gap that
+  // announces itself is a gap that gets closed.
+  const ca = process.env.DATABASE_CA_CERT;
+  const ssl = ca
+    ? { ca, rejectUnauthorized: true }
+    : isSupabase
+      ? { rejectUnauthorized: false }
+      : undefined;
+
+  if (!ca && isSupabase) {
+    console.warn(
+      "[db] Connecting over TLS without verifying the server certificate. " +
+        "Set DATABASE_CA_CERT to the database's CA chain (PEM) to close this."
+    );
+  }
+
+  const adapter = new PrismaPg({ connectionString, ssl });
+
+  // Timed, so that latency is a number rather than an argument. Slow queries
+  // are always recorded and the rest are sampled — see lib/perf.ts for why
+  // that is cheap enough to leave on in production.
+  return withQueryTiming(new PrismaClient({ adapter }));
 }
 
 // Cache the client across invocations in every environment, production

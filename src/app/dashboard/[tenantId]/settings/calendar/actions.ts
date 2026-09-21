@@ -8,7 +8,7 @@ import { assertCan } from "@/lib/core/access";
 export async function disconnectCalendarAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   await prisma.calendarIntegration.deleteMany({ where: { tenantId } });
   revalidatePath(`/dashboard/${tenantId}/settings/calendar`);

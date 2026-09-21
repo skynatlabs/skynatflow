@@ -42,6 +42,32 @@ const ALWAYS_ASK = new Set([
   // the skipped list is the thing a person has to read before anything is,
   // and a draft nobody looked at is one release away from a lost number.
   "planABroadcast",
+
+  // ---- found by auditing the gate against the tool registry, not by design.
+  //
+  // Each of these is a mutating tool whose name nobody had added to a list,
+  // so it fell through to "reversible" and would run unattended at FULL. The
+  // guard below now makes that failure mode visible instead of silent.
+
+  // Appends a real charge to a customer's ledger. Money, and the customer
+  // finds out from the next statement.
+  "applyLateFee",
+  // Emails the donor a tax-ready receipt the moment it is recorded. Outbound
+  // contact carrying a document somebody may file with a tax return.
+  "recordDonation",
+  // Writes the books. The ledger refuses edits by design — the only way back
+  // is a reversing entry — so an unattended posting is not undoable in the
+  // sense the reversible list means.
+  "postJournalEntry",
+  // The same, in bulk, across a business's whole history.
+  "postHistoryToBooks",
+  // The gate before money leaves: an approved bill is one that can enter a
+  // payment run, and the run itself already stops for a person.
+  "approveSupplierBill",
+  "approveExpense",
+  // A certificate of compliance goes out with the business's name on it and
+  // is relied on by whoever receives it.
+  "issueCertificate",
 ]);
 
 /**

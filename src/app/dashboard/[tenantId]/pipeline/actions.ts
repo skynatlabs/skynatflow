@@ -13,7 +13,7 @@ export async function markQuoteOutcomeAction(formData: FormData) {
   const outcome = String(formData.get("outcome") ?? "") as "ACCEPTED" | "DECLINED";
 
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:send");
+  assertCan(access, "quote:send");
 
   const existing = await prisma.transaction.findUnique({ where: { id: quoteId } });
   if (!existing || existing.tenantId !== tenantId) throw new Error("Quote not found.");

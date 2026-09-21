@@ -22,7 +22,7 @@ export default async function StaffPage({
 }) {
   const { tenantId } = await params;
   const access = await requireTenantAccess(tenantId);
-  const canManage = can(access.role, "staff:manage");
+  const canManage = can(access, "staff:manage");
 
   const memberships = await prisma.membership.findMany({
     where: { tenantId },

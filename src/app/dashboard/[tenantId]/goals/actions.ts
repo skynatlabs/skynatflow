@@ -8,7 +8,7 @@ import { createGoal, updateGoalProgress } from "@/lib/core/goals";
 export async function createGoalAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
 
   const title = String(formData.get("title") ?? "").trim();
   const metricLabel = String(formData.get("metricLabel") ?? "").trim();
@@ -32,7 +32,7 @@ export async function createGoalAction(formData: FormData) {
 export async function updateGoalProgressAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
 
   const goalId = String(formData.get("goalId") ?? "");
   const currentValue = Number(formData.get("currentValue") ?? 0);

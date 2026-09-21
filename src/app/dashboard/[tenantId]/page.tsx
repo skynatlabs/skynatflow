@@ -49,7 +49,7 @@ export default async function TenantHomePage({ params }: { params: Promise<{ ten
   // after signing in and nothing on it waits on anything else.
   const [board, readiness, stale, thisWeek, [runningRuns, awaitingRuns, lastRun, activeAgents, unsentQuotes, openTasks]] =
     await Promise.all([
-      kpiBoard(tenantId, access.role, tenant.niche),
+      kpiBoard(tenantId, access, tenant.niche),
       getReadiness(tenantId),
       findStaleTransactions({ tenantId, staleAfterDays: 3 }),
       listThisWeekFollowUps(tenantId),

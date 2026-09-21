@@ -29,7 +29,7 @@ export default async function PayrollPage({ params }: { params: Promise<{ tenant
     throw err;
   }
 
-  if (!can(access.role, "staff:manage")) {
+  if (!can(access, "staff:manage")) {
     return (
       <div className="pb-10">
         <PageHeader tenantId={tenantId} title="Payroll" />

@@ -19,6 +19,7 @@ import { describePage } from "@/lib/agent/pageContext";
 import { nicheConfig } from "@/lib/niches/config";
 import { prisma } from "@/lib/db";
 import { deriveReviewUrl } from "@/lib/agent/reviewUrl";
+import { mayCallAgent } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 // Long enough for a full multi-step run; the client sees progress throughout.
@@ -32,6 +33,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
     return Response.json({ error: "Sign in required" }, { status: 401 });
   }
   const access = await requireTenantAccess(tenantId);
+
+  // A model call is the one thing here that turns a keypress straight into a
+  // bill, so the expensive endpoints are limited per person. Well above
+  // normal working use; this stops a loop, not a busy afternoon.
+  const gate = await mayCallAgent({ tenantId, userId: access.userId, kind: "agent" });
+  if (!gate.allowed) {
+    return Response.json(
+      { error: gate.message },
+      { status: 429, headers: { "Retry-After": String(gate.retryAfterSeconds) } }
+    );
+  }
 
   const body = await req.json().catch(() => ({}));
   const text = typeof body?.text === "string" ? body.text.trim() : "";
@@ -82,6 +94,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
             tenantId,
             currency: tenant.currency,
             role: access.role,
+      capabilities: access.capabilities,
             userId: access.userId,
             membershipId: access.membershipId,
             customerLabel,

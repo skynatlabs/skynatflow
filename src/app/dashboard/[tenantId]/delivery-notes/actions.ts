@@ -15,7 +15,7 @@ import {
 async function guard(tenantId: string) {
   const access = await requireTenantAccess(tenantId);
   // Whoever can log a delivery can write the slip that goes with it.
-  assertCan(access.role, "delivery:log");
+  assertCan(access, "delivery:log");
   return access;
 }
 

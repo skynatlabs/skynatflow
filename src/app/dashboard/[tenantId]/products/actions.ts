@@ -44,7 +44,7 @@ function readProductFields(formData: FormData) {
 export async function createProductAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "product:manage");
+  assertCan(access, "product:manage");
 
   const fields = readProductFields(formData);
   const product = await createProduct({ tenantId, ...fields });
@@ -66,13 +66,13 @@ export async function updateProductAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const productId = String(formData.get("productId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "product:manage");
+  assertCan(access, "product:manage");
 
   const existing = await prisma.item.findUnique({ where: { id: productId } });
   if (!existing || existing.tenantId !== tenantId) throw new Error("Product not found.");
 
   const fields = readProductFields(formData);
-  await updateProduct(productId, fields);
+  await updateProduct(tenantId, productId, fields);
 
   await recordAudit({
     tenantId,
@@ -92,12 +92,12 @@ export async function toggleProductActiveAction(formData: FormData) {
   const productId = String(formData.get("productId") ?? "");
   const nextActive = String(formData.get("nextActive") ?? "true") === "true";
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "product:manage");
+  assertCan(access, "product:manage");
 
   const existing = await prisma.item.findUnique({ where: { id: productId } });
   if (!existing || existing.tenantId !== tenantId) throw new Error("Product not found.");
 
-  await setProductActive(productId, nextActive);
+  await setProductActive(tenantId, productId, nextActive);
 
   await recordAudit({
     tenantId,

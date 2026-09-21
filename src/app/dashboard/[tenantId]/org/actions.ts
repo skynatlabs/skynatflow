@@ -8,7 +8,7 @@ import { setManager, setDepartment } from "@/lib/core/org";
 export async function setManagerAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const membershipId = String(formData.get("membershipId") ?? "");
   const managerId = String(formData.get("managerId") ?? "") || null;
@@ -20,7 +20,7 @@ export async function setManagerAction(formData: FormData) {
 export async function setDepartmentAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const membershipId = String(formData.get("membershipId") ?? "");
   const department = String(formData.get("department") ?? "").trim() || null;

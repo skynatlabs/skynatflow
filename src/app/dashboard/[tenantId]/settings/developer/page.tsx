@@ -26,7 +26,7 @@ export default async function DeveloperPage({
 }) {
   const { tenantId } = await params;
   const access = await requireTenantAccess(tenantId);
-  const isOwner = can(access.role, "staff:manage");
+  const isOwner = can(access, "staff:manage");
 
   const [keys, endpoints] = await Promise.all([listApiKeys(tenantId), listEndpoints(tenantId)]);
 

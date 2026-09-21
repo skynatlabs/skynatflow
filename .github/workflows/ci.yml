@@ -1,0 +1,82 @@
+# The gate the 1088 tests were missing.
+#
+# Until now they ran only when somebody remembered, and `npm run build`
+# applies database migrations to production — so a migration could reach a
+# live database with nothing having checked that the code around it worked.
+# That is the single most consequential gap in the repository and it is fixed
+# by this file rather than by discipline.
+#
+# The tests are integration tests against a real Postgres, so CI runs one as a
+# service and migrates it from scratch every time. That also makes this a
+# continuous check that the migration chain applies cleanly to an empty
+# database, which nothing else verifies.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push while the first is still running makes the first irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: flow
+          POSTGRES_PASSWORD: flow
+          POSTGRES_DB: flow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://flow:flow@localhost:5432/flow_test
+      # Required at import time by the crypto and auth modules. A throwaway
+      # value: nothing in CI decrypts anything written anywhere else.
+      AUTH_SECRET: ci-only-not-a-real-secret-ci-only-not-a-real
+      AUTH_TRUST_HOST: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Apply migrations to an empty database
+        run: npx prisma migrate deploy
+
+      - name: Generate the client
+        run: npx prisma generate
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npx vitest run
+
+      # Deliberately NOT `npm run build`, which would run `prisma migrate
+      # deploy` again as its first step. This builds the application only.
+      - name: Build
+        run: npx next build

@@ -19,7 +19,7 @@ async function guard(tenantId: string) {
   // What the business owes a regulator, and deciding something no longer
   // applies, is an owner-level call — not something any signed-in staff
   // member should be able to quietly take off the list.
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   return access;
 }
 

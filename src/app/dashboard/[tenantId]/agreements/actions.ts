@@ -23,7 +23,7 @@ import { formatMoney } from "@/lib/format/money";
 async function guard(tenantId: string) {
   const access = await requireTenantAccess(tenantId);
   // Writing what a customer is being offered is the same bar as quoting them.
-  assertCan(access.role, "quote:create");
+  assertCan(access, "quote:create");
   return access;
 }
 

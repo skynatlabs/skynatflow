@@ -9,7 +9,7 @@ import { assertCan } from "@/lib/core/access";
 export async function connectPaymentGatewayAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const provider = String(formData.get("provider") ?? "") as PaymentGatewayProvider;
   const region = String(formData.get("region") ?? "RSA");
@@ -28,7 +28,7 @@ export async function connectPaymentGatewayAction(formData: FormData) {
 export async function disconnectPaymentGatewayAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const provider = String(formData.get("provider") ?? "") as PaymentGatewayProvider;
   await prisma.paymentGateway.updateMany({

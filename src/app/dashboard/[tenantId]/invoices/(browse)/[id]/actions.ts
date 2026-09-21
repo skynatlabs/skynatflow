@@ -19,7 +19,7 @@ export async function recordPaymentAction(formData: FormData) {
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const amountRand = Number(formData.get("amountRand") ?? 0);
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "invoice:create");
+  assertCan(access, "invoice:create");
   await loadOwnedInvoice(tenantId, invoiceId);
   if (!amountRand || amountRand <= 0) throw new Error("Enter a valid amount.");
 
@@ -43,7 +43,7 @@ export async function recordRefundAction(formData: FormData) {
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const amountRand = Number(formData.get("amountRand") ?? 0);
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "invoice:create");
+  assertCan(access, "invoice:create");
   await loadOwnedInvoice(tenantId, invoiceId);
   if (!amountRand || amountRand <= 0) throw new Error("Enter a valid amount.");
 
@@ -67,7 +67,7 @@ export async function setInvoiceSalesPersonAction(formData: FormData) {
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const salesPersonMembershipId = String(formData.get("salesPersonMembershipId") ?? "").trim() || null;
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "invoice:create");
+  assertCan(access, "invoice:create");
   await loadOwnedInvoice(tenantId, invoiceId);
 
   await prisma.transaction.update({ where: { id: invoiceId }, data: { salesPersonMembershipId } });
@@ -80,7 +80,7 @@ export async function setInvoiceReminderAction(formData: FormData) {
   const remindAtRaw = String(formData.get("remindAt") ?? "");
   const note = String(formData.get("note") ?? "").trim();
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "invoice:create");
+  assertCan(access, "invoice:create");
 
   const remindAt = new Date(remindAtRaw);
   if (!remindAtRaw || Number.isNaN(remindAt.getTime())) throw new Error("A valid date is required.");
@@ -93,7 +93,7 @@ export async function clearInvoiceReminderAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "invoice:create");
+  assertCan(access, "invoice:create");
 
   await clearManualReminder(tenantId, invoiceId);
   revalidatePath(`/dashboard/${tenantId}/invoices/${invoiceId}`);

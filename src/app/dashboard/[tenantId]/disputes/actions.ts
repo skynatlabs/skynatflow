@@ -13,7 +13,7 @@ export async function resolveDisputeAction(formData: FormData) {
 
   const access = await requireTenantAccess(tenantId);
   // Answering a customer's complaint is the same standing as writing to them.
-  assertCan(access.role, "quote:send");
+  assertCan(access, "quote:send");
 
   await resolveDispute({ tenantId, disputeId, note: resolutionNote });
 

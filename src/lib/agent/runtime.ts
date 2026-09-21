@@ -19,7 +19,7 @@
 import { generateText, stepCountIs, type ToolSet } from "ai";
 import type { AgentAutonomy, AgentRunTrigger } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { aiModelChain, worthFailingOver } from "@/lib/ai/model";
+import { aiModelChain, getAgentTier, worthFailingOver } from "@/lib/ai/model";
 import { mayRun, recordSpend } from "@/lib/agent/budget";
 import { preferenceNotes } from "@/lib/agent/learning";
 import { buildAgentTools, MUTATING_TOOLS, type AgentContext } from "@/lib/agent/tools";
@@ -27,6 +27,7 @@ import { canAutoRun } from "@/lib/agent/autonomy";
 import { loadFacts, loadThread, appendToThread, type ThreadTurn } from "@/lib/agent/memory";
 import { pageContextPrompt, type PageContext } from "@/lib/agent/pageContext";
 import { toolLabelProgressive } from "@/lib/agent/toolLabels";
+import { selectTools } from "@/lib/agent/toolSelection";
 
 export interface AgentStep {
   tool: string;
@@ -69,16 +70,25 @@ export interface AgentResult {
 // that a confused model can't spend the tenant's whole AI budget in one go.
 const MAX_STEPS = 12;
 
+/**
+ * The instructions, and nothing that changes between requests.
+ *
+ * This is deliberately stable: it is the front of the prompt, it sits behind
+ * the same cache breakpoint as the tool schemas, and a provider will only
+ * charge us a tenth of the price for it if it is byte-identical to last time.
+ * It used to carry the current timestamp and whatever page the person was
+ * looking at, which meant the prefix changed on every single call and nothing
+ * could ever be cached. Those two now travel with the request instead — see
+ * requestPreamble — which costs a few tokens a turn and saves thousands.
+ */
 function systemPrompt(params: {
   ctx: AgentContext;
-  now: Date;
   facts: string[];
   autonomy: AgentAutonomy;
   userPresent: boolean;
   brief?: string;
-  page?: PageContext | null;
 }): string {
-  const { ctx, now, facts, userPresent, brief, page } = params;
+  const { ctx, facts, userPresent, brief } = params;
 
   const lines = [
     `You are the AI assistant inside flow, a business management platform.`,
@@ -87,8 +97,9 @@ function systemPrompt(params: {
     `tenant, or account id, and there is no way to reach another company's data.`,
     ``,
     `In this workspace a customer is called a "${ctx.customerLabel}".`,
-    `The current date and time is ${now.toISOString()}. Resolve relative dates`,
-    `("Tuesday morning", "end of the month") against that.`,
+    `Each message tells you the current date and time. Resolve relative dates`,
+    `("Tuesday morning", "end of the month") against that, never against your`,
+    `own sense of when now is.`,
     `Money is always in cents in tool inputs and outputs. R1,250.00 is 125000.`,
   ];
 
@@ -104,8 +115,6 @@ function systemPrompt(params: {
       ...facts.map((f) => `- ${f}`)
     );
   }
-
-  lines.push(...pageContextPrompt(page ?? null));
 
   lines.push(
     ``,
@@ -144,6 +153,20 @@ function systemPrompt(params: {
   );
 
   return lines.join("\n");
+}
+
+/**
+ * What is true only of this request: the clock, and what they are looking at.
+ *
+ * Lives on the user message rather than in the system prompt so that the
+ * system prompt can be cached. Reads a little oddly in isolation and reads
+ * perfectly well to a model, which is the only reader it has.
+ */
+function requestPreamble(now: Date, page: PageContext | null): string {
+  const lines = [`[The current date and time is ${now.toISOString()}.]`];
+  const pageLines = pageContextPrompt(page);
+  if (pageLines.length > 0) lines.push(...pageLines);
+  return `${lines.join("\n")}\n\n`;
 }
 
 export async function runAgent(params: {
@@ -217,7 +240,11 @@ export async function runAgent(params: {
     };
   };
 
-  const chain = await aiModelChain();
+  // The agent thinks on whichever tier this workspace is set to — fast by
+  // default, because a run is only ever offered the handful of tools its
+  // request could need, and choosing among those is not work that requires a
+  // frontier model.
+  const chain = await aiModelChain({ tenantId: ctx.tenantId, tier: await getAgentTier(ctx.tenantId) });
   if (chain.length === 0) {
     return fail(
       "No AI provider is configured for this platform yet — an admin can set one up in the admin console.",
@@ -247,7 +274,7 @@ export async function runAgent(params: {
   // A named agent can be narrowed to the tools its job needs. Read tools stay
   // available regardless — restricting what an agent may *look at* only makes
   // it guess, and guessing is worse than knowing.
-  const rawTools: ToolSet =
+  const permitted: ToolSet =
     allowedTools && allowedTools.length > 0
       ? Object.fromEntries(
           Object.entries(all).filter(
@@ -255,6 +282,24 @@ export async function runAgent(params: {
           )
         )
       : all;
+
+  // Then narrowed again, to the ones this REQUEST could plausibly need.
+  //
+  // The full set is 38,866 tokens of schema — measured — and was being sent,
+  // in full, on every turn of every run. Selecting against the request cuts
+  // that by about seven eighths for a typical question. The risk this trades
+  // against is withholding a tool the model needed, which is why selection is
+  // lexical, deterministic, and held to a recall corpus that runs on every
+  // build (tests/agent/tool-selection.test.ts).
+  //
+  // A named agent's declared tools are passed as hints, not left to scoring:
+  // an agent told to do a specific job should always be able to reach for the
+  // tools of that job, however its instruction happens to be worded.
+  const selection = selectTools(permitted, {
+    text: [input, brief ?? "", page?.description ?? "", page?.listing ?? ""].filter(Boolean).join("\n"),
+    hints: allowedTools ?? [],
+  });
+  const rawTools = selection.tools;
   const tools: ToolSet = {};
 
   for (const [name, def] of Object.entries(rawTools)) {
@@ -305,7 +350,7 @@ export async function runAgent(params: {
 
   try {
     const system =
-      systemPrompt({ ctx, now, facts, autonomy, userPresent, brief, page }) +
+      systemPrompt({ ctx, facts, autonomy, userPresent, brief }) +
       (preferences.length > 0 ? `\n\nWhat this business has told you by what it accepts:\n- ${preferences.join("\n- ")}` : "");
 
     // Providers in order, best first. An outage at one vendor should be a
@@ -323,8 +368,24 @@ export async function runAgent(params: {
         result = await generateText({
           model: candidate.model,
           system,
-          messages: [...history, { role: "user" as const, content: input }],
+          messages: [...history, { role: "user" as const, content: requestPreamble(now, page) + input }],
           tools,
+          // Pay full price for the static prefix once, not on every step.
+          //
+          // The system prompt and the tool schemas are identical across every
+          // step of a run and across every turn in a workspace, and they are
+          // the bulk of what we send. Anthropic bills a cached read at a
+          // fraction of the input price; OpenAI caches automatically and uses
+          // the key to route a request back to the same warm cache; Gemini
+          // does it implicitly and needs nothing from us.
+          //
+          // The cache key is per workspace because the prefix is: it carries
+          // that workspace's own facts and preferences. Sharing a key across
+          // tenants would be both useless and wrong.
+          providerOptions: {
+            anthropic: { cacheControl: { type: "ephemeral", ttl: "1h" } },
+            openai: { promptCacheKey: `flow:${ctx.tenantId}`, promptCacheRetention: "24h" },
+          },
           // The loop. Without this the SDK returns after a single tool call and
           // the model never sees what the call returned — exactly the limitation
           // the old classifier had.
@@ -350,6 +411,9 @@ export async function runAgent(params: {
       model: servedBy.modelId,
       inputTokens: result.usage?.inputTokens ?? 0,
       outputTokens: result.usage?.outputTokens ?? 0,
+      // Zero here on a warm workspace means the cache is not being hit, which
+      // means something volatile has crept back into the static prefix.
+      cachedInputTokens: result.usage?.inputTokenDetails?.cacheReadTokens ?? 0,
       at: new Date(),
     }).catch((err) => console.error("[agent] could not record what the run cost:", err));
 

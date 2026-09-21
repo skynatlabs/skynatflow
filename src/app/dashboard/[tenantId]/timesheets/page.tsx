@@ -45,7 +45,7 @@ export default async function TimesheetsPage({
 
   const from = week ? startOfWeek(new Date(week)) : startOfWeek(new Date());
   const to = new Date(from.getTime() + 7 * 86_400_000);
-  const seesCost = can(access.role, "staff:manage");
+  const seesCost = can(access, "staff:manage");
 
   const report = await teamWeek({ tenantId, from, to });
   const money = await moneyOf(tenantId);

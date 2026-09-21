@@ -44,20 +44,74 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
 };
 
 export class AccessDeniedError extends Error {
-  constructor(role: Role, capability: Capability) {
+  constructor(role: string, capability: Capability) {
     super(`Role ${role} is not permitted to perform ${capability}`);
     this.name = "AccessDeniedError";
   }
 }
 
-export function assertCan(role: Role, capability: Capability): void {
-  if (!ROLE_CAPABILITIES[role]?.includes(capability)) {
-    throw new AccessDeniedError(role, capability);
+/**
+ * Anything that already knows what it may do.
+ *
+ * A workspace can define its own roles, so a role NAME is no longer enough to
+ * decide a question — the same name means different things in two
+ * workspaces. Resolution happens once, at the access checkpoint, and what
+ * travels from there is the resolved list rather than the label.
+ */
+export interface CapabilityHolder {
+  /** The role's name or key, for the error message and for display. */
+  role: string;
+  /** Already resolved: built-in table, or the workspace's own definition. */
+  capabilities: Capability[];
+}
+
+function isHolder(subject: Role | CapabilityHolder): subject is CapabilityHolder {
+  return typeof subject === "object" && subject !== null && "capabilities" in subject;
+}
+
+/** What a built-in role may do. Unknown names get nothing, never everything. */
+export function capabilitiesOfBuiltIn(role: string): Capability[] {
+  return ROLE_CAPABILITIES[role as Role] ?? [];
+}
+
+export function isBuiltInRole(role: string): role is Role {
+  return role in ROLE_CAPABILITIES;
+}
+
+/**
+ * Resolve a stored role to what it may actually do.
+ *
+ * `custom` is the workspace's own role definitions, when the stored value is
+ * not a built-in name. An unknown capability string in a custom role is
+ * dropped rather than rejected — removing a capability from the product
+ * should not break every workspace that had granted it.
+ */
+export function resolveCapabilities(
+  role: string,
+  custom?: { key: string; capabilities: string[] } | null
+): Capability[] {
+  if (isBuiltInRole(role)) return capabilitiesOfBuiltIn(role);
+  if (!custom || custom.key !== role) return [];
+  return custom.capabilities.filter((c): c is Capability => ALL_CAPABILITIES.includes(c as Capability));
+}
+
+/**
+ * Refuse unless this caller holds the capability.
+ *
+ * Takes either a resolved holder (what requireTenantAccess returns, and the
+ * form every call site should use) or a bare built-in role name, which is
+ * still correct for the places that genuinely only have one — an API key's
+ * role, a test, a default.
+ */
+export function assertCan(subject: Role | CapabilityHolder, capability: Capability): void {
+  if (!can(subject, capability)) {
+    throw new AccessDeniedError(isHolder(subject) ? subject.role : subject, capability);
   }
 }
 
-export function can(role: Role, capability: Capability): boolean {
-  return ROLE_CAPABILITIES[role]?.includes(capability) ?? false;
+export function can(subject: Role | CapabilityHolder, capability: Capability): boolean {
+  if (isHolder(subject)) return subject.capabilities.includes(capability);
+  return ROLE_CAPABILITIES[subject]?.includes(capability) ?? false;
 }
 
 export const ALL_ROLES: Role[] = ["OWNER", "STAFF", "REP", "TECHNICIAN", "DRIVER"];

@@ -23,7 +23,7 @@ export async function sendQuoteAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const quoteId = String(formData.get("quoteId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:send");
+  assertCan(access, "quote:send");
   await loadOwnedQuote(tenantId, quoteId);
 
   await sendQuote(quoteId, tenantId);
@@ -36,7 +36,7 @@ export async function sendQuoteAction(formData: FormData) {
 // from a click handler alongside opening the wa.me link.
 export async function sendQuoteViaWhatsAppAction(tenantId: string, quoteId: string) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:send");
+  assertCan(access, "quote:send");
   await loadOwnedQuote(tenantId, quoteId);
 
   await sendQuote(quoteId, tenantId);
@@ -48,7 +48,7 @@ export async function markQuoteOutcomeAction(formData: FormData) {
   const quoteId = String(formData.get("quoteId") ?? "");
   const outcome = String(formData.get("outcome") ?? "") as "ACCEPTED" | "DECLINED";
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:send");
+  assertCan(access, "quote:send");
   await loadOwnedQuote(tenantId, quoteId);
 
   await recordResponse(quoteId, outcome);
@@ -70,7 +70,7 @@ export async function convertQuoteToInvoiceAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const quoteId = String(formData.get("quoteId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "invoice:create");
+  assertCan(access, "invoice:create");
   await loadOwnedQuote(tenantId, quoteId);
 
   const invoice = await convertToInvoice({ quoteId });
@@ -93,7 +93,7 @@ export async function setQuoteSalesPersonAction(formData: FormData) {
   const quoteId = String(formData.get("quoteId") ?? "");
   const salesPersonMembershipId = String(formData.get("salesPersonMembershipId") ?? "").trim() || null;
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:send");
+  assertCan(access, "quote:send");
   await loadOwnedQuote(tenantId, quoteId);
 
   await prisma.transaction.update({
@@ -109,7 +109,7 @@ export async function setQuoteReminderAction(formData: FormData) {
   const remindAtRaw = String(formData.get("remindAt") ?? "");
   const note = String(formData.get("note") ?? "").trim();
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:send");
+  assertCan(access, "quote:send");
 
   const remindAt = new Date(remindAtRaw);
   if (!remindAtRaw || Number.isNaN(remindAt.getTime())) throw new Error("A valid date is required.");
@@ -122,7 +122,7 @@ export async function clearQuoteReminderAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const quoteId = String(formData.get("quoteId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:send");
+  assertCan(access, "quote:send");
 
   await clearManualReminder(tenantId, quoteId);
   revalidatePath(`/dashboard/${tenantId}/quotes/${quoteId}`);

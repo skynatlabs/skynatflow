@@ -66,7 +66,7 @@ export async function prefillFromUrl(url: string): Promise<OnboardingPrefill | n
 
   const { logoUrl, socialLinks } = extractLogoAndSocialLinks(html, url);
 
-  const model = await getAiModel();
+  const model = await getAiModel("fast");
   if (!model) {
     return { businessName: null, suggestedNiche: null, suggestedCatalogItems: [], logoUrl, socialLinks };
   }

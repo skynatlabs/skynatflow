@@ -17,7 +17,7 @@ import { applySuggestedPrice } from "@/lib/core/repricing";
 export async function applyPriceAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "product:manage");
+  assertCan(access, "product:manage");
 
   const price = Number(formData.get("price"));
   if (!Number.isFinite(price) || price <= 0) throw new Error("A price has to be more than nothing.");

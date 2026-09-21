@@ -29,7 +29,7 @@ export async function classifyInboundEmail(params: {
   subject: string;
   bodyText: string;
 }): Promise<EmailClassification> {
-  const model = await getAiModel();
+  const model = await getAiModel("fast");
   if (!model) {
     // Graceful degradation, same as everywhere else AI is optional —
     // falls back to a safe default (flagged important so nothing silently

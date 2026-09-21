@@ -8,7 +8,7 @@ import { raiseDueVisits } from "@/lib/core/maintenance";
 
 async function guard(tenantId: string) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
   return access;
 }
 

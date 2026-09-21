@@ -74,7 +74,10 @@ describe("inviting", () => {
 
   it("refuses something that is not an address, and a role that does not exist", async () => {
     await expect(inviteStaff({ tenantId, email: "thabo" })).rejects.toThrow(/not an email address/i);
-    // @ts-expect-error — deliberately the wrong role, which is what callers get wrong.
+    // A role is a string now, because a workspace may define its own — so
+    // this is no longer a compile error and the runtime check is what stops
+    // it. That check is stronger than the old one: it asks whether THIS
+    // workspace has such a role, not whether the product does.
     await expect(inviteStaff({ tenantId, email: "t@example.test", role: "ADMIN" })).rejects.toThrow(/no such role/i);
   });
 });

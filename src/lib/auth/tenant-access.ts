@@ -5,11 +5,20 @@
 import { cache } from "react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import type { Role } from "@/lib/core/access";
+import { isBuiltInRole, resolveCapabilities, type Capability } from "@/lib/core/access";
 
 export interface TenantAccess {
   userId: string;
-  role: Role;
+  /**
+   * A built-in role name, or the key of a role this workspace defined.
+   *
+   * Kept as a string rather than the Role union because a workspace may
+   * invent its own, and the name alone no longer decides anything — see
+   * `capabilities`, which is what every check should consult.
+   */
+  role: string;
+  /** Already resolved. This, not the role name, is what may be done. */
+  capabilities: Capability[];
   membershipId: string | null; // null when access is via isSuperAdmin, not a real membership
 }
 
@@ -38,7 +47,22 @@ export const requireTenantAccess = cache(async (tenantId: string): Promise<Tenan
   if (!user) throw new AuthRequiredError();
   if (!membership) throw new ForbiddenError();
 
-  return { userId: user.id, role: membership.role as Role, membershipId: membership.id };
+  // A workspace may define its own roles. The stored value is a built-in name
+  // or one of those keys, and the lookup only happens when it is not a
+  // built-in — so the common path stays two queries, not three.
+  const custom = isBuiltInRole(membership.role)
+    ? null
+    : await prisma.tenantRole.findUnique({
+        where: { tenantId_key: { tenantId, key: membership.role } },
+        select: { key: true, capabilities: true },
+      });
+
+  return {
+    userId: user.id,
+    role: membership.role,
+    capabilities: resolveCapabilities(membership.role, custom),
+    membershipId: membership.id,
+  };
 });
 
 export interface SuperAdminAccess {

@@ -27,6 +27,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href="/car/onboarding" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
               Moving in
             </Link>
+            <Link href="/car/errors" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
+              Errors
+            </Link>
+            <Link href="/car/performance" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
+              Performance
+            </Link>
+            <Link href="/car/margins" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
+              Margins
+            </Link>
             <Link href="/car/ai" className="text-sm text-[var(--kb-text-dim)] hover:text-[var(--kb-text)]">
               AI provider
             </Link>

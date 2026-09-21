@@ -31,7 +31,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth(async () => {
   ]);
 
   return {
-    session: { strategy: "jwt" },
+    // Session policy.
+    //
+    // Enterprise reviews ask for a session that expires. maxAge here is an
+    // IDLE timeout: Auth.js refreshes the token while somebody is using the
+    // app, so a person working every day is never signed out, and a laptop
+    // left in a taxi stops being a valid session within a week.
+    //
+    // updateAge stops that refresh writing a new cookie on every request —
+    // once a day is enough to keep an active session alive.
+    session: {
+      strategy: "jwt",
+      maxAge: Number(process.env.SESSION_MAX_AGE_SECONDS ?? 7 * 24 * 60 * 60),
+      updateAge: 24 * 60 * 60,
+    },
     pages: { signIn: "/login" },
     providers: [
       // Google is only added to the provider list when credentials are

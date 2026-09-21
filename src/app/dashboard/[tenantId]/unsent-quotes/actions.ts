@@ -8,7 +8,7 @@ import { sendQuote } from "@/lib/core/money";
 export async function sendQuoteNowAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:send");
+  assertCan(access, "quote:send");
 
   const quoteId = String(formData.get("quoteId") ?? "");
   await sendQuote(quoteId, tenantId);

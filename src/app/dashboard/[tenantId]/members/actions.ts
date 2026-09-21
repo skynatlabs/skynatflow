@@ -10,7 +10,7 @@ import { startInvolvement, endInvolvement, recordDonation, addComplianceFiling, 
 export async function addMemberAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const name = String(formData.get("name") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim() || undefined;
@@ -27,7 +27,7 @@ export async function addMemberAction(formData: FormData) {
 export async function endInvolvementAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   await endInvolvement(tenantId, String(formData.get("involvementId") ?? ""));
   revalidatePath(`/dashboard/${tenantId}/members`);
@@ -36,7 +36,7 @@ export async function endInvolvementAction(formData: FormData) {
 export async function setRenewalDateAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const involvementId = String(formData.get("involvementId") ?? "");
   const renewalDueAtRaw = String(formData.get("renewalDueAt") ?? "");
@@ -52,7 +52,7 @@ export async function setRenewalDateAction(formData: FormData) {
 export async function recordDonationAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "payment:record");
+  assertCan(access, "payment:record");
 
   const partyId = String(formData.get("partyId") ?? "");
   const amountCents = Math.round(Number(formData.get("amountRand") ?? 0) * 100);
@@ -66,7 +66,7 @@ export async function recordDonationAction(formData: FormData) {
 export async function addFilingAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const filingType = String(formData.get("filingType") ?? "").trim();
   const filingDateRaw = String(formData.get("filingDate") ?? "");

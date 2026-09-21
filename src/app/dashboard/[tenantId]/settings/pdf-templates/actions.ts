@@ -14,7 +14,7 @@ import { PRESET_BY_KEY } from "@/lib/pdf/presets";
 export async function createPdfTemplateAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const name = String(formData.get("name") ?? "").trim();
   const presetKey = String(formData.get("presetKey") ?? "");
@@ -38,7 +38,7 @@ export async function createPdfTemplateAction(formData: FormData) {
 export async function setDefaultPdfTemplateAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   await setDefaultPdfTemplate(tenantId, String(formData.get("templateId") ?? ""));
   revalidatePath(`/dashboard/${tenantId}/settings/pdf-templates`);
@@ -47,7 +47,7 @@ export async function setDefaultPdfTemplateAction(formData: FormData) {
 export async function deletePdfTemplateAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   await deletePdfTemplate(tenantId, String(formData.get("templateId") ?? ""));
   revalidatePath(`/dashboard/${tenantId}/settings/pdf-templates`);

@@ -11,7 +11,7 @@
 // outcome than a few cents.
 
 import { prisma } from "@/lib/db";
-import { ANTHROPIC_MODEL, GOOGLE_MODEL } from "@/lib/ai/model";
+import { MODELS } from "@/lib/ai/model";
 
 /**
  * Cost per million tokens, in US cents, at the rates these models publish.
@@ -20,17 +20,61 @@ import { ANTHROPIC_MODEL, GOOGLE_MODEL } from "@/lib/ai/model";
  * is that a business can see the shape of what it spends, not that this is an
  * invoice. A figure that pretends to be exact and is not would be worse.
  */
-const RATES: Record<string, { inputCentsPerM: number; outputCentsPerM: number }> = {
-  [ANTHROPIC_MODEL]: { inputCentsPerM: 300, outputCentsPerM: 1500 },
-  [GOOGLE_MODEL]: { inputCentsPerM: 125, outputCentsPerM: 500 },
+interface Rate {
+  inputCentsPerM: number;
+  outputCentsPerM: number;
+  /**
+   * What a cached read costs, as a fraction of the input price.
+   *
+   * Roughly a tenth across the providers that publish it. Approximate like
+   * everything else here — the point is that a workspace can see the shape of
+   * what caching saves, not that this reconciles to an invoice.
+   */
+  cachedInputShare: number;
+}
+
+const CACHED_SHARE = 0.1;
+
+const RATES: Record<string, Rate> = {
+  [MODELS.anthropic.smart]: { inputCentsPerM: 300, outputCentsPerM: 1500, cachedInputShare: CACHED_SHARE },
+  [MODELS.anthropic.fast]: { inputCentsPerM: 100, outputCentsPerM: 500, cachedInputShare: CACHED_SHARE },
+  [MODELS.google.smart]: { inputCentsPerM: 200, outputCentsPerM: 1200, cachedInputShare: CACHED_SHARE },
+  [MODELS.google.fast]: { inputCentsPerM: 75, outputCentsPerM: 375, cachedInputShare: CACHED_SHARE },
+  [MODELS.openai.smart]: { inputCentsPerM: 200, outputCentsPerM: 1200, cachedInputShare: CACHED_SHARE },
+  [MODELS.openai.fast]: { inputCentsPerM: 20, outputCentsPerM: 120, cachedInputShare: CACHED_SHARE },
 };
 
-const FALLBACK = { inputCentsPerM: 300, outputCentsPerM: 1500 };
+// An unknown model is priced at the most expensive thing we run, so a
+// mis-typed id shows up as a cost surprise in testing rather than as an
+// understated bill in production.
+const FALLBACK: Rate = { inputCentsPerM: 300, outputCentsPerM: 1500, cachedInputShare: CACHED_SHARE };
 
-export function costOf(params: { model: string; inputTokens: number; outputTokens: number }): number {
+/**
+ * Whether we publish a rate for this model, rather than falling back.
+ *
+ * Exists so a test can assert the table has no holes. The fallback is priced
+ * at the frontier rate, so a missing entry is invisible in the numbers —
+ * it just quietly overstates the cost of a cheap model and understates how
+ * well routing is working.
+ */
+export function hasPublishedRate(model: string): boolean {
+  return model in RATES;
+}
+
+export function costOf(params: {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  /** Of the input tokens, how many were served from cache. */
+  cachedInputTokens?: number;
+}): number {
   const rate = RATES[params.model] ?? FALLBACK;
+  const cached = Math.min(params.cachedInputTokens ?? 0, params.inputTokens);
+  const fresh = params.inputTokens - cached;
   return (
-    (params.inputTokens / 1_000_000) * rate.inputCentsPerM + (params.outputTokens / 1_000_000) * rate.outputCentsPerM
+    (fresh / 1_000_000) * rate.inputCentsPerM +
+    (cached / 1_000_000) * rate.inputCentsPerM * rate.cachedInputShare +
+    (params.outputTokens / 1_000_000) * rate.outputCentsPerM
   );
 }
 
@@ -42,6 +86,7 @@ export async function recordSpend(params: {
   model: string;
   inputTokens: number;
   outputTokens: number;
+  cachedInputTokens?: number;
   at?: Date;
 }) {
   return prisma.agentSpend.create({
@@ -53,6 +98,7 @@ export async function recordSpend(params: {
       model: params.model,
       inputTokens: params.inputTokens,
       outputTokens: params.outputTokens,
+      cachedInputTokens: params.cachedInputTokens ?? 0,
       costCents: costOf(params),
       at: params.at ?? new Date(),
     },

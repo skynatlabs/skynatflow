@@ -7,7 +7,7 @@ import { fileVatReturn, saveDraftReturn } from "@/lib/core/vatReturn";
 
 async function guard(tenantId: string) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "invoice:create");
+  assertCan(access, "invoice:create");
   return access;
 }
 

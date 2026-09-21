@@ -6,7 +6,6 @@
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email/client";
 import { getReorderSuggestions } from "./inventory";
-import { tenantCurrency } from "./currency";
 import { formatMoney } from "@/lib/format/money";
 
 export interface PurchaseOrderLineInput {

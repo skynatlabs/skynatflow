@@ -8,7 +8,7 @@ import { recordStocktake } from "@/lib/core/stocktake";
 export async function recordStocktakeAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "product:manage");
+  assertCan(access, "product:manage");
   if (!access.membershipId) throw new Error("No staff account on this workspace.");
 
   const itemId = String(formData.get("itemId") ?? "");

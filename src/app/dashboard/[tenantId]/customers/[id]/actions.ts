@@ -17,7 +17,7 @@ export async function updateCustomerAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const customerId = String(formData.get("customerId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:create");
+  assertCan(access, "quote:create");
 
   const party = await prisma.party.findUnique({ where: { id: customerId } });
   if (!party || party.tenantId !== tenantId) throw new Error("Customer not found.");
@@ -58,7 +58,7 @@ export async function convertToInvoiceAction(formData: FormData) {
   const customerId = String(formData.get("customerId") ?? "");
 
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "invoice:create");
+  assertCan(access, "invoice:create");
 
   const quote = await prisma.transaction.findUnique({ where: { id: quoteId } });
   if (!quote || quote.tenantId !== tenantId || quote.type !== "QUOTE") throw new Error("Quote not found.");
@@ -98,7 +98,7 @@ export async function recordPaymentAction(formData: FormData) {
   const amountRand = Number(formData.get("amountRand") ?? 0);
 
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "payment:record");
+  assertCan(access, "payment:record");
   await verifyInvoiceInTenant(tenantId, invoiceId);
 
   if (!amountRand || amountRand <= 0) throw new Error("Enter a payment amount.");
@@ -129,7 +129,7 @@ export async function recordRefundAction(formData: FormData) {
   const amountRand = Number(formData.get("amountRand") ?? 0);
 
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "payment:record");
+  assertCan(access, "payment:record");
   await verifyInvoiceInTenant(tenantId, invoiceId);
 
   if (!amountRand || amountRand <= 0) throw new Error("Enter a refund amount.");
@@ -160,7 +160,7 @@ export async function createRecurringInvoiceAction(formData: FormData) {
   const frequency = String(formData.get("frequency") ?? "MONTHLY") as RecurrenceFrequency;
 
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "invoice:create");
+  assertCan(access, "invoice:create");
 
   if (!itemName || !(priceRand > 0)) throw new Error("Item and a price greater than zero are required.");
 
@@ -202,7 +202,7 @@ export async function toggleRecurringInvoiceAction(formData: FormData) {
   const nextActive = String(formData.get("nextActive") ?? "true") === "true";
 
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "invoice:create");
+  assertCan(access, "invoice:create");
 
   const existing = await prisma.recurringInvoice.findUnique({ where: { id: templateId } });
   if (!existing || existing.tenantId !== tenantId) throw new Error("Recurring invoice not found.");
@@ -219,7 +219,7 @@ export async function logPhotoEventAction(formData: FormData) {
   const photoDataUrl = String(formData.get("photoDataUrl") ?? "").trim();
 
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "delivery:log");
+  assertCan(access, "delivery:log");
 
   await logDelivery({
     tenantId,

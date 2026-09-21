@@ -193,6 +193,17 @@ model Tenant {
   /// Whether this business has agreed to be compared with others in its
   /// trade. Off unless somebody says yes: comparing a business that did not
   /// ask, even anonymously, is using its data for somebody else's benefit.
+  // Which model vendor this workspace's agent runs on. Null means "whatever
+  // the platform is set to", which is what almost every workspace leaves it
+  // as — it exists for the businesses that have a view about whose model
+  // reads their books, which for an enterprise buyer is sometimes a
+  // procurement condition rather than a preference.
+  subscription                 Subscription?
+  customRoles                  TenantRole[]
+  aiProvider                   String?
+  /// Overrides the platform's agent tier for this workspace. Null follows the
+  /// platform. This is what a plan tier buys, once plans exist.
+  aiTier                       String?
   benchmarksOptedIn            Boolean         @default(false)
   /// What a customer sees on the pages they read: the business's own logo
   /// and colour, and — on a paid arrangement — their own domain with no
@@ -382,6 +393,12 @@ model Membership {
   tenantId   String
   tenant     Tenant       @relation(fields: [tenantId], references: [id])
   role       String       @default("OWNER") // OWNER | STAFF | DRIVER | REP | TECHNICIAN
+  // What this person costs: "full" | "field". Null means derive it from the
+  // role, which is right for almost everybody — a driver or technician is a
+  // field seat, everyone else is a full one. It is stored only when somebody
+  // has deliberately overridden that, so the default can be improved later
+  // without silently re-pricing every existing team.
+  seatClass  String?
   // Org hierarchy — additive on top of the per-staff account that already
   // existed (Membership = one person's account on one business). Optional:
   // a flat team with no managers set is still perfectly valid.
@@ -799,6 +816,12 @@ model Transaction {
   @@index([tenantId, status])
   @@index([tenantId, type, status])
   @@index([tenantId, type, externalRef])
+  // Almost every dashboard asks for this workspace's documents inside a date
+  // range — "this month", "the last 90 days", a VAT period. Without this the
+  // planner filters by tenant and then sorts the lot, which is fine at a
+  // thousand rows and the reason a page crawls at fifty thousand.
+  @@index([tenantId, createdAt])
+  @@index([tenantId, type, createdAt])
   @@map("transactions")
 }
 
@@ -3183,9 +3206,203 @@ model Notification {
 // fixed-id row rather than a real table, since there's exactly one of
 // these per deployment; getAiModel() reads it so a provider switch takes
 // effect immediately, no redeploy needed.
+/// What a workspace is paying for.
+///
+/// One row per tenant, created when the trial starts. Deliberately thin: the
+/// plan's own numbers live in code (src/lib/billing/plans.ts) so that a price
+/// change is a reviewable diff rather than an unlogged row edit, and this
+/// holds only what is true of THIS workspace — which plan, what state, and
+/// the dates that decide whether it may still be used.
+model Subscription {
+  id       String @id @default(cuid())
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// A key into PLANS. Not a foreign key, because plans are code.
+  planKey String @default("pro")
+
+  /// TRIALING | ACTIVE | PAST_DUE | CANCELLED
+  status String @default("TRIALING")
+
+  trialEndsAt DateTime?
+  /// When the current paid month began — what usage is counted against.
+  periodStart DateTime  @default(now())
+  /// Set when somebody cancels; they keep access until the period ends,
+  /// because cutting a business off from its own invoices mid-month is how
+  /// you turn a cancellation into a complaint.
+  cancelAt    DateTime?
+
+  /// Agreed overrides for a quoted deal. Null means the plan's own price.
+  /// Stored in cents, and only ever set by a person, never by the app.
+  agreedFullSeatCents Int?
+  agreedNote          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("subscriptions")
+}
+
+/// One row per attempt at something we rate-limit: a login, a signup, an
+/// expensive endpoint.
+///
+/// A row per event rather than a counter, because a counter needs a lock to
+/// be correct under concurrency and drifts the moment one is missed. Rows are
+/// purged nightly; nothing here is business data and none of it is exported.
+///
+/// This is a correctness-first limiter, not a high-throughput one — every
+/// check is a query. It is applied where abuse is cheap and damaging (sign-in,
+/// signup, the assistant endpoints) rather than on every request, and if the
+/// platform ever needs the latter, the answer is Redis, not more of this.
+/// Who signed in, when, from where — and who tried and failed.
+///
+/// Separate from AuditLog because an AuditLog row belongs to a workspace and
+/// a sign-in does not: it happens before any workspace is chosen, and a failed
+/// one may not correspond to a real account at all. Enterprise security
+/// reviews ask for authentication events by name, and this is them.
+///
+/// The email is stored as typed-but-normalised even when it matches no user,
+/// because "somebody tried this address forty times" is exactly the signal
+/// worth keeping.
+/// A role a workspace made for itself.
+///
+/// The five built-in roles cover a plumber with three staff. They do not
+/// cover a company with a compliance officer who may see everything and
+/// change nothing, or a bookkeeper who touches money but never customers —
+/// and "which roles can I define" is a question every enterprise buyer asks
+/// before they ask about anything else.
+///
+/// Membership.role holds either a built-in role name or one of these keys.
+/// Resolution happens in one place (lib/core/access.ts) so that a caller
+/// never has to know which kind it got.
+model TenantRole {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// Stable identifier stored on Membership.role. Lowercase, no spaces.
+  key   String
+  /// What it is called in the interface.
+  name  String
+  /// Capability strings from ALL_CAPABILITIES. Unknown entries are ignored
+  /// rather than rejected, so removing a capability from the product does not
+  /// break every workspace that had granted it.
+  capabilities String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@map("tenant_roles")
+}
+
+model AuthEvent {
+  id        String   @id @default(cuid())
+  email     String
+  userId    String?
+  /// SIGNIN_OK | SIGNIN_FAILED | SIGNIN_BLOCKED | SIGNUP
+  kind      String
+  ip        String?
+  userAgent String?
+  at        DateTime @default(now())
+
+  @@index([email, at])
+  @@index([userId, at])
+  @@index([at])
+  @@map("auth_events")
+}
+
+/// How long a database query took.
+///
+/// The audit found that nothing in this application measured latency, which
+/// made "are we faster than ClickUp" an opinion. This is the cheapest honest
+/// answer: the database is where the time goes in a server-rendered app, and
+/// every query passes through one client, so one extension sees all of them.
+///
+/// Not a row per query — that would cost more than it measures. Slow queries
+/// are always recorded because they are the ones worth reading; the rest are
+/// sampled, which is enough for a percentile and nowhere near enough to
+/// matter. Swept nightly with everything else.
+/// A server error, as it happened.
+///
+/// The audit found that a production exception was invisible unless a
+/// customer reported it. This is the floor: errors recorded in our own
+/// database, so there is a record on day one without an account anywhere.
+/// A Sentry DSN, when there is one, gets the same event as well — this is
+/// not instead of a real observability tool, it is what stops the gap being
+/// total while there isn't one.
+///
+/// Grouped rather than appended: one bad deploy throwing the same error on
+/// every request should be one row with a count, not fifty thousand rows.
+model ErrorEvent {
+  id String @id @default(cuid())
+
+  /// Hash of message + route, so repeats group.
+  fingerprint String @unique
+  message     String
+  /// React's error digest, when the error came through a server component.
+  digest      String?
+  route       String?
+  method      String?
+  /// Where Next says it happened — the router and the kind of render.
+  source      String?
+  stack       String?
+
+  count     Int      @default(1)
+  firstSeen DateTime @default(now())
+  lastSeen  DateTime @default(now())
+  /// Set when somebody has looked at it and decided it is handled.
+  resolvedAt DateTime?
+
+  @@index([lastSeen])
+  @@index([resolvedAt, lastSeen])
+  @@map("error_events")
+}
+
+model QuerySample {
+  id    String   @id @default(cuid())
+  /// "transaction.findMany" — model and operation, never the arguments, so
+  /// nothing here can hold a customer's name or an amount.
+  op    String
+  ms    Int
+  /// True when this was over the slow threshold rather than sampled.
+  slow  Boolean  @default(false)
+  at    DateTime @default(now())
+
+  @@index([op, at])
+  @@index([at])
+  @@map("query_samples")
+}
+
+model RateEvent {
+  id     String   @id @default(cuid())
+  /// What is being limited: "login:someone@example.com", "ip:1.2.3.4".
+  bucket String
+  at     DateTime @default(now())
+
+  @@index([bucket, at])
+  @@index([at])
+  @@map("rate_events")
+}
+
 model PlatformSetting {
   id            String   @id @default("singleton")
-  aiProvider    String   @default("anthropic") // "anthropic" | "google"
+  aiProvider    String   @default("anthropic") // "anthropic" | "google" | "openai"
+  // Which tier the AGENT itself thinks on: "fast" | "smart".
+  //
+  // Defaults to fast, deliberately. Once a run is offered forty relevant
+  // tools instead of all 332, choosing between them stops being a hard
+  // problem, and a budget model does it about as well for roughly a fifth of
+  // the price. The two changes compound — neither would be safe alone.
+  //
+  // A setting rather than a constant because it is the one lever here whose
+  // effect on quality we cannot measure offline: if the cheap model turns out
+  // to reason badly about a real workspace, this has to be a switch and not a
+  // deploy. Extraction and classification are always fast regardless; this
+  // only governs the agent loop.
+  agentTier     String   @default("fast")
   // Which engine renders spoken voice (daily briefing, PA answers) when a
   // tenant's own character allowance for the period hasn't run out —
   // "browser" costs nothing and needs no key (client-side Web Speech API);
@@ -4266,6 +4483,11 @@ model AgentSpend {
   model        String
   inputTokens  Int      @default(0)
   outputTokens Int      @default(0)
+  /// Of the input tokens, how many the provider served from its prompt cache.
+  /// Recorded rather than inferred because it is the number that proves the
+  /// caching is actually working — a run where this stays zero is a run whose
+  /// static prefix is changing when it should not be.
+  cachedInputTokens Int  @default(0)
   /// What it cost, in the platform's own currency, at the rate when it ran.
   costCents    Float    @default(0)
   at           DateTime @default(now())

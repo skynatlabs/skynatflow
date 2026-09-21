@@ -31,11 +31,15 @@ export function BarcodeScanner({ onScanned }: { onScanned: (code: string) => voi
   const video = useRef<HTMLVideoElement>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [supported, setSupported] = useState(true);
-
-  useEffect(() => {
-    setSupported(scanningSupported());
-  }, []);
+  // Whether this browser can read a barcode at all.
+  //
+  // Resolved in a lazy initialiser rather than in an effect. Server rendering
+  // has no `window`, so the first paint has to assume yes; doing the real
+  // check in an effect then set state synchronously, which triggers a second
+  // render pass on every mount for a value that never changes afterwards.
+  // `useState` with a function runs it once, on the client, at the point the
+  // answer is actually knowable.
+  const [supported] = useState(() => (typeof window === "undefined" ? true : scanningSupported()));
 
   useEffect(() => {
     if (!running) return;

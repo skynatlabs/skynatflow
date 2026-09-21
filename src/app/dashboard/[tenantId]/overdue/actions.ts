@@ -9,7 +9,7 @@ import { recordChase, type Tone } from "@/lib/core/collectionsLadder";
 export async function applyLateFeeAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "invoice:create");
+  assertCan(access, "invoice:create");
 
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const feePercent = Number(formData.get("feePercent") ?? 5);
@@ -27,7 +27,7 @@ export async function applyLateFeeAction(formData: FormData) {
  */
 export async function recordChaseAction(tenantId: string, formData: FormData) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:send");
+  assertCan(access, "quote:send");
 
   await recordChase({
     tenantId,

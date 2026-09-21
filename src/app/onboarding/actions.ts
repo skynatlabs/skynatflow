@@ -15,7 +15,7 @@ import { BANKING_FIELDS, BUSINESS_FIELDS, type AcceptedProposal, type Proposal }
 async function guard(tenantId: string) {
   const access = await requireTenantAccess(tenantId);
   // Setting up writes the business's own details, so it is the owner's screen.
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   return access;
 }
 

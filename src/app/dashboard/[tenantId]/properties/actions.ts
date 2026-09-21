@@ -9,7 +9,7 @@ import { createProperty, createLease, endLease } from "@/lib/core/property";
 export async function addPropertyAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "product:manage");
+  assertCan(access, "product:manage");
 
   const address = String(formData.get("address") ?? "").trim();
   const propertyType = String(formData.get("propertyType") ?? "RESIDENTIAL") as PropertyType;
@@ -28,7 +28,7 @@ export async function addPropertyAction(formData: FormData) {
 export async function addLeaseAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:create");
+  assertCan(access, "quote:create");
 
   const propertyId = String(formData.get("propertyId") ?? "");
   const renterPartyId = String(formData.get("renterPartyId") ?? "");

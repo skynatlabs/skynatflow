@@ -18,7 +18,7 @@
 
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
-import { can, type Capability, type Role } from "@/lib/core/access";
+import { can, capabilitiesOfBuiltIn, type Capability, type CapabilityHolder, type Role } from "@/lib/core/access";
 import { EXTRA_READ_TOOLS, EXTRA_WRITE_TOOLS } from "@/lib/agent/tools.extra";
 import { OPS_READ_TOOLS, OPS_WRITE_TOOLS } from "@/lib/agent/tools.ops";
 
@@ -43,7 +43,15 @@ import { prisma } from "@/lib/db";
 
 export interface AgentContext {
   tenantId: string;
-  role: Role;
+  /**
+   * The acting person's role and what it resolves to.
+   *
+   * Both, because a workspace may define its own roles: the name is for the
+   * run log and the capability list is what decides which tools exist. An
+   * agent must never be offered a tool its operator could not run by hand.
+   */
+  role: string;
+  capabilities: Capability[];
   userId: string;
   membershipId?: string | null;
   // Vocabulary for this tenant's vertical, so the agent talks about
@@ -433,19 +441,32 @@ export function buildAgentTools(ctx: AgentContext): ToolSet {
     tools[name] = def.build(ctx);
   }
   for (const [name, def] of Object.entries({ ...WRITE_TOOLS, ...EXTRA_WRITE_TOOLS, ...OPS_WRITE_TOOLS })) {
-    if (def.capability && !can(ctx.role, def.capability)) continue;
+    if (def.capability && !can(ctx, def.capability)) continue;
     tools[name] = def.build(ctx);
   }
 
   return tools;
 }
 
+/**
+ * The same context, acting as a different built-in role.
+ *
+ * Exists because `{ ...ctx, role: "DRIVER" }` is the obvious thing to write
+ * and is wrong: it changes the label and leaves the previous role's resolved
+ * capabilities in place, so the tool set silently stops narrowing. A test
+ * caught exactly that. Anything wanting to re-role a context should come
+ * through here, where the two cannot disagree.
+ */
+export function asRole(ctx: AgentContext, role: Role): AgentContext {
+  return { ...ctx, role, capabilities: capabilitiesOfBuiltIn(role) };
+}
+
 /** Names only — used by tests and by the run log, without building closures. */
-export function agentToolNames(role: Role): string[] {
+export function agentToolNames(subject: Role | CapabilityHolder): string[] {
   return [
     ...Object.keys({ ...READ_TOOLS, ...EXTRA_READ_TOOLS, ...OPS_READ_TOOLS }),
     ...Object.entries({ ...WRITE_TOOLS, ...EXTRA_WRITE_TOOLS, ...OPS_WRITE_TOOLS })
-      .filter(([, d]) => !d.capability || can(role, d.capability))
+      .filter(([, d]) => !d.capability || can(subject, d.capability))
       .map(([n]) => n),
   ];
 }

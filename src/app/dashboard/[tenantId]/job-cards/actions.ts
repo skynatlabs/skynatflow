@@ -8,7 +8,7 @@ import { createJobCard, toggleJobCardTask, completeJobCard, setJobCardStatus } f
 export async function createJobCardAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
 
   const [transactionId, partyId] = String(formData.get("jobRef") ?? "").split("|");
   const title = String(formData.get("title") ?? "").trim();
@@ -32,7 +32,7 @@ export async function createJobCardAction(formData: FormData) {
 export async function toggleJobCardTaskAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
 
   await toggleJobCardTask(tenantId, String(formData.get("taskId") ?? ""));
   revalidatePath(`/dashboard/${tenantId}/job-cards`);
@@ -41,7 +41,7 @@ export async function toggleJobCardTaskAction(formData: FormData) {
 export async function setJobCardStatusAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
 
   const jobCardId = String(formData.get("jobCardId") ?? "");
   const status = String(formData.get("status") ?? "") as "SCHEDULED" | "IN_PROGRESS" | "DONE";
@@ -52,7 +52,7 @@ export async function setJobCardStatusAction(formData: FormData) {
 export async function completeJobCardAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
 
   const jobCardId = String(formData.get("jobCardId") ?? "");
   try {

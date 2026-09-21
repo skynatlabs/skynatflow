@@ -55,7 +55,7 @@ function ago(date: Date) {
 export default async function AgentPage({ params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
   const access = await requireTenantAccess(tenantId);
-  const isManager = can(access.role, "staff:manage");
+  const isManager = can(access, "staff:manage");
 
   const [tenant, pending, recent, agents, facts, events] = await Promise.all([
     prisma.tenant.findUniqueOrThrow({

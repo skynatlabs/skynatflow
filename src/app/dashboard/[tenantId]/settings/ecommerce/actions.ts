@@ -12,7 +12,7 @@ import { registerWooOrderWebhook } from "@/lib/ecommerce/woocommerce";
 export async function connectWooCommerceAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const storeUrl = String(formData.get("storeUrl") ?? "").trim().replace(/\/$/, "");
   const consumerKey = String(formData.get("consumerKey") ?? "").trim() || null;
@@ -71,7 +71,7 @@ export async function connectWooCommerceAction(formData: FormData) {
 export async function disconnectWooCommerceAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   await prisma.ecommerceIntegration.updateMany({
     where: { tenantId, platform: "WOOCOMMERCE" },
@@ -83,7 +83,7 @@ export async function disconnectWooCommerceAction(formData: FormData) {
 export async function syncWooProductsAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "product:manage");
+  assertCan(access, "product:manage");
 
   const integration = await prisma.ecommerceIntegration.findUnique({
     where: { tenantId_platform: { tenantId, platform: "WOOCOMMERCE" } },

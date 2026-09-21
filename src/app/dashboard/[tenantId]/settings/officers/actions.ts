@@ -16,7 +16,7 @@ import { setTurnaroundMode } from "@/lib/core/industryPacks";
  */
 export async function updateCeiling(tenantId: string, formData: FormData) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const officer = String(formData.get("officer") ?? "") as Officer;
   const ceiling = String(formData.get("ceiling") ?? "") as Rung;
@@ -33,7 +33,7 @@ export async function updateCeiling(tenantId: string, formData: FormData) {
 /** Cash first, everything else second — for a business genuinely in trouble. */
 export async function turnaroundAction(tenantId: string, formData: FormData) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   await setTurnaroundMode(tenantId, formData.get("on") === "true");
   revalidatePath(`/dashboard/${tenantId}/settings/officers`);
   revalidatePath(`/dashboard/${tenantId}/brief`);

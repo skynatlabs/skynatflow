@@ -37,7 +37,7 @@ export async function importRecordsAction(
         : target === "quotes"
           ? "quote:create"
           : "invoice:create";
-  assertCan(access.role, capability);
+  assertCan(access, capability);
 
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
   const partyRole = tenant.niche === "MEDICAL" ? PartyRole.PATIENT : PartyRole.CUSTOMER;

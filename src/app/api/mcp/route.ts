@@ -16,6 +16,7 @@ import {
   type JsonRpcRequest,
   type JsonRpcResponse,
 } from "@/lib/mcp/server";
+import { capabilitiesOfBuiltIn } from "@/lib/core/access";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest) {
     ctx: {
       tenantId: caller.tenantId,
       role: caller.role,
+      capabilities: capabilitiesOfBuiltIn(caller.role),
       userId: owner?.userId ?? caller.keyId,
       membershipId: owner?.id ?? null,
       customerLabel: nicheConfig(tenant.niche).customerLabel,

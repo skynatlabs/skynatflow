@@ -40,7 +40,7 @@ export async function acceptDetailsAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
   // Editing a customer's record is the same bar as editing what is sold to them.
-  assertCan(access.role, "product:manage");
+  assertCan(access, "product:manage");
   await acceptDetails(tenantId, String(formData.get("submissionId") ?? ""), access.membershipId);
   revalidatePath(`/dashboard/${tenantId}/inbox`);
 }

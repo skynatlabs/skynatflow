@@ -10,7 +10,7 @@ import { assertCan } from "@/lib/core/access";
 export async function createCustomerAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:create");
+  assertCan(access, "quote:create");
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Name is required.");

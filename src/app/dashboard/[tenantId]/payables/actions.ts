@@ -7,7 +7,7 @@ import { approveBill, buildPaymentRun, payBill, recordBill, releasePaymentRun, v
 
 async function guard(tenantId: string, capability: "invoice:create" | "payment:record" = "invoice:create") {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, capability);
+  assertCan(access, capability);
   return access;
 }
 

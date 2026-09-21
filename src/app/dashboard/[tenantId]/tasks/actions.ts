@@ -9,7 +9,7 @@ import { assertCan } from "@/lib/core/access";
 export async function createTaskAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
 
   const title = String(formData.get("title") ?? "").trim();
   const assigneeId = String(formData.get("assigneeId") ?? "") || undefined;
@@ -32,7 +32,7 @@ export async function createTaskAction(formData: FormData) {
 export async function moveTaskAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
 
   const taskId = String(formData.get("taskId") ?? "");
   const status = String(formData.get("status") ?? "TODO") as TaskStatus;

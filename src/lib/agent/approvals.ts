@@ -7,7 +7,7 @@
 // the prompt would mean approving one thing and executing another.
 
 import { Prisma } from "@prisma/client";
-import type { Role } from "@/lib/core/access";
+import { capabilitiesOfBuiltIn, type Capability } from "@/lib/core/access";
 import { prisma } from "@/lib/db";
 import { buildAgentTools } from "@/lib/agent/tools";
 import { nicheConfig } from "@/lib/niches/config";
@@ -41,7 +41,20 @@ function parsePending(value: unknown): PendingAction[] {
  */
 async function toolsForApprover(
   tenantId: string,
-  approver: { userId: string; role: Role; membershipId?: string | null }
+  approver: {
+    userId: string;
+    role: string;
+    /**
+     * Resolved capabilities, when the caller has them.
+     *
+     * Optional because a caller holding only a built-in role name should not
+     * have to look the list up — that is what the fallback below is for. A
+     * workspace's own role has no built-in entry, so a caller in that
+     * position MUST pass this; requireTenantAccess always does.
+     */
+    capabilities?: Capability[];
+    membershipId?: string | null;
+  }
 ) {
   const tenant = await prisma.tenant.findUniqueOrThrow({
     where: { id: tenantId },
@@ -50,6 +63,7 @@ async function toolsForApprover(
   return buildAgentTools({
     tenantId,
     role: approver.role,
+    capabilities: approver.capabilities ?? capabilitiesOfBuiltIn(approver.role),
     userId: approver.userId,
     membershipId: approver.membershipId,
     customerLabel: nicheConfig(tenant.niche).customerLabel,
@@ -100,7 +114,20 @@ async function executeApproved(params: {
 export async function approveRun(params: {
   tenantId: string;
   runId: string;
-  approver: { userId: string; role: Role; membershipId?: string | null };
+  approver: {
+    userId: string;
+    role: string;
+    /**
+     * Resolved capabilities, when the caller has them.
+     *
+     * Optional because a caller holding only a built-in role name should not
+     * have to look the list up — that is what the fallback below is for. A
+     * workspace's own role has no built-in entry, so a caller in that
+     * position MUST pass this; requireTenantAccess always does.
+     */
+    capabilities?: Capability[];
+    membershipId?: string | null;
+  };
 }): Promise<ApprovalOutcome> {
   const { tenantId, runId, approver } = params;
 
@@ -254,7 +281,20 @@ export async function approveAction(params: {
   tenantId: string;
   runId: string;
   index: number;
-  approver: { userId: string; role: Role; membershipId?: string | null };
+  approver: {
+    userId: string;
+    role: string;
+    /**
+     * Resolved capabilities, when the caller has them.
+     *
+     * Optional because a caller holding only a built-in role name should not
+     * have to look the list up — that is what the fallback below is for. A
+     * workspace's own role has no built-in entry, so a caller in that
+     * position MUST pass this; requireTenantAccess always does.
+     */
+    capabilities?: Capability[];
+    membershipId?: string | null;
+  };
 }): Promise<{ ok: boolean; tool: string; error?: string }> {
   const { tenantId, runId, index, approver } = params;
 

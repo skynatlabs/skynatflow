@@ -15,7 +15,7 @@ export interface InviteResult {
   membershipId: string;
   userId: string;
   email: string;
-  role: Role;
+  role: string;
   /** False when nothing is configured to send mail — said, not hidden. */
   emailed: boolean;
   /** True when this person was already on the workspace and had their role changed. */
@@ -26,7 +26,8 @@ export async function inviteStaff(params: {
   tenantId: string;
   email: string;
   name?: string | null;
-  role?: Role;
+  /** A built-in role name, or the key of one this workspace defined. */
+  role?: string;
   /** Who did it, for the audit trail. */
   actorId?: string | null;
 }): Promise<InviteResult> {
@@ -34,7 +35,7 @@ export async function inviteStaff(params: {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("That is not an email address.");
 
   const role = params.role ?? "STAFF";
-  if (!ALL_ROLES.includes(role)) throw new Error("There is no such role.");
+  await assertAssignableRole(params.tenantId, role);
 
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: params.tenantId }, select: { name: true } });
 
@@ -108,8 +109,26 @@ export async function removeStaff(params: { tenantId: string; membershipId: stri
   return { removed: true };
 }
 
-export async function setStaffRole(params: { tenantId: string; membershipId: string; role: Role; actorId?: string | null }) {
-  if (!ALL_ROLES.includes(params.role)) throw new Error("There is no such role.");
+/**
+ * A role this workspace can actually assign.
+ *
+ * Either one of the built-in five, or a role the workspace defined for
+ * itself. Checked against the database rather than against a list in code,
+ * because the workspace's own roles are not knowable here otherwise — and
+ * assigning a role that does not exist would resolve to no capabilities at
+ * all, which looks exactly like a bug.
+ */
+async function assertAssignableRole(tenantId: string, role: string): Promise<void> {
+  if (ALL_ROLES.includes(role as Role)) return;
+  const custom = await prisma.tenantRole.findUnique({
+    where: { tenantId_key: { tenantId, key: role } },
+    select: { id: true },
+  });
+  if (!custom) throw new Error("There is no such role.");
+}
+
+export async function setStaffRole(params: { tenantId: string; membershipId: string; role: string; actorId?: string | null }) {
+  await assertAssignableRole(params.tenantId, params.role);
   const membership = await prisma.membership.findFirst({
     where: { id: params.membershipId, tenantId: params.tenantId },
     select: { id: true, role: true },

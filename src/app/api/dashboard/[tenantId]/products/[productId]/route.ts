@@ -13,7 +13,7 @@ export async function PATCH(
   const { tenantId, productId } = await params;
   const access = await requireTenantAccess(tenantId);
   try {
-    assertCan(access.role, "product:manage");
+    assertCan(access, "product:manage");
   } catch {
     return NextResponse.json({ error: "Your role cannot change products." }, { status: 403 });
   }

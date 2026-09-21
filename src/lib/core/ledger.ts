@@ -11,6 +11,7 @@
 // can miss.
 
 import { prisma } from "@/lib/db";
+import { recordAudit } from "./audit";
 import { AccountType, JournalSource, type Account } from "@prisma/client";
 
 // ------------------------------------------------------------------ errors
@@ -320,7 +321,7 @@ export async function postEntry(params: PostEntryParams) {
     throw new Error("One of those accounts isn't in your chart.");
   }
 
-  return prisma.$transaction(async (tx) => {
+  const posted = await prisma.$transaction(async (tx) => {
     const entry = await tx.journalEntry.create({
       data: {
         tenantId: params.tenantId,
@@ -340,6 +341,33 @@ export async function postEntry(params: PostEntryParams) {
 
     return entry;
   });
+
+  // Every movement of money in this application ends up here, which makes
+  // this the one place an audit entry cannot be forgotten. Auditing the nine
+  // callers individually was the alternative, and the tenth caller would not
+  // have been audited.
+  //
+  // Outside the transaction deliberately: an audit row that failed to write
+  // must not roll back a posted entry. A book with a gap in its audit trail
+  // is a smaller problem than a book missing the transaction itself.
+  const total = resolved.reduce((sum, line) => sum + Math.max(0, line.debitCents ?? 0), 0);
+  await recordAudit({
+    tenantId: params.tenantId,
+    actorType: params.byAgent ? "ai" : params.createdById ? "user" : "system",
+    actorId: params.createdById ?? undefined,
+    capability: "payment:record",
+    targetType: "JournalEntry",
+    targetId: posted.id,
+    metadata: {
+      source: params.source ?? JournalSource.MANUAL,
+      sourceType: params.sourceType ?? null,
+      sourceId: params.sourceId ?? null,
+      lines: resolved.length,
+      totalCents: total,
+    },
+  }).catch((err) => console.error("[ledger] could not record the audit entry:", err));
+
+  return posted;
 }
 
 /**

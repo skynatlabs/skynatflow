@@ -37,10 +37,26 @@ export async function createProduct(input: UpsertProductInput) {
   });
 }
 
+/**
+ * Edit a product.
+ *
+ * Takes the tenant and scopes on it. It used to take an id alone and trust
+ * every caller to have checked ownership first — which they all did, and
+ * which is exactly the arrangement the cross-tenant regression suite exists
+ * because of: the fix belongs in the core layer, or the next caller
+ * reintroduces the hole.
+ */
 export async function updateProduct(
+  tenantId: string,
   productId: string,
   input: Partial<UpsertProductInput>
 ) {
+  const owned = await prisma.item.findFirst({
+    where: { id: productId, tenantId },
+    select: { id: true },
+  });
+  if (!owned) throw new Error("Product not found.");
+
   return prisma.item.update({
     where: { id: productId },
     data: {
@@ -58,7 +74,13 @@ export async function updateProduct(
   });
 }
 
-export async function setProductActive(productId: string, isActive: boolean) {
+export async function setProductActive(tenantId: string, productId: string, isActive: boolean) {
+  const owned = await prisma.item.findFirst({
+    where: { id: productId, tenantId },
+    select: { id: true },
+  });
+  if (!owned) throw new Error("Product not found.");
+
   return prisma.item.update({ where: { id: productId }, data: { isActive } });
 }
 

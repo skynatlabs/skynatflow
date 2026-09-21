@@ -15,6 +15,7 @@ import { prisma } from "@/lib/db";
 import { nicheConfig } from "@/lib/niches/config";
 import { runAgent } from "@/lib/agent/runtime";
 import { agentToolNames } from "@/lib/agent/tools";
+import { capabilitiesOfBuiltIn } from "@/lib/core/access";
 
 /** Starting points an owner can adopt and then edit. */
 export const AGENT_TEMPLATES = [
@@ -150,6 +151,7 @@ export async function runNamedAgent(params: {
     ctx: {
       tenantId,
       role: "OWNER",
+      capabilities: capabilitiesOfBuiltIn("OWNER"),
       userId: actor?.userId ?? owner.userId,
       membershipId: actor?.membershipId ?? owner.id,
       customerLabel: nicheConfig(tenant.niche).customerLabel,

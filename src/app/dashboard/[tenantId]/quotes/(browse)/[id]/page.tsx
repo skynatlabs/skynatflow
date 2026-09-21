@@ -10,7 +10,6 @@ import { StatusPill } from "@/components/dashboard/StatusPill";
 import { DocumentSheet } from "@/components/dashboard/DocumentSheet";
 import { RecordNotes } from "@/components/dashboard/RecordNotes";
 import { listComments } from "@/lib/core/comments";
-import { formatMoney } from "@/lib/core/currency";
 import {
   sendQuoteAction,
   sendQuoteViaWhatsAppAction,

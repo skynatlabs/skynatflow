@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { generateTotpSecret, totpUri } from "@/lib/auth/totp";
+import { recentAuthEvents } from "@/lib/auth/events";
 import { confirmTotpSetupAction, disableTotpAction } from "./actions";
 
 const inputClass =
@@ -12,6 +13,8 @@ export default async function SecuritySettingsPage() {
   if (!session?.user?.id) redirect("/login");
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: session.user.id } });
+
+  const signIns = await recentAuthEvents(user.email);
 
   const newSecret = user.totpEnabled ? null : generateTotpSecret();
   const uri = newSecret ? totpUri(newSecret, user.email) : null;
@@ -65,6 +68,40 @@ export default async function SecuritySettingsPage() {
           </form>
         </div>
       )}
+      <section className="kb-card mt-6 p-4 sm:p-5">
+        <h2 className="text-sm font-semibold text-[var(--kb-text)]">Recent activity on this account</h2>
+        <p className="mt-1 text-xs text-[var(--kb-text-dim)]">
+          Successful sign-ins and failed attempts alike. You are the person best placed to notice
+          one you did not make &mdash; if anything here is not you, change your password and turn
+          on two-factor.
+        </p>
+
+        {signIns.length === 0 ? (
+          <p className="mt-3 text-xs text-[var(--kb-text-dim)]">Nothing recorded yet.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-[var(--kb-panel-border)]">
+            {signIns.map((event) => (
+              <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
+                <span
+                  className="text-sm"
+                  style={{
+                    color:
+                      event.kind === "SIGNIN_OK"
+                        ? "var(--kb-text)"
+                        : "var(--kb-status-danger-ink)",
+                  }}
+                >
+                  {event.label}
+                </span>
+                <span className="text-xs tabular-nums text-[var(--kb-text-dim)]">
+                  {event.at.toLocaleString()}
+                  {event.ip && ` · ${event.ip}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </main>
   );
 }

@@ -13,6 +13,7 @@
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { recordAudit } from "@/lib/core/audit";
 import type { Role } from "@/lib/core/access";
 
 /** Keys look like flow_sk_<prefix>_<secret>. The prefix is safe to display. */
@@ -159,10 +160,25 @@ export async function listApiKeys(tenantId: string) {
   });
 }
 
-export async function revokeApiKey(tenantId: string, keyId: string) {
+export async function revokeApiKey(tenantId: string, keyId: string, actorId?: string | null) {
   const updated = await prisma.apiKey.updateMany({
     where: { id: keyId, tenantId, revokedAt: null },
     data: { revokedAt: new Date() },
   });
   if (updated.count === 0) throw new Error("Key not found, or already revoked.");
+
+  // Credential lifecycle is one of the three things an enterprise security
+  // review asks for by name, alongside authentication events and role
+  // changes. A key being revoked is also the shape of an incident response,
+  // and an incident with no record of when the key was pulled is a much
+  // longer conversation.
+  await recordAudit({
+    tenantId,
+    actorType: actorId ? "user" : "system",
+    actorId: actorId ?? undefined,
+    capability: "staff:manage",
+    targetType: "ApiKey",
+    targetId: keyId,
+    metadata: { revoked: true },
+  }).catch((err) => console.error("[api] could not record the key revocation:", err));
 }

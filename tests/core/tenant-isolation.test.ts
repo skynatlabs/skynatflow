@@ -22,6 +22,7 @@ import { markNoShowAndRebook } from "../../src/lib/core/reminders";
 import { returnRental, markItemRentable } from "../../src/lib/core/rentals";
 import { openTill, closeTill } from "../../src/lib/core/pos";
 import { recordBatch } from "../../src/lib/core/inventory";
+import { setProductActive, updateProduct } from "../../src/lib/core/catalog";
 
 // tenant A = the attacker's own workspace; tenant B = the victim's.
 let tenantA: string;
@@ -261,5 +262,23 @@ describe("org chart reporting loops", () => {
     await prisma.membership.update({ where: { id: second.id }, data: { managerId: null } });
     await prisma.membership.delete({ where: { id: second.id } });
     await prisma.user.delete({ where: { id: extraUser.id } });
+  });
+
+  it("refuses to edit another workspace's product", async () => {
+    // These took a bare id until now and relied on every caller checking
+    // first. They all did — which is precisely how this hole stays open
+    // until somebody adds the caller that doesn't.
+    const theirs = await prisma.item.create({
+      data: { tenantId: tenantB, name: "Their widget", unitPriceCents: 100 },
+    });
+
+    await expect(updateProduct(tenantA, theirs.id, { name: "Mine now" })).rejects.toThrow(/not found/i);
+    await expect(setProductActive(tenantA, theirs.id, false)).rejects.toThrow(/not found/i);
+
+    const after = await prisma.item.findUniqueOrThrow({ where: { id: theirs.id } });
+    expect(after.name).toBe("Their widget");
+    expect(after.isActive).toBe(true);
+
+    await prisma.item.delete({ where: { id: theirs.id } });
   });
 });

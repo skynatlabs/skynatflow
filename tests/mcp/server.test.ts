@@ -5,11 +5,13 @@
 
 import { describe, it, expect } from "vitest";
 import { handleMcpMessage, mcpToolsFor, describeTools, MCP_PROTOCOL_VERSION } from "../../src/lib/mcp/server";
-import type { AgentContext } from "../../src/lib/agent/tools";
+import { asRole, type AgentContext } from "../../src/lib/agent/tools";
+import { capabilitiesOfBuiltIn } from "../../src/lib/core/access";
 
 const ctx: AgentContext = {
   tenantId: "t_1",
   role: "OWNER",
+  capabilities: capabilitiesOfBuiltIn("OWNER"),
   userId: "u_1",
   membershipId: "m_1",
   currency: "ZAR",
@@ -57,7 +59,7 @@ describe("the tool surface", () => {
   });
 
   it("narrows by role, the same as everywhere else", () => {
-    const driver = Object.keys(mcpToolsFor(session({ ctx: { ...ctx, role: "DRIVER" } })));
+    const driver = Object.keys(mcpToolsFor(session({ ctx: asRole(ctx, "DRIVER") })));
     expect(driver).toContain("logDelivery");
     expect(driver).not.toContain("createQuote");
   });

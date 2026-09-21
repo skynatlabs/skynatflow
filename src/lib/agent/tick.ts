@@ -36,6 +36,7 @@ import { expireStaleAgreements } from "@/lib/core/agreements";
 import { raiseDueVisits } from "@/lib/core/maintenance";
 import { wakeSnoozed } from "@/lib/core/conversations";
 import { drainQueue } from "@/lib/core/offlineQueue";
+import { capabilitiesOfBuiltIn } from "@/lib/core/access";
 
 /** How long between open-ended reviews of one workspace. */
 const REVIEW_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -94,6 +95,7 @@ async function ownerContextFor(tenantId: string) {
     ctx: {
       tenantId,
       role: "OWNER" as const,
+      capabilities: capabilitiesOfBuiltIn("OWNER"),
       userId: owner.userId,
       membershipId: owner.id,
       customerLabel: nicheConfig(tenant.niche).customerLabel,

@@ -8,7 +8,7 @@ import { setSchedule, type Stage } from "@/lib/core/loadShedding";
 export async function saveScheduleAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
 
   // Each day comes in as a pair of time fields; a day with neither filled in
   // is a day with no load-shedding rather than a validation error, because

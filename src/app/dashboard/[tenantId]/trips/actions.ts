@@ -29,7 +29,7 @@ function num(v: FormDataEntryValue | null): number | null {
 
 export async function startTripAction(tenantId: string, formData: FormData) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "delivery:log");
+  assertCan(access, "delivery:log");
 
   const stops: Array<{ partyId: string | null; label: string | null; addressText: string | null }> = [];
   for (let i = 0; i < 6; i++) {
@@ -55,7 +55,7 @@ export async function startTripAction(tenantId: string, formData: FormData) {
 
 export async function endTripAction(tenantId: string, formData: FormData) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "delivery:log");
+  assertCan(access, "delivery:log");
   await endTrip(tenantId, String(formData.get("tripId") ?? ""), {
     odometerEndKm: num(formData.get("odometerEndKm")),
     distanceKm: num(formData.get("distanceKm")),
@@ -66,14 +66,14 @@ export async function endTripAction(tenantId: string, formData: FormData) {
 
 export async function cancelTripAction(tenantId: string, formData: FormData) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "delivery:log");
+  assertCan(access, "delivery:log");
   await cancelTrip(tenantId, String(formData.get("tripId") ?? ""));
   refresh(tenantId);
 }
 
 export async function addStopAction(tenantId: string, formData: FormData) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "delivery:log");
+  assertCan(access, "delivery:log");
   await addStop(tenantId, String(formData.get("tripId") ?? ""), {
     partyId: String(formData.get("partyId") ?? "").trim() || null,
     label: String(formData.get("label") ?? "").trim() || null,
@@ -84,14 +84,14 @@ export async function addStopAction(tenantId: string, formData: FormData) {
 
 export async function arriveAction(tenantId: string, formData: FormData) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "delivery:log");
+  assertCan(access, "delivery:log");
   await arriveAtStop(tenantId, String(formData.get("stopId") ?? ""));
   refresh(tenantId);
 }
 
 export async function departAction(tenantId: string, formData: FormData) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "delivery:log");
+  assertCan(access, "delivery:log");
   await departStop(tenantId, String(formData.get("stopId") ?? ""));
   refresh(tenantId);
 }
@@ -107,7 +107,7 @@ export async function appendPointsAction(
   points: Array<{ at: string; lat: number; lng: number; accuracyM?: number | null }>
 ) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "delivery:log");
+  assertCan(access, "delivery:log");
   return appendTripPoints(
     tenantId,
     tripId,

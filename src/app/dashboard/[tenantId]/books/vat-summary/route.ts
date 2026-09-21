@@ -19,7 +19,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ tena
   try {
     const access = await requireTenantAccess(tenantId);
     // The tax position of the business is the owner's and the bookkeeper's.
-    assertCan(access.role, "staff:manage");
+    assertCan(access, "staff:manage");
   } catch (err) {
     if (err instanceof AuthRequiredError) return new Response("Sign in required", { status: 401 });
     if (err instanceof ForbiddenError) notFound();

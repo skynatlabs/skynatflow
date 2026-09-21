@@ -24,7 +24,7 @@ export async function approveDraftAction(formData: FormData) {
   const editedBody = String(formData.get("body") ?? "").trim();
 
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:send");
+  assertCan(access, "quote:send");
 
   const draft = await loadDraft(tenantId, draftId);
   const finalBody = editedBody || draft.body;
@@ -62,7 +62,7 @@ export async function skipDraftAction(formData: FormData) {
   const draftId = String(formData.get("draftId") ?? "");
 
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:send");
+  assertCan(access, "quote:send");
 
   await loadDraft(tenantId, draftId);
 

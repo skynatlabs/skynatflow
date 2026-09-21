@@ -9,7 +9,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   const { tenantId } = await params;
   const access = await requireTenantAccess(tenantId);
   try {
-    assertCan(access.role, "delivery:log");
+    assertCan(access, "delivery:log");
   } catch {
     return NextResponse.json({ error: "Your role cannot record field work." }, { status: 403 });
   }

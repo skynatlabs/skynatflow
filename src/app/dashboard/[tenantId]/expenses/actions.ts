@@ -89,7 +89,7 @@ export async function readSlipAction(tenantId: string, dataUrl: string): Promise
 export async function approveExpenseAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   if (!access.membershipId) throw new Error("No staff account on this workspace.");
 
   await approveExpense(tenantId, String(formData.get("expenseId") ?? ""), access.membershipId);
@@ -99,7 +99,7 @@ export async function approveExpenseAction(formData: FormData) {
 export async function rejectExpenseAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   if (!access.membershipId) throw new Error("No staff account on this workspace.");
 
   await rejectExpense(tenantId, String(formData.get("expenseId") ?? ""), access.membershipId);
@@ -117,7 +117,7 @@ export async function rejectExpenseAction(formData: FormData) {
 export async function classifyExpenseAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   await classifyExpense({
     tenantId,
@@ -131,7 +131,7 @@ export async function classifyExpenseAction(formData: FormData) {
 export async function markDuplicateAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   await markDuplicate(tenantId, String(formData.get("expenseId") ?? ""), String(formData.get("ofExpenseId") ?? ""));
   refresh(tenantId);
 }
@@ -139,7 +139,7 @@ export async function markDuplicateAction(formData: FormData) {
 export async function keepBothAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   await keepBoth(tenantId, String(formData.get("expenseId") ?? ""));
   refresh(tenantId);
 }

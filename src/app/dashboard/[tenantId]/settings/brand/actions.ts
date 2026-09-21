@@ -11,7 +11,7 @@ async function ownerOnly(tenantId: string) {
   const access = await requireTenantAccess(tenantId);
   // What a customer sees on every document the business sends is not a
   // preference a member of staff changes on a Tuesday afternoon.
-  if (!can(access.role, "staff:manage")) throw new Error("Only an owner can change what customers see.");
+  if (!can(access, "staff:manage")) throw new Error("Only an owner can change what customers see.");
 }
 
 export async function saveBrandingAction(formData: FormData) {

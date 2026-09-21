@@ -13,7 +13,7 @@
 
 import { prisma } from "@/lib/db";
 import { agentToolNames } from "@/lib/agent/tools";
-import type { Role } from "@/lib/core/access";
+import type { CapabilityHolder, Role } from "@/lib/core/access";
 
 export interface RecipeInput {
   slug: string;
@@ -177,7 +177,15 @@ export interface InstallResult {
 export async function installRecipe(params: {
   tenantId: string;
   slug: string;
-  role: Role;
+  /**
+   * Who is installing it, as a capability holder.
+   *
+   * A recipe may only grant tools the installer could already run, so this
+   * has to be the resolved set rather than a role name — a workspace that
+   * defined its own role would otherwise resolve to nothing and every recipe
+   * would arrive stripped.
+   */
+  role: Role | CapabilityHolder;
   createdById?: string | null;
 }): Promise<InstallResult> {
   const recipe = await prisma.agentRecipe.findUnique({ where: { slug: params.slug } });

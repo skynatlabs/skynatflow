@@ -95,3 +95,65 @@ describe("labels", () => {
     }
   });
 });
+
+// The guard that found the hole this test now defends.
+//
+// The gate classifies by two hand-written lists. A mutating tool in neither
+// falls through to "reversible" and runs unattended at FULL autonomy — which
+// is correct for most writes and quietly wrong for the ones that move money
+// or speak to a customer. Seven tools were in that position, including one
+// that charges a late fee and one that emails a donor a tax receipt.
+//
+// Nobody will remember this file when adding the next tool, so the check is
+// by shape: a mutating tool whose NAME reads like money or outbound contact
+// must be classified deliberately.
+describe("no money or contact tool slips the gate", () => {
+  // Deliberately blunt. A false positive costs one line in the allow-list
+  // below and a moment's thought; a false negative costs a customer being
+  // charged by a machine nobody asked.
+  const MONEY_OR_CONTACT = /^(send|pay|issue|charge|refund|broadcast|post(Journal|History)|apply(LateFee)|approve|record(Payment|Refund|CashSale|Donation|TheChase))/;
+
+  /**
+   * Names that match the pattern but genuinely neither move money nor speak
+   * to anybody outside the business. Each needs a reason.
+   */
+  const NOT_ACTUALLY_RISKY: Record<string, string> = {
+    answerMissedCall: "Writes the wording and records nothing — the speaking is still a person's.",
+    sendTeamMessage: "Internal. Colleagues, not customers.",
+    rejectExpense: "Refusing a claim spends nothing and tells nobody outside.",
+    submitExpense: "A staff member claiming; approval is the gate and it is held.",
+    applyCustomerDetailsCorrection: "Edits a customer record. Reversible, and nothing leaves.",
+    applyIndustryPack: "Seeds a chart of accounts and a starter catalogue. Internal setup.",
+    issueAsset: "Hands a drill to a colleague. Internal.",
+  };
+
+  it("classifies every money- or contact-shaped write deliberately", async () => {
+    const { MUTATING_TOOLS, buildAgentTools } = await import("../../src/lib/agent/tools");
+    const { capabilitiesOfBuiltIn } = await import("../../src/lib/core/access");
+
+    const tools = buildAgentTools({
+      tenantId: "t_gate",
+      role: "OWNER",
+      capabilities: capabilitiesOfBuiltIn("OWNER"),
+      userId: "u_gate",
+      membershipId: "m_gate",
+      customerLabel: "customer",
+      currency: "ZAR",
+    });
+
+    const slipped = Object.keys(tools).filter((name) => {
+      if (!MUTATING_TOOLS.has(name)) return false;
+      if (!MONEY_OR_CONTACT.test(name)) return false;
+      if (name in NOT_ACTUALLY_RISKY) return false;
+      // Would it run with nobody watching, at the most permissive setting?
+      return canAutoRun({ toolName: name, autonomy: "FULL", userPresent: false, isMutation: true }).allowed;
+    });
+
+    expect(
+      slipped,
+      `These write, read like money or outbound contact, and would run unattended at FULL. ` +
+        `Add each to ALWAYS_ASK in src/lib/agent/autonomy.ts, or to NOT_ACTUALLY_RISKY here with ` +
+        `a reason it is neither.`
+    ).toEqual([]);
+  });
+});

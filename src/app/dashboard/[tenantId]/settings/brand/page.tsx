@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export default async function BrandPage({ params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
   const access = await requireTenantAccess(tenantId);
-  const isOwner = can(access.role, "staff:manage");
+  const isOwner = can(access, "staff:manage");
 
   if (!isOwner) {
     return (

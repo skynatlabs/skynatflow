@@ -16,7 +16,7 @@ export async function createQuoteAction(formData: FormData) {
   // (not just a tenantId typed into a hidden field), and gets their real
   // role for the capability check below.
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "quote:create");
+  assertCan(access, "quote:create");
 
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
 

@@ -7,7 +7,7 @@ import { inviteStaff, removeStaff, setStaffRole } from "@/lib/core/staff";
 
 async function guard(tenantId: string) {
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   return access;
 }
 

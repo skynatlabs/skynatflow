@@ -11,7 +11,7 @@ async function guard(tenantId: string) {
   // The books are an owner-level surface. Closing a month changes what the
   // business can still report on, and posting history changes every figure
   // downstream of it.
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   return access;
 }
 

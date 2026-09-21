@@ -9,7 +9,7 @@ import { assertCan } from "@/lib/core/access";
 export async function connectPosProviderAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const provider = String(formData.get("provider") ?? "") as PosProviderType;
   const region = String(formData.get("region") ?? "RSA");

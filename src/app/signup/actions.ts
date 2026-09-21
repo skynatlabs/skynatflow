@@ -1,9 +1,12 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { signIn } from "@/auth";
+import { consume } from "@/lib/rateLimit";
+import { recordAuthEvent } from "@/lib/auth/events";
 
 export async function signupAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -12,6 +15,18 @@ export async function signupAction(formData: FormData) {
 
   if (!email || password.length < 8) {
     throw new Error("A valid email and a password of at least 8 characters are required.");
+  }
+
+  // Signing up is the cheapest way to make us do work — create rows, send
+  // mail, provision a workspace — so it is limited by address. Generous
+  // enough that a family or an office behind one connection is unaffected,
+  // tight enough that a script is not.
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+  if (ip) {
+    const verdict = await consume({ bucket: `signup:ip:${ip}`, limit: 5, windowSeconds: 60 * 60 });
+    if (!verdict.allowed) {
+      throw new Error("That is a lot of new accounts from one place. Try again a little later.");
+    }
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -35,6 +50,7 @@ export async function signupAction(formData: FormData) {
     await prisma.user.create({ data: { email, name: name || undefined, passwordHash } });
   }
 
+  await recordAuthEvent({ email, kind: "SIGNUP", ip });
   await signIn("credentials", { email, password, redirect: false });
   // Straight into setting up: a new account has no workspace to land in, and
   // the dashboard would only bounce them here anyway.

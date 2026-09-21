@@ -14,7 +14,7 @@ import {
 export async function addSupplierAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim() || undefined;
@@ -28,7 +28,7 @@ export async function addSupplierAction(formData: FormData) {
 export async function createPurchaseOrderAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const supplierId = String(formData.get("supplierId") ?? "");
   const itemIds = formData.getAll("itemId").map(String);

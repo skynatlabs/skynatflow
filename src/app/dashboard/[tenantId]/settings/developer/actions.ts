@@ -10,7 +10,7 @@ async function guard(tenantId: string) {
   const access = await requireTenantAccess(tenantId);
   // A key is a standing credential to this workspace's money. Owner-level
   // only, regardless of what the key itself will be allowed to do.
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
   return access;
 }
 

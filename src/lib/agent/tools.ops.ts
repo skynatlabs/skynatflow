@@ -2591,12 +2591,7 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
           reorderPoint: z.number().int().min(0).optional(),
         }),
         execute: async ({ productId, ...changes }) => {
-          const owned = await prisma.item.findFirst({
-            where: { id: productId, tenantId: ctx.tenantId },
-            select: { id: true },
-          });
-          if (!owned) throw new Error("Product not found.");
-          await updateProduct(productId, changes);
+          await updateProduct(ctx.tenantId, productId, changes);
           return { ok: true, changed: Object.keys(changes) };
         },
       }),
@@ -2611,12 +2606,7 @@ export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
           "touching the history of what was already sold.",
         inputSchema: z.object({ productId: z.string(), isActive: z.boolean() }),
         execute: async ({ productId, isActive }) => {
-          const owned = await prisma.item.findFirst({
-            where: { id: productId, tenantId: ctx.tenantId },
-            select: { id: true },
-          });
-          if (!owned) throw new Error("Product not found.");
-          await setProductActive(productId, isActive);
+          await setProductActive(ctx.tenantId, productId, isActive);
           return { ok: true };
         },
       }),

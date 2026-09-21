@@ -9,6 +9,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { prisma } from "../../src/lib/db";
 import { createAgent, listAgents, setAgentActive, deleteAgent } from "../../src/lib/agent/named";
 import { approveRun, rejectRun, listPendingRuns } from "../../src/lib/agent/approvals";
+import { capabilitiesOfBuiltIn } from "../../src/lib/core/access";
 
 let tenantId: string;
 let userId: string;
@@ -115,7 +116,7 @@ describe("approvals", () => {
     const outcome = await approveRun({
       tenantId,
       runId: run.id,
-      approver: { userId, role: "OWNER", membershipId },
+      approver: { userId, role: "OWNER", capabilities: capabilitiesOfBuiltIn("OWNER"), membershipId },
     });
 
     expect(outcome.ok).toBe(true);
@@ -170,10 +171,10 @@ describe("approvals", () => {
 
   it("won't approve the same run twice", async () => {
     const run = await heldRun("createTask", { title: "Only once" });
-    await approveRun({ tenantId, runId: run.id, approver: { userId, role: "OWNER", membershipId } });
+    await approveRun({ tenantId, runId: run.id, approver: { userId, role: "OWNER", capabilities: capabilitiesOfBuiltIn("OWNER"), membershipId } });
 
     await expect(
-      approveRun({ tenantId, runId: run.id, approver: { userId, role: "OWNER", membershipId } })
+      approveRun({ tenantId, runId: run.id, approver: { userId, role: "OWNER", capabilities: capabilitiesOfBuiltIn("OWNER"), membershipId } })
     ).rejects.toThrow(/isn't waiting/i);
 
     const tasks = await prisma.task.count({ where: { tenantId, title: "Only once" } });
@@ -196,7 +197,7 @@ describe("approvals", () => {
     });
 
     await expect(
-      approveRun({ tenantId, runId: foreign.id, approver: { userId, role: "OWNER", membershipId } })
+      approveRun({ tenantId, runId: foreign.id, approver: { userId, role: "OWNER", capabilities: capabilitiesOfBuiltIn("OWNER"), membershipId } })
     ).rejects.toThrow(/not found/i);
 
     await prisma.agentRun.delete({ where: { id: foreign.id } });

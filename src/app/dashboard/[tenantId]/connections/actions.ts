@@ -10,7 +10,7 @@ import { recordAudit } from "@/lib/core/audit";
 export async function inviteConnectionAction(formData: FormData) {
   const supplierTenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(supplierTenantId);
-  assertCan(access.role, "connection:invite");
+  assertCan(access, "connection:invite");
 
   const buyerTenantName = String(formData.get("buyerTenantName") ?? "").trim();
   const discountPercent = Number(formData.get("discountPercent") ?? 0);
@@ -41,7 +41,7 @@ export async function inviteConnectionAction(formData: FormData) {
 export async function acceptConnectionAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "connection:accept");
+  assertCan(access, "connection:accept");
 
   const connectionId = String(formData.get("connectionId") ?? "");
   await respondToConnection(tenantId, connectionId, "ACCEPTED");

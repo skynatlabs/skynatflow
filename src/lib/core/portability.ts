@@ -129,6 +129,12 @@ const EXPORTS: Array<{
   { key: "offline_changes", label: "Captured in the field", direct: true, fetch: (t) => prisma.offlineChange.findMany({ where: { tenantId: t } }) },
   { key: "agent_undo", label: "What the agent did that can be put back", direct: true, fetch: (t) => prisma.agentUndo.findMany({ where: { tenantId: t } }) },
   { key: "agent_spend", label: "What the agent cost", direct: true, fetch: (t) => prisma.agentSpend.findMany({ where: { tenantId: t } }) },
+  // Their own plan and what was agreed. Exported rather than excluded: a
+  // business's contract with us is a fact about them, and somebody
+  // reconstructing their records elsewhere will want to know what they were
+  // paying and when it started.
+  { key: "subscriptions", label: "Your plan with us", direct: true, fetch: (t) => prisma.subscription.findMany({ where: { tenantId: t } }) },
+  { key: "tenant_roles", label: "Roles you defined", direct: true, fetch: (t) => prisma.tenantRole.findMany({ where: { tenantId: t } }) },
   // What customers sent in from their own portal link. The attachments are
   // inline data URLs, so the proof of payment travels with the record rather
   // than pointing at a file that will not be there.

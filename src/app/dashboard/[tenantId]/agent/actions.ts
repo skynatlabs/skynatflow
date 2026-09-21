@@ -15,7 +15,7 @@ export async function approveRunAction(formData: FormData) {
   const access = await requireTenantAccess(tenantId);
   // Approving executes real actions, so it needs a real capability — not
   // merely being signed in to the workspace.
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
 
   await approveRun({
     tenantId,
@@ -23,6 +23,7 @@ export async function approveRunAction(formData: FormData) {
     approver: {
       userId: access.userId,
       role: access.role,
+      capabilities: access.capabilities,
       membershipId: access.membershipId,
     },
   });
@@ -33,7 +34,7 @@ export async function approveRunAction(formData: FormData) {
 export async function rejectRunAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
 
   await rejectRun({
     tenantId,
@@ -53,7 +54,7 @@ export async function rejectRunAction(formData: FormData) {
 export async function approveActionAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
 
   const index = Number(formData.get("index"));
   if (!Number.isInteger(index) || index < 0) throw new Error("Unknown action.");
@@ -65,6 +66,7 @@ export async function approveActionAction(formData: FormData) {
     approver: {
       userId: access.userId,
       role: access.role,
+      capabilities: access.capabilities,
       membershipId: access.membershipId,
     },
   });
@@ -75,7 +77,7 @@ export async function approveActionAction(formData: FormData) {
 export async function rejectActionAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
 
   const index = Number(formData.get("index"));
   if (!Number.isInteger(index) || index < 0) throw new Error("Unknown action.");
@@ -94,7 +96,7 @@ export async function setAutonomyAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
   // How much the business lets software act alone is an owner's decision.
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const autonomy = String(formData.get("autonomy") ?? "") as AgentAutonomy;
   if (!["SUGGEST_ONLY", "REVERSIBLE", "FULL"].includes(autonomy)) {
@@ -112,7 +114,7 @@ export async function setAutonomyAction(formData: FormData) {
 export async function createAgentAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   const name = String(formData.get("name") ?? "").trim();
   const brief = String(formData.get("brief") ?? "").trim();
@@ -136,7 +138,7 @@ export async function createAgentAction(formData: FormData) {
 export async function toggleAgentAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   await setAgentActive(
     tenantId,
@@ -149,7 +151,7 @@ export async function toggleAgentAction(formData: FormData) {
 export async function deleteAgentAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   await deleteAgent(tenantId, String(formData.get("agentId") ?? ""));
   revalidatePath(`/dashboard/${tenantId}/agent`);
@@ -158,7 +160,7 @@ export async function deleteAgentAction(formData: FormData) {
 export async function runAgentNowAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "task:manage");
+  assertCan(access, "task:manage");
 
   await runNamedAgent({
     tenantId,
@@ -174,7 +176,7 @@ export async function runAgentNowAction(formData: FormData) {
 export async function forgetFactAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "staff:manage");
+  assertCan(access, "staff:manage");
 
   await forgetFact(tenantId, String(formData.get("key") ?? ""));
   revalidatePath(`/dashboard/${tenantId}/agent`);

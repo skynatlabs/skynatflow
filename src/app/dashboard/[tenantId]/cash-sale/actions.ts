@@ -12,7 +12,7 @@ import { recordAudit } from "@/lib/core/audit";
 export async function recordCashSaleAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
   const access = await requireTenantAccess(tenantId);
-  assertCan(access.role, "payment:record");
+  assertCan(access, "payment:record");
 
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
 
