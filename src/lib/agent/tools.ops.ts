@@ -82,6 +82,7 @@ import { payrollCommitment } from "@/lib/core/payroll";
 import { vat201 } from "@/lib/core/sarsFiling";
 import { costOfDarkness, getSchedule, isDark, nextOutage, setSchedule } from "@/lib/core/loadShedding";
 import { MARKETPLACE_BY_KEY, trueMargin } from "@/lib/core/marketplaces";
+import { platformFees } from "@/lib/core/skynatGo";
 import { chargeableWeight, collectionManifest, suggestCourier } from "@/lib/core/couriers";
 import { whoAreThey } from "@/lib/core/companyLookup";
 import { usage, usageSummary } from "@/lib/core/quotas";
@@ -2005,6 +2006,29 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
             marginPercent: result.marginPercent,
             verdict: result.verdict,
             otherFees: def?.otherFees ?? [],
+          };
+        },
+      }),
+  },
+
+  skynatGoSales: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What this business sold through Skynat Go, the delivery platform, over a period — how many orders came through " +
+          "it and what they were worth. Only meaningful for a workspace whose Skynat Go store is connected.",
+        inputSchema: z.object({
+          days: z.number().int().positive().max(365).optional(),
+        }),
+        execute: async (input) => {
+          const days = input.days ?? 30;
+          const result = await platformFees(ctx.tenantId, new Date(Date.now() - days * 86_400_000));
+
+          return {
+            period: `last ${days} days`,
+            orders: result.orders,
+            sold: formatMoney(result.grossCents, ctx.currency),
+            note: result.orders === 0 ? "Nothing has come through Skynat Go in this period." : undefined,
           };
         },
       }),
