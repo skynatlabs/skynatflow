@@ -349,6 +349,24 @@ model Tenant {
   agentSpend        AgentSpend[]
   agentRecipes      AgentRecipe[]
   pushSubscriptions PushSubscription[]
+  loyaltyProgram    LoyaltyProgram?
+  loyaltyAccounts   LoyaltyAccount[]
+  recipes           Recipe[]
+  recipeCarries     RecipeCarry[]
+  outlets           Outlet[]
+  salesRoutes       SalesRoute[]
+  outletVisits      OutletVisit[]
+  workSites         WorkSite[]
+  shifts            Shift[]
+  fieldWorkers      FieldWorker[]
+  workLogs          WorkLog[]
+  deliveryAttempts  DeliveryAttempt[]
+  codSettlements    CodSettlement[]
+  partyBankChanges  PartyBankChange[]
+  stockBins         StockBin[]
+  stockPlacements   StockPlacement[]
+  productSerials    ProductSerial[]
+  serialChecks      ProductSerialCheck[]
 
   @@map("tenants")
 }
@@ -592,6 +610,20 @@ model Party {
   leadSubmissions   LeadSubmission[]
   jobCardsSubcontracted JobCard[] @relation("JobCardSubcontractor")
   certificates      Certificate[]
+  loyaltyAccount    LoyaltyAccount?
+  outlet            Outlet?
+  workSites         WorkSite[]
+
+  /// Where this supplier gets paid.
+  ///
+  /// Held here rather than typed onto each payment run because the single
+  /// most effective invoice fraud on this continent is an email saying "our
+  /// banking details have changed" — and it only works when nobody can see
+  /// that they just did.
+  bankName          String?
+  bankAccountHolder String?
+  bankAccountNumber String?
+  bankChanges       PartyBankChange[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -636,6 +668,10 @@ model Item {
   rentals            Rental[]
   expenseLines       ExpenseLine[]
   deliveryNoteLines  DeliveryNoteLine[]
+  recipeAsDish       Recipe?           @relation("RecipeDish")
+  recipeComponentIn  RecipeComponent[] @relation("RecipeComponent")
+  stockPlacements    StockPlacement[]
+  serials            ProductSerial[]
 
   obligations Obligation[]
 
@@ -1484,7 +1520,22 @@ model TimeEntry {
   jobCardId    String?
   jobCard      JobCard?  @relation(fields: [jobCardId], references: [id])
 
+  /// Where the phone was when somebody signed on. The reason the geofence
+  /// is on the entry rather than computed later: a coordinate that is not
+  /// captured at the moment cannot be reconstructed afterwards.
+  workSiteId   String?
+  workSite     WorkSite? @relation(fields: [workSiteId], references: [id])
+  lat          Float?
+  lng          Float?
+  /// Metres from the site's pin at clock-in. Null when either side had none.
+  distanceMetres Int?
+  /// Close enough to count as being there. False is a flag for a person,
+  /// never an accusation — a phone in a basement has no fix at all.
+  verified     Boolean   @default(false)
+  shiftId      String?
+
   @@index([tenantId, membershipId])
+  @@index([tenantId, clockInAt])
   @@map("time_entries")
 }
 
@@ -3740,7 +3791,26 @@ model DeliveryNote {
   createdById   String?
   createdAt     DateTime           @default(now())
 
-  lines DeliveryNoteLine[]
+  /// Money to collect at the door. Null means it is already paid for.
+  ///
+  /// Cash on delivery is the dominant way this continent buys online, and it
+  /// is also the thing that makes the unit economics impossible: the parcel
+  /// goes out, the money may not come back, and nobody can tell which
+  /// customers do that until it has happened enough times to hurt.
+  codAmountCents    Int?
+  codCollectedCents Int?
+
+  /// Who is carrying it, and whose bag the cash lands in.
+  riderMembershipId String?
+  codSettlementId   String?
+  codSettlement     CodSettlement? @relation(fields: [codSettlementId], references: [id])
+
+  /// How many times somebody has tried. The second attempt is where the
+  /// margin on a delivery goes, and nobody counts it.
+  attemptCount Int @default(0)
+
+  lines    DeliveryNoteLine[]
+  attempts DeliveryAttempt[]
 
   @@unique([tenantId, number])
   @@index([tenantId, status])
@@ -4573,4 +4643,699 @@ model PushSubscription {
 
   @@index([tenantId, membershipId])
   @@map("push_subscriptions")
+}
+
+/// Why a business gives points away, in one word: return.
+///
+/// The programme is per workspace and there is exactly one, because a retailer
+/// running two loyalty schemes at one till is a support call, not a feature.
+model LoyaltyProgram {
+  id       String @id @default(cuid())
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  name     String  @default("Rewards")
+  isActive Boolean @default(true)
+
+  /// Points earned per 100 cents spent. Stored as points-per-unit rather than
+  /// a percentage so the number on the poster ("1 point per rand") is the
+  /// number in the database.
+  earnPointsPerUnit Int @default(1)
+
+  /// What one point is worth when it comes back. Kept separate from earning
+  /// so a business can change the rate it gives without repricing history.
+  redeemCentsPerPoint Int @default(10)
+
+  /// Nobody may redeem below this. Stops a one-point redemption costing more
+  /// in till time than it is worth.
+  minRedeemPoints Int @default(50)
+
+  /// Points go stale after this many days of no activity. Null means never,
+  /// which is the honest default — expiring points somebody earned is a
+  /// decision a business should make deliberately.
+  expireAfterDays Int?
+
+  /// Enrol anybody who buys and has a phone number. This is the African
+  /// design decision: a card nobody carries enrols nobody.
+  autoEnrol Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("loyalty_programs")
+}
+
+/// One member. Identity is the phone number on the Party, never a card.
+model LoyaltyAccount {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  /// Unique on its own as well as with the tenant: a Party belongs to one
+  /// workspace, so one party is one member, and the composite below is what
+  /// every tenant-scoped lookup goes through.
+  partyId  String @unique
+  party    Party  @relation(fields: [partyId], references: [id])
+
+  /// Maintained alongside the entries in the same transaction. Derived would
+  /// be safer and is too slow at a till; every change writes both or neither.
+  pointsBalance Int @default(0)
+
+  lifetimePointsEarned Int @default(0)
+  lifetimeSpendCents   Int @default(0)
+
+  joinedAt       DateTime  @default(now())
+  lastActivityAt DateTime?
+
+  entries LoyaltyEntry[]
+
+  @@unique([tenantId, partyId])
+  @@index([tenantId, pointsBalance])
+  @@index([tenantId, lastActivityAt])
+  @@map("loyalty_accounts")
+}
+
+enum LoyaltyEntryKind {
+  EARNED
+  REDEEMED
+  ADJUSTED
+  EXPIRED
+}
+
+/// Every point movement, so a balance can always be explained.
+///
+/// Points are a liability a business owes its customers. A balance that can
+/// only be asserted and never reconstructed is the same problem as a bank
+/// balance with no statement.
+model LoyaltyEntry {
+  id        String         @id @default(cuid())
+  tenantId  String
+  accountId String
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  kind   LoyaltyEntryKind
+  /// Positive when points arrive, negative when they leave. Signed rather
+  /// than a magnitude plus the kind, so summing the column is the balance.
+  points Int
+
+  /// The sale that earned or spent them, when there was one.
+  transactionId String?
+  note          String?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([accountId, createdAt])
+  @@map("loyalty_entries")
+}
+
+/// What a plate is made of.
+///
+/// One per dish. The dish is an Item that gets sold; the components are
+/// Items that get bought. Selling the first takes the second off the shelf,
+/// which is the whole point: a kitchen that cannot see its own consumption
+/// cannot see its own losses.
+model Recipe {
+  id         String @id @default(cuid())
+  tenantId   String
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
+  dishItemId String @unique
+  dishItem   Item   @relation("RecipeDish", fields: [dishItemId], references: [id])
+
+  /// How many portions one run of this recipe makes. A batch of sauce that
+  /// dresses twelve plates is written once and divided twelve ways.
+  yieldQty Int     @default(1)
+  isActive Boolean @default(true)
+  note     String?
+
+  components RecipeComponent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("recipes")
+}
+
+/// One ingredient line.
+model RecipeComponent {
+  id       String @id @default(cuid())
+  tenantId String
+  recipeId String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  componentItemId String
+  componentItem   Item   @relation("RecipeComponent", fields: [componentItemId], references: [id])
+
+  /// Thousandths of the component's own stock unit, so 200g out of a
+  /// kilogram-stocked ingredient is 200. Integer rather than a decimal
+  /// because a float that drifts by a gram a plate is a kilogram a week and
+  /// nobody would ever find it.
+  quantityThousandths Int
+
+  @@unique([recipeId, componentItemId])
+  @@index([tenantId])
+  @@map("recipe_components")
+}
+
+/// The part of an ingredient that has been used but is not yet a whole unit.
+///
+/// Stock is counted in whole units, and a plate uses a fifth of an onion.
+/// Without somewhere to keep the remainder, either every plate rounds up —
+/// and the kitchen appears to burn five times what it does — or every plate
+/// rounds down and consumption silently never happens at all.
+model RecipeCarry {
+  id              String @id @default(cuid())
+  tenantId        String
+  tenant          Tenant @relation(fields: [tenantId], references: [id])
+  componentItemId String
+
+  carryThousandths Int @default(0)
+
+  @@unique([tenantId, componentItemId])
+  @@map("recipe_carries")
+}
+
+/// A shop a rep calls on.
+///
+/// The identity stays on the Party — an outlet is a customer, and giving it
+/// a second identity would mean two records for one shop and an invoice that
+/// belongs to neither. This is the trade layer on top: where it is, what
+/// kind of shop it is, how often it should be seen.
+model Outlet {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  partyId  String @unique
+  party    Party  @relation(fields: [partyId], references: [id])
+
+  /// The distributor's own code for the shop, as it appears on their paperwork.
+  code String?
+
+  /// Spaza, supermarket, forecourt, tavern, pharmacy. Free text rather than
+  /// an enum: the channels that matter differ by country and by trade, and a
+  /// fixed list is the same mistake as a fixed list of countries.
+  channel String?
+
+  /// A, B or C by volume. What a rep is told to prioritise when the day runs short.
+  tier String?
+
+  lat Float?
+  lng Float?
+
+  /// Where it actually is, for a place with no address: "after the blue
+  /// mosque, third gate". The single most-used field in African field sales
+  /// and the one no imported system has.
+  landmark String?
+
+  /// How often it should be called on. Null means no cadence is expected.
+  visitFrequencyDays Int?
+
+  routeId String?
+  route   SalesRoute? @relation(fields: [routeId], references: [id])
+
+  isActive    Boolean   @default(true)
+  lastVisitAt DateTime?
+
+  visits OutletVisit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, isActive])
+  @@index([tenantId, routeId])
+  @@map("outlets")
+}
+
+/// A journey plan: the shops one rep walks on one day of the week.
+model SalesRoute {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  name String
+
+  /// The rep who works it. Null means unassigned rather than everybody's.
+  membershipId String?
+
+  /// 1 = Monday through 7 = Sunday. Null means no fixed day.
+  dayOfWeek Int?
+
+  isActive Boolean @default(true)
+
+  outlets Outlet[]
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("sales_routes")
+}
+
+enum VisitOutcome {
+  ORDER
+  NO_ORDER
+  CLOSED
+  NOT_FOUND
+}
+
+/// A call on a shop, with where the phone actually was when it happened.
+///
+/// The verification is the product. A visit report a rep types at home is
+/// worth nothing to the brand paying for the route; a visit stamped with a
+/// coordinate taken at the door is the whole reason distributor management
+/// gets bought.
+model OutletVisit {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  outletId String
+  outlet   Outlet @relation(fields: [outletId], references: [id], onDelete: Cascade)
+
+  /// The rep, as a Membership rather than a User: the same person may work
+  /// for two workspaces and is a different rep in each.
+  membershipId String
+
+  arrivedAt  DateTime  @default(now())
+  departedAt DateTime?
+
+  lat Float?
+  lng Float?
+
+  /// How far the phone was from the outlet's recorded pin, in metres. Null
+  /// when either side has no coordinate, which is honest rather than zero.
+  distanceMetres Int?
+
+  /// Whether the phone was close enough to count as actually being there.
+  /// False is not an accusation — a pin can be wrong, and a shop inside a
+  /// mall can lose GPS entirely. It is a flag for a person to look at.
+  verified Boolean @default(false)
+
+  outcome VisitOutcome?
+
+  /// The order taken at the door, if one was.
+  transactionId String?
+
+  photoUrl String?
+  note     String?
+
+  @@index([tenantId, arrivedAt])
+  @@index([outletId, arrivedAt])
+  @@index([tenantId, membershipId, arrivedAt])
+  @@map("outlet_visits")
+}
+
+/// A place work happens, with a fence around it.
+///
+/// A security firm has thousands of these and a cleaning company has one per
+/// client. The geofence is the entire reason the product gets bought: a
+/// guard who signs on from home is the single largest cost leak in the
+/// industry, and nobody can prove it without a coordinate.
+model WorkSite {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  name String
+
+  /// The client whose site it is, when there is one. A depot has none.
+  partyId String?
+  party   Party?  @relation(fields: [partyId], references: [id])
+
+  lat Float?
+  lng Float?
+
+  /// How close counts as being here. Bigger for a farm, smaller for a shop.
+  radiusMetres Int @default(150)
+
+  landmark String?
+  isActive Boolean @default(true)
+
+  shifts     Shift[]
+  timeEntries TimeEntry[]
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, isActive])
+  @@map("work_sites")
+}
+
+enum ShiftStatus {
+  PLANNED
+  FILLED
+  ABSENT
+  DONE
+}
+
+/// A roster line: somebody, somewhere, between two times.
+model Shift {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  workSiteId String?
+  workSite   WorkSite? @relation(fields: [workSiteId], references: [id])
+
+  /// Null means the shift is open — a gap somebody has to fill.
+  membershipId String?
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  /// What is needed here: guard, cleaner, packer. Free text for the same
+  /// reason a channel is.
+  role String?
+
+  /// What the hour costs, so a roster can be priced before it is worked.
+  ratePerHourCents Int?
+
+  status ShiftStatus @default(PLANNED)
+  note   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, startsAt])
+  @@index([tenantId, membershipId, startsAt])
+  @@map("shifts")
+}
+
+enum CasualPayKind {
+  DAILY
+  PIECE
+  HOURLY
+}
+
+enum WorkLogStatus {
+  LOGGED
+  APPROVED
+  PAID
+}
+
+/// Somebody who works here and has no login.
+///
+/// Farm labour, guards, cleaners, packers, loaders. Most payroll software
+/// assumes an employee with an email address and a bank account; most of the
+/// people being paid in this economy have neither, and are paid daily, by
+/// the piece, into a wallet. Nobody builds for them, which is why it is
+/// still done on a clipboard.
+model FieldWorker {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  name  String
+  phone String?
+
+  /// Their national ID, when the business records one. Kept because a
+  /// payout dispute is settled by it, and nothing else here identifies a
+  /// person who has no account.
+  idNumber String?
+
+  payKind   CasualPayKind @default(DAILY)
+  /// Per day, per piece or per hour depending on payKind, in cents.
+  rateCents Int           @default(0)
+
+  /// The wallet number they are paid into, when it differs from their phone.
+  payoutNumber String?
+
+  isActive Boolean @default(true)
+
+  logs WorkLog[]
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, isActive])
+  @@map("field_workers")
+}
+
+/// A day's work by somebody with no login, and what it earned.
+model WorkLog {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  fieldWorkerId String
+  fieldWorker   FieldWorker @relation(fields: [fieldWorkerId], references: [id], onDelete: Cascade)
+
+  workSiteId String?
+
+  /// The day worked, not the day recorded. A clipboard gets typed up late.
+  workedOn DateTime
+
+  /// Days, pieces or hours, by the worker's pay kind.
+  units Float
+
+  /// Worked out when the log was written, never read live off the worker's
+  /// rate: a rate that goes up next month must not silently rewrite what
+  /// somebody was owed last month.
+  rateCentsAtTime Int
+  amountCents     Int
+
+  status        WorkLogStatus @default(LOGGED)
+  approvedById  String?
+  approvedAt    DateTime?
+  paidAt        DateTime?
+  note          String?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, workedOn])
+  @@index([tenantId, status])
+  @@index([fieldWorkerId, workedOn])
+  @@map("work_logs")
+}
+
+enum DeliveryOutcome {
+  DELIVERED
+  REFUSED
+  NOT_HOME
+  WRONG_ADDRESS
+  CANCELLED
+}
+
+/// One try at getting a parcel to somebody.
+///
+/// Kept separately from the note because the interesting number is not
+/// whether a parcel eventually arrived — it is how many times somebody drove
+/// there. A 30% rejection rate does not read as a loss anywhere in a normal
+/// set of books; it reads as fuel, and as a delivery fee that was charged
+/// once for a job done three times.
+model DeliveryAttempt {
+  id             String       @id @default(cuid())
+  tenantId       String
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  deliveryNoteId String
+  deliveryNote   DeliveryNote @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
+
+  attemptedAt DateTime        @default(now())
+  outcome     DeliveryOutcome
+
+  /// What was collected at the door on this attempt, when anything was.
+  collectedCents Int?
+
+  riderMembershipId String?
+  lat               Float?
+  lng               Float?
+  note              String?
+
+  @@index([tenantId, attemptedAt])
+  @@index([deliveryNoteId])
+  @@map("delivery_attempts")
+}
+
+/// A rider's cash bag, opened and closed like a till.
+///
+/// It is the same problem as a till and deserves the same treatment: an
+/// opening float, everything collected during the run, a physical count at
+/// the end, and the variance surfaced rather than absorbed. Cash that goes
+/// missing between a door and a depot is otherwise invisible until a monthly
+/// reconciliation that nobody does.
+model CodSettlement {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  riderMembershipId String
+
+  openedAt          DateTime  @default(now())
+  openingFloatCents Int       @default(0)
+
+  closedAt           DateTime?
+  closedById         String?
+  /// What was actually counted back in.
+  countedCents       Int?
+  /// Counted minus (float + collected). Negative is short.
+  varianceCents      Int?
+
+  notes DeliveryNote[]
+
+  @@index([tenantId, riderMembershipId])
+  @@index([tenantId, closedAt])
+  @@map("cod_settlements")
+}
+
+/// Every time a supplier's banking details changed, and who changed them.
+///
+/// The row exists so that a payment can be checked against it. An invoice
+/// from a supplier whose account number changed four days ago is not proof
+/// of anything — suppliers do change banks — but it is the one question
+/// worth asking before the money goes, and today nobody can ask it because
+/// nothing anywhere remembers what the details used to be.
+model PartyBankChange {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  partyId  String
+  party    Party  @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  /// Kept whole rather than masked: the point of the record is to be able to
+  /// say exactly what it was before, and a masked history answers nothing.
+  fromAccountNumber String?
+  toAccountNumber   String?
+  fromBankName      String?
+  toBankName        String?
+  fromHolder        String?
+  toHolder          String?
+
+  changedById String?
+  changedAt   DateTime @default(now())
+
+  @@index([tenantId, changedAt])
+  @@index([partyId, changedAt])
+  @@map("party_bank_changes")
+}
+
+/// A place in a warehouse a thing can be.
+///
+/// The unglamorous half of warehousing and the one that makes it work: not
+/// "we have 400 of these" but "we have 400 of these, 250 in A-12-3 and 150
+/// in B-04-1, and the picker walks A before B". A business between a
+/// spreadsheet and SAP has the first and never the second, which is why
+/// picking is done by whoever remembers where things are.
+model StockBin {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  /// The label written on the rack. A-12-3, COLD-2, YARD.
+  code String
+
+  /// Which site or branch it is in, when a business has more than one.
+  branchId String?
+
+  /// The order a picker walks. Two bins with the same sequence just sort by
+  /// code, which is better than pretending there is a route when there is not.
+  pickSequence Int @default(0)
+
+  /// Held back from ordinary picking — damaged stock, quarantine, returns.
+  isPickable Boolean @default(true)
+  note       String?
+
+  placements StockPlacement[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, code])
+  @@index([tenantId, pickSequence])
+  @@map("stock_bins")
+}
+
+/// How much of one thing is in one bin.
+model StockPlacement {
+  id       String   @id @default(cuid())
+  tenantId String
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  binId    String
+  bin      StockBin @relation(fields: [binId], references: [id], onDelete: Cascade)
+  itemId   String
+  item     Item     @relation(fields: [itemId], references: [id])
+
+  quantity Int @default(0)
+
+  /// The batch in this bin, where batches are tracked. Expiry picking needs
+  /// to know which of two pallets of the same thing to send first.
+  ///
+  /// Empty string rather than null for "no batch", because Postgres treats
+  /// NULLs in a unique index as distinct from each other — a nullable column
+  /// here would let the same untracked item be placed in the same bin twice
+  /// and the constraint below would allow it.
+  batchId String @default("")
+
+  countedAt DateTime?
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([binId, itemId, batchId])
+  @@index([tenantId, itemId])
+  @@map("stock_placements")
+}
+
+/// A serial number that can be checked.
+///
+/// The counterfeit problem here is not handbags. It is fake seed that does
+/// not germinate, fertiliser that is mostly sand, brake pads that are not,
+/// and engine oil that destroys the engine. mPedigree solved this for
+/// pharmaceuticals; nobody has done it for the inputs a farm or a workshop
+/// buys, and those are the ones where a fake costs somebody a season or a
+/// life.
+model ProductSerial {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  itemId String?
+  item   Item?   @relation(fields: [itemId], references: [id])
+
+  /// What is printed under the scratch panel, or in the QR code.
+  code String
+
+  batchId String?
+
+  /// Who it was sold to, once it has been. Lets a fake cluster be traced
+  /// back to the consignment and the customer it went out with.
+  soldToPartyId String?
+  soldAt        DateTime?
+
+  /// Retired: recalled, destroyed, or known compromised.
+  isVoided  Boolean @default(false)
+  voidedFor String?
+
+  checks ProductSerialCheck[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, code])
+  @@index([tenantId, itemId])
+  @@map("product_serials")
+}
+
+/// Somebody checking whether a thing is real.
+///
+/// Every check is kept, including the ones on codes that do not exist,
+/// because the pattern in the failures is the actual product: a hundred
+/// checks on unknown codes from one town is a counterfeiter's distribution
+/// map, and it is invisible if only successful checks are recorded.
+model ProductSerialCheck {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  serialId String?
+  serial   ProductSerial? @relation(fields: [serialId], references: [id])
+
+  /// What was actually typed or scanned, even when it matched nothing.
+  codeTried String
+
+  /// first | repeat | unknown | voided
+  verdict String
+
+  /// Roughly where from, when the checker's phone offered it.
+  lat Float?
+  lng Float?
+  /// The phone number that checked, where the check came in over USSD or SMS.
+  checkedByPhone String?
+
+  checkedAt DateTime @default(now())
+
+  @@index([tenantId, checkedAt])
+  @@index([tenantId, verdict])
+  @@map("product_serial_checks")
 }

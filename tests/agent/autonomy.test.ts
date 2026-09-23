@@ -111,7 +111,8 @@ describe("no money or contact tool slips the gate", () => {
   // Deliberately blunt. A false positive costs one line in the allow-list
   // below and a moment's thought; a false negative costs a customer being
   // charged by a machine nobody asked.
-  const MONEY_OR_CONTACT = /^(send|pay|issue|charge|refund|broadcast|post(Journal|History)|apply(LateFee)|approve|record(Payment|Refund|CashSale|Donation|TheChase))/;
+  const MONEY_OR_CONTACT =
+    /^(send|pay|issue|charge|refund|redeem|adjust|broadcast|post(Journal|History)|apply(LateFee)|approve|record(Payment|Refund|CashSale|Credit\\w*|Donation|TheChase))/;
 
   /**
    * Names that match the pattern but genuinely neither move money nor speak
@@ -125,6 +126,8 @@ describe("no money or contact tool slips the gate", () => {
     applyCustomerDetailsCorrection: "Edits a customer record. Reversible, and nothing leaves.",
     applyIndustryPack: "Seeds a chart of accounts and a starter catalogue. Internal setup.",
     issueAsset: "Hands a drill to a colleague. Internal.",
+    issueProductCodes:
+      "Mints authentication codes for the business's own stock. Nothing is sent and nothing is spent — withdrawing a code is the one that reaches a buyer, and that IS held.",
   };
 
   it("classifies every money- or contact-shaped write deliberately", async () => {
