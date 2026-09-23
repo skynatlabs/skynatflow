@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 const BELIEFS = [
   { title: "Easy to use, always", body: "If a feature needs a training video, it's not done yet.", variant: "card-light" as const },
   { title: "AI that acts, with you in the loop", body: "Automation you can trust because you approve every customer-facing message.", variant: "card-dark" as const },
-  { title: "No lock-in", body: "One-click CSV export of your whole business, any time.", variant: "card-accent" as const },
+  { title: "Your records are yours", body: "Close the account and you are offered a complete copy of every table your workspace owns. No quiet deletion, and no pretend one-click export either \u2014 five years of invoice retention is a legal obligation, not a setting.", variant: "card-accent" as const },
 ];
 
 export default function AboutPage() {

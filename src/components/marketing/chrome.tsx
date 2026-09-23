@@ -8,6 +8,7 @@ import Link from "next/link";
 import { PRICING_PLANS, TRIAL_DAYS } from "@/lib/marketing/pricing";
 import { NICHE_CONFIGS } from "@/lib/niches/config";
 import { NicheSkin } from "@prisma/client";
+import { FEATURE_CATEGORIES } from "@/lib/marketing/features";
 
 // One real photo per industry (verified Unsplash direct-CDN URLs, free to
 // hotlink under Unsplash's license) plus the accent color that industry's
@@ -35,14 +36,18 @@ export function unsplashUrl(photoId: string, width = 800) {
 // what's actually built (src/lib/core/*, the dashboard's PaCommandBox/
 // VoiceAssistant/DailyVoiceBriefing components) — no invented capabilities.
 export const FULL_ENGINE_FEATURES: { icon: string; title: string; body: string }[] = [
-  { icon: "💬", title: "AI PA — command box", body: "Type what you need in plain language and the AI PA drafts the quote, invoice, or customer record for you." },
-  { icon: "🎙️", title: "Voice assistant & daily briefing", body: "Talk to skynat.ai instead of typing, and get a spoken daily rundown of what needs your attention." },
-  { icon: "🤖", title: "AI follow-ups, approved by you", body: "Quiet leads and overdue invoices get a drafted nudge automatically — nothing sends without your review." },
-  { icon: "⚡", title: "Quotes & invoices", body: "Build from your catalog, send as a branded PDF, and track status automatically from sent to paid." },
-  { icon: "🔔", title: "Customer self-service portal", body: "Customers view, accept, and pay online — no login or app download required on their side." },
-  { icon: "📦", title: "Inventory demand heatmap", body: "Reorder points and demand trends surface before you run out, not after a customer asks." },
-  { icon: "👥", title: "Staff, roles & permissions", body: "Invite your team, assign roles, and control who can see and do what." },
-  { icon: "🧾", title: "E-signatures & document proof", body: "Signed quotes and delivery/job proof are captured and stored automatically, no extra app." },
+  { icon: "💬", title: "Type what you need", body: "Ask in plain language and it drafts the quote, the invoice or the customer record — and shows you the draft before anything moves." },
+  { icon: "🛡️", title: "An AI that stops for you", body: "Three autonomy settings, and none of them lets money move or a customer be contacted without a person. Enforced in code, not in a prompt." },
+  { icon: "⚡", title: "Quote to cash", body: "Build from your catalogue, send a branded PDF, and the status moves itself from sent to seen to paid." },
+  { icon: "🔔", title: "Chasing that actually escalates", body: "A ladder of reminders, each rung recorded, that stops the moment money lands — and never opens with a lawyer's letter." },
+  { icon: "📒", title: "Real books underneath", body: "Double-entry, bank feeds, reconciliation and a VAT return generated rather than reconstructed under deadline pressure." },
+  { icon: "📦", title: "Stock that tells you first", body: "Reorder points from real demand, batch expiry before the date, and bins with a walking order so picking does not depend on memory." },
+  { icon: "📍", title: "Proof before the argument", body: "Geotagged, timestamped, signed evidence captured as the work happens — not asked for after a customer disputes it." },
+  { icon: "👥", title: "The people, not just the pipeline", body: "Rosters, geofenced sign-on, payroll, and the daily-wage workers a payroll system has no row for." },
+  { icon: "📶", title: "Works without signal", body: "Every field action queues with a key the phone generated, so a retry never does the thing twice." },
+  { icon: "📊", title: "Where you sit, not just what you made", body: "Margin, days to get paid and win rate against your own trade — anonymously, opt-in, and never below five businesses." },
+  { icon: "🔌", title: "The engine under your own tools", body: "An API, webhooks and an MCP server, so another system can drive the same functions the dashboard does." },
+  { icon: "🔦", title: "Load shedding, modelled", body: "No business software built anywhere else knows the power goes off. Here a job is never scheduled into a block that has none." },
 ];
 
 // Compact pricing teaser appended to every page except /pricing and the
@@ -121,7 +126,23 @@ export function MarketingNav() {
           <img src="/flow-logo.png" alt="skynat.ai" />
         </Link>
         <div className="navlinks">
-          <Link href="/benefits">Product</Link>
+          {/* Built from FEATURE_CATEGORIES rather than typed out, so the nav
+              cannot drift away from the pages the way the dashboard's two
+              sidebars once did. tests/app/marketing-coverage.test.ts holds
+              the line. */}
+          <div className="nav-dropdown nav-keep">
+            <Link href="/features">
+              Features <span aria-hidden className="nav-caret" style={{ fontSize: "0.7em" }}>&#9662;</span>
+            </Link>
+            <div className="nav-dropdown-menu">
+              {FEATURE_CATEGORIES.map((c) => (
+                <Link key={c.slug} href={`/features/${c.slug}`}>
+                  {c.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+          <Link href="/benefits">Why flow</Link>
           <div className="nav-dropdown">
             <Link href="/industries/services">
               Industries <span aria-hidden style={{ fontSize: "0.7em" }}>&#9662;</span>
@@ -211,13 +232,24 @@ export function MarketingFooterStatic() {
           <img src="/flow-logo.png" alt="skynat.ai" />
         </div>
         <div className="footer-links">
-          <Link href="/benefits">Product</Link>
+          <Link href="/features">Features</Link>
+          <Link href="/benefits">Why flow</Link>
           <Link href="/pricing">Pricing</Link>
           <Link href="/industries/services">Industries</Link>
+          <Link href="/integrations">Integrations</Link>
           <Link href="/case-studies">Customers</Link>
           <Link href="/about">About</Link>
           <Link href="/legal/terms">Terms</Link>
           <Link href="/legal/privacy">Privacy</Link>
+        </div>
+      </div>
+      <div className="footer-inner" style={{ paddingTop: 0 }}>
+        <div className="footer-links" style={{ opacity: 0.72, fontSize: "0.82rem" }}>
+          {FEATURE_CATEGORIES.map((c) => (
+            <Link key={c.slug} href={`/features/${c.slug}`}>
+              {c.label}
+            </Link>
+          ))}
         </div>
       </div>
       <div className="footer-bottom">
@@ -489,6 +521,13 @@ export const MARKETING_CSS = `
     .mkt .hero { grid-template-columns: 1fr; }
     .mkt .stage { height: 420px; margin-top: 20px; }
     .mkt .navlinks { display: none; }
+    /* One link survives the collapse: Features holds most of the site, and a
+       section reachable only from the footer is a section nobody reads. No
+       hamburger — this layer is static on purpose, and a menu would mean a
+       client component and a state hook for one link. */
+    .mkt .navlinks { display: flex; gap: 0; }
+    .mkt .navlinks > *:not(.nav-keep) { display: none; }
+    .mkt .nav-keep .nav-dropdown-menu, .mkt .nav-keep .nav-caret { display: none; }
     .mkt .feature-card, .mkt .how-step, .mkt .price-card, .mkt .faq-card {
       width: 100% !important;
       max-width: 380px;
