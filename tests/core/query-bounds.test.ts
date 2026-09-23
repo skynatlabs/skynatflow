@@ -24,8 +24,15 @@ const CORE = "src/lib/core";
  *
  * Deliberately exact rather than a ceiling with slack in it: slack is where
  * three more creep in unnoticed.
+ *
+ * 222 -> 221. The literal was written as 222 while the real count was 223,
+ * so this test was red on main from the day it landed and nobody saw it go
+ * red for a real reason. Two genuinely risky reads in fleetOps were bounded
+ * to pay that back rather than raising the line: a detention report over a
+ * quarter of stops, and every never-recovered toll a transport operator has
+ * ever logged.
  */
-const BASELINE = 222;
+const BASELINE = 221;
 
 /**
  * Reads whose shape makes a limit meaningless.

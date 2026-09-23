@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { FEATURE_CATEGORIES, allFeatures } from "@/lib/marketing/features";
 import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { MarketingFonts, MarketingNav, MarketingFooterStatic, PricingTeaser, IndustryCardsScroll, LogoMarquee, MARKETING_CSS } from "@/components/marketing/chrome";
@@ -157,8 +159,8 @@ export default async function Home() {
           <span className="kicker">Agentic business management</span>
           <h2>Everything between &quot;sent a quote&quot; and &quot;got paid,&quot; handled</h2>
           <p className="section-sub">
-            Invoicing, CRM, and project tracking that don&apos;t just store your data — they act on it. No
-            more chasing across WhatsApp, email, and a spreadsheet to find out where a deal actually stands.
+            Invoicing, CRM and job tracking that don&apos;t just store your data — they act on it. No
+            more chasing across WhatsApp, email and a spreadsheet to find out where a deal actually stands.
           </p>
         </div>
 
@@ -212,7 +214,44 @@ export default async function Home() {
       <IndustryCardsScroll />
 
       {/* ================= HOW IT WORKS ================= */}
+            {/* ================= THE WHOLE ENGINE ================= */}
+      {/* Built from FEATURE_CATEGORIES so the home page cannot quietly fall
+          behind the features pages. */}
       <section className="section">
+        <div className="section-head">
+          <span className="kicker">The whole engine</span>
+          <h2>It does rather more than quote and invoice</h2>
+          <p className="section-sub">
+            {allFeatures().length} things, across {FEATURE_CATEGORIES.length} areas, on one
+            subscription — from the till and the credit book to the roster, the warehouse walk and
+            the tax return. Each one written as what it does for your business.
+          </p>
+        </div>
+        <div className="logo-grid">
+          {FEATURE_CATEGORIES.map((c, i) => (
+            <Link
+              key={c.slug}
+              href={`/features/${c.slug}`}
+              className={`logo-chip scatter-card ${
+                ["card-light", "card-dark", "card-accent", "card-accent2"][i % 4]
+              }`}
+              style={{ textDecoration: "none" }}
+            >
+              <p style={{ margin: 0 }}>{c.label}</p>
+              <p className="muted" style={{ margin: "4px 0 0", fontSize: "0.75rem", fontWeight: 600 }}>
+                {c.features.length} things
+              </p>
+            </Link>
+          ))}
+        </div>
+        <div className="cta-row" style={{ justifyContent: "center", marginTop: 28 }}>
+          <Link className="cta-secondary" href="/features">
+            See everything it does &rarr;
+          </Link>
+        </div>
+      </section>
+
+<section className="section">
         <div className="section-head">
           <span className="kicker">How it works</span>
           <h2>Three steps, not a training day</h2>

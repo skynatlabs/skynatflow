@@ -8,6 +8,8 @@ import { PosProviderType } from "@prisma/client";
 import { recordCashSale, type QuoteLineInput } from "./money";
 import { getOrCreateWalkInParty } from "./parties";
 import { POS_PROVIDERS } from "@/lib/pos/providers/registry";
+import { earnOnSale } from "./loyalty";
+import { depleteForSale } from "./recipes";
 
 export async function openTill(params: { tenantId: string; openedById: string; openingFloatCents: number }) {
   return prisma.tillSession.create({ data: params });
@@ -85,5 +87,24 @@ export async function checkoutSale(params: {
     data: { paymentMethod: params.paymentMethod, tillSessionId: params.tillSessionId },
   });
 
-  return invoice;
+  // Ingredients come off the shelf for anything sold that has a recipe. Like
+  // points below, it must never be able to fail a sale: a kitchen with a
+  // wrong recipe still has to be able to serve food.
+  const depletion = await depleteForSale({
+    tenantId: params.tenantId,
+    lines: params.lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity })),
+  }).catch(() => null);
+
+  // Points last, after the sale is posted, and never allowed to fail the
+  // sale. A rewards scheme that can stop a shop from selling things is worse
+  // than no rewards scheme — so this is reported back rather than thrown.
+  const amountCents = params.lines.reduce((sum, l) => sum + l.quantity * l.unitPriceCents, 0);
+  const loyalty = await earnOnSale({
+    tenantId: params.tenantId,
+    partyId: party.id,
+    amountCents,
+    transactionId: invoice.id,
+  }).catch(() => null);
+
+  return Object.assign(invoice, { loyalty, depletion });
 }

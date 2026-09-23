@@ -60,6 +60,11 @@ export async function detentionOwed(tenantId: string, opts: { since?: Date } = {
       party: { select: { name: true } },
     },
     orderBy: { arrivedAt: "desc" },
+    // A fleet running fifty stops a day fills a quarter with four and a half
+    // thousand rows. The report is about the worst offenders and it is
+    // already ordered by most recent, so a cap changes what is read and not
+    // what is concluded.
+    take: 2000,
   });
 
   const out: DetentionLine[] = [];
@@ -132,6 +137,10 @@ export async function unbilledRecoverables(tenantId: string) {
   return prisma.expense.findMany({
     where: { tenantId, status: SPENT, recoverable: true, recoveredOnId: null },
     orderBy: { spentOn: "asc" },
+    // Oldest first, capped: an operator with three years of never-recovered
+    // tolls should be shown the oldest thousand, not handed every row and a
+    // six-second page.
+    take: 1000,
     select: {
       id: true, descriptionText: true, amountCents: true, spentOn: true, transactionId: true, jobCardId: true,
       transaction: { select: { id: true, partyId: true, party: { select: { name: true } } } },

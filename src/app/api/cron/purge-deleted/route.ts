@@ -11,6 +11,7 @@ import { purgeOldRateEvents } from "@/lib/rateLimit";
 import { purgeOldAuthEvents } from "@/lib/auth/events";
 import { purgeOldQuerySamples } from "@/lib/perf";
 import { purgeOldErrors } from "@/lib/errors";
+import { expireStalePointsEverywhere } from "@/lib/core/loyalty";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,9 @@ export async function GET(req: NextRequest) {
   // Errors somebody marked handled, quiet for two months. An unresolved one
   // is never swept: it is still broken.
   const errors = await purgeOldErrors();
+  // Reward points going stale, but only in workspaces that chose to expire
+  // them. The default is never, so most workspaces are not even scanned.
+  const loyalty = await expireStalePointsEverywhere();
   return NextResponse.json({
     ok: true,
     purged: purged.length,
@@ -42,5 +46,6 @@ export async function GET(req: NextRequest) {
     authEvents,
     querySamples,
     errors,
+    loyaltyExpired: loyalty.accounts,
   });
 }

@@ -71,9 +71,17 @@ describe("reading it back", () => {
 
   it("never records the instrument measuring itself", async () => {
     // A QuerySample write that recorded a QuerySample write would not stop.
-    const before = await prisma.querySample.count();
-    await prisma.querySample.findMany({ take: 1 });
-    const after = await prisma.querySample.count();
-    expect(after).toBe(before);
+    //
+    // Measured by what is in the table rather than by counting rows before
+    // and after: the suite runs test files in parallel and every one of them
+    // is sampling, so a global count moves for reasons that have nothing to
+    // do with this assertion. It did, intermittently, once the suite grew
+    // past a hundred files.
+    for (let i = 0; i < 50; i++) await prisma.querySample.findMany({ take: 1 });
+
+    const selfSamples = await prisma.querySample.count({
+      where: { op: { startsWith: "QuerySample." } },
+    });
+    expect(selfSamples).toBe(0);
   });
 });

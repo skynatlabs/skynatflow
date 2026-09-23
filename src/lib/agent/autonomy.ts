@@ -68,6 +68,41 @@ const ALWAYS_ASK = new Set([
   // A certificate of compliance goes out with the business's name on it and
   // is relied on by whoever receives it.
   "issueCertificate",
+
+  // Points are a liability the business owes its customers, so moving them
+  // is moving money in everything but name. Spending somebody's balance
+  // changes what they pay; granting points by hand hands out value; and the
+  // earn rate decides how fast the liability grows for every sale after it.
+  "redeemRewardPoints",
+  "adjustRewardPoints",
+  "setUpRewards",
+
+  // The credit book. An entry is a real debt on a customer's account and a
+  // repayment is money the shop says it received — both are the ledger, and
+  // both are the sort of thing a customer will eventually dispute.
+  "recordCreditEntry",
+  "recordCreditRepayment",
+
+  // Casual pay. Approving work is the gate that stands between a clipboard
+  // and money leaving a tin, and marking work paid is a claim that somebody
+  // was handed cash. Both are money in everything but the transfer.
+  "approveCasualWork",
+  "markCasualWorkPaid",
+
+  // Cash on delivery. Recording what a rider collected is a claim about
+  // money that changed hands at a door, and settling a bag is the moment
+  // somebody is held to a shortfall.
+  "recordDeliveryAttempt",
+  "closeRiderBag",
+
+  // Where a supplier gets paid. The most dangerous write in the product:
+  // the whole of invoice fraud is one email asking for exactly this, and an
+  // agent that could do it unattended would be the fraudster's best tool.
+  "setSupplierBankDetails",
+
+  // Withdrawing an authentication code tells every buyer who checks it to
+  // stop using the product. That is the business speaking to the public.
+  "withdrawProductCode",
 ]);
 
 /**
@@ -92,6 +127,36 @@ const REVERSIBLE = new Set([
   // it may add a customer and a catalog item along the way, but nothing has
   // left the building and every part of it is editable.
   "draftQuoteFromText",
+  // Signing somebody up to the rewards programme. No money, nothing sent,
+  // and removing them is one click.
+  "joinRewards",
+  // What a dish is made of. Setup data: a wrong recipe costs a wrong stock
+  // number, and a physical count corrects that by design.
+  "setDishRecipe",
+  "removeDishRecipe",
+  // The trade map and the field day. Recording where a rep was and what
+  // happened at a shop is capture, not a decision: no money moves and
+  // nothing leaves the business.
+  "mapOutlet",
+  "saveSalesRoute",
+  "recordOutletArrival",
+  "recordOutletOutcome",
+  // Sites, rosters and the casual-worker register. Planning and capture:
+  // nothing is paid and nothing leaves the business.
+  "saveWorkSite",
+  "rosterShift",
+  "saveCasualWorker",
+  "logCasualWork",
+  // Opening a bag and handing out parcels. Logistics, not money: nothing has
+  // been collected yet and both are undone by closing the bag.
+  "openRiderBag",
+  "handParcelToRider",
+  // Warehouse layout and stock placement. A wrong bin is corrected by a
+  // count, which is what counting exists for.
+  "saveWarehouseBin",
+  "moveStockInWarehouse",
+  "countWarehouseBin",
+  "issueProductCodes",
 ]);
 
 export type ActionVerdict =

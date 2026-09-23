@@ -6,6 +6,94 @@
 
 **Vercel project note:** the Vercel org has TWO projects — `skynatflow` (the real one, aliased to skynatflow.com) and a stray empty `one-platform` project created by accident during a `vercel link` mishap on 2026-08-30. The stray project has zero deployments and is harmless sitting there, but delete it from the Vercel dashboard when convenient to avoid confusion. Always `vercel link --project=skynatflow` explicitly, never let it auto-create.
 
+## 2026-09-23 — The Africa build: nine phases, solo
+
+Worked through the licence-free items from the 142-category Africa software gap analysis
+(artifact: "What Flow Can Carry"). Everything below is built, tested and typechecked locally;
+**nothing has been committed or pushed** — that is waiting on a decision to deploy.
+
+The rule applied throughout, from the user's instruction: **skip anything that needs a licence.**
+The whole financing cluster (credit scoring, RBF, BNPL, warehouse receipt finance, usage-based
+insurance, index crop insurance, health claims/TPA) is deliberately NOT built — it was scoped as
+"we supply, a licensed partner carries", and the instruction was to stay clear of licences
+entirely so international expansion is not gated on holding them. Earned wage access (#88) was
+dropped for the same reason: whether an employer-funded advance is credit provision under the NCA
+needs a lawyer, and it is the only near item that does.
+
+### New core modules (11)
+
+| Module | Item | What it does |
+|---|---|---|
+| `loyalty.ts` | #30 | Points earned at the till; identity is the phone number; auto-enrol; liability reported, not just membership |
+| `khata.ts` | #22 | Credit book as a **capture mode over the real ledger** — an entry is an unpaid invoice, a repayment allocates oldest-first |
+| `recipes.ts` | #32 | Recipe-level depletion with a **thousandths carry**, so five plates take exactly one onion |
+| `outlets.ts` | #19 | Trade map, journey plans, GPS-verified shop visits, strike rate |
+| `distribution.ts` | #18 | Penetration, must-stock gaps from what the trade actually does, dropped listings, channel mix |
+| `workforce.ts` | #78/#89 | Work sites with geofences, rosters with overlap refusal, labour forecast, sign-ons to check |
+| `casualPay.ts` | #87 | Daily/piece/hourly workers with no login; rate snapshotted; approve-before-pay gate |
+| `cod.ts` | #40/#28/#37 | Rider bag as a till, every delivery attempt recorded, buyer reliability |
+| `supplierRisk.ts` | #3 | Bank-change history, lookalike suppliers, duplicate references — all phrased as **questions**, never findings |
+| `priceBenchmarks.ts` | #27 | What comparable businesses actually pay, under the same opt-in + floor-of-5 as `benchmarks.ts` |
+| `warehouse.ts` | #45 | Bins, directed picking (**expiry beats location**), cycle counts, placement gaps |
+| `authenticity.ts` | #36 | Scratch-panel codes; **every check kept including the misses**, because the misses are the product |
+
+### New pages (11)
+`rewards`, `credit-book`, `recipes`, `field-sales`, `distribution`, `roster`, `casual-pay`,
+`cod`, `bill-check`, `compare`, `warehouse`, `authenticity` — all in **both** navs (the
+nav-coverage test enforces it).
+
+### Things found and fixed along the way
+
+- **`scripts/new-migration.sh` now exists.** `prisma migrate diff --script` writes its
+  "update available" box to stdout, the box lands inside the .sql file, and the migration fails
+  halfway through on a box-drawing character leaving half the tables created. This bit once
+  (`add_loyalty`, rolled back by hand) and cannot bite again — always use the script.
+- **`tests/core/query-bounds.test.ts` was red on main** since it landed: the literal said 222 and
+  the real count was 223. Paid it down to 221 by bounding two genuinely risky fleet reads rather
+  than raising the line.
+- **`tests/core/perf.test.ts` was flaky** — it counted all QuerySample rows before/after while
+  other test files write samples in parallel. Now asserts on what is in the table, not on a global
+  count that moves for unrelated reasons.
+- **`benchmarks.ts` had no page at all** — built, deployed, unreachable. It now lives on
+  `/compare` alongside the new price benchmarks.
+- **The autonomy guard's name pattern was widened** twice: it missed `redeem*`/`adjust*` and
+  `recordCredit*`. Both were real holes of the same kind it was written to catch.
+- **`StockPlacement.batchId` is `String @default("")`, not nullable** — Postgres treats NULLs in a
+  unique index as distinct, so a nullable column would have let the same untracked item be placed
+  in the same bin twice with the constraint allowing it.
+
+### State
+
+**1385 tests, 109 files, all passing. Typecheck clean. Lint: 0 errors, 5 warnings (all
+pre-existing).** Migrations applied locally: `add_loyalty`, `add_recipes`, `add_outlets`,
+`add_workforce`, `add_cod`, `add_supplier_bank_details`, `add_bins_and_serials`,
+`fix_placement_batch_key`.
+
+### 2026-09-23 (later) — Marketing site rebuilt around the feature catalogue
+
+`src/lib/marketing/features.ts` is now the single source of truth: **12 categories, 138
+features**, each written as `benefit` (a sentence about the reader's business), `how` (the
+mechanism) and `name` (for scanning), plus an optional `needs` for anything requiring an account
+of your own.
+
+The nav, the footer sitemap, `/features`, `/features/[category]`, `/benefits` and the home page's
+breadth section are all **generated from that list**. `tests/app/marketing-coverage.test.ts`
+fails the build if anybody hand-types a feature path in the chrome, if a benefit reads like a
+label, if a `how` is too thin to explain anything, or if a marketing page on disk has nothing
+linking to it.
+
+**Two false claims removed** (both were live):
+- "One-click CSV export of your entire business, any time, no support ticket required" — on
+  `/benefits` AND `/about`. There is deliberately no offboarding flow: SARS requires five years of
+  invoice retention. The honest version is now stated — close the account, wait a week, be offered
+  a complete copy of every table the workspace owns.
+- "Seven industry skins" — there are eight. Now read from `NICHE_CONFIGS` so it cannot drift.
+
+**One usability fix:** `.navlinks` collapses entirely under 880px, so the new Features section
+would have been reachable only from the footer on a phone. One link now survives the collapse, in
+CSS — no hamburger, because this layer is deliberately static and a menu would mean a client
+component and a state hook for one link.
+
 ## 2026-08-31 — Ladder buildout, phase 1 (real code + real tests, verified live)
 
 Started working through the 50-item PA ladder for real, not just the skeleton. Audited what already existed before building (several items turned out to already be shipped from earlier sessions — see below), then built and tested what was genuinely missing.

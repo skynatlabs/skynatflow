@@ -82,6 +82,7 @@ import { payrollCommitment } from "@/lib/core/payroll";
 import { vat201 } from "@/lib/core/sarsFiling";
 import { costOfDarkness, getSchedule, isDark, nextOutage, setSchedule } from "@/lib/core/loadShedding";
 import { MARKETPLACE_BY_KEY, trueMargin } from "@/lib/core/marketplaces";
+import { platformFees } from "@/lib/core/skynatGo";
 import { chargeableWeight, collectionManifest, suggestCourier } from "@/lib/core/couriers";
 import { whoAreThey } from "@/lib/core/companyLookup";
 import { usage, usageSummary } from "@/lib/core/quotas";
@@ -168,6 +169,98 @@ import {
   recordOverrule,
   listRules,
 } from "@/lib/core/reconciliation";
+import { priceBenchmarks, supplierSpread } from "@/lib/core/priceBenchmarks";
+import {
+  saveBin,
+  listBins,
+  putAway,
+  moveStock,
+  buildPickList,
+  confirmPick,
+  countBin,
+  unplacedStock,
+} from "@/lib/core/warehouse";
+import {
+  issueSerials,
+  checkCode,
+  voidSerial,
+  authenticityPicture,
+} from "@/lib/core/authenticity";
+import {
+  setSupplierBankDetails,
+  bankDetailHistory,
+  screenBills,
+  lookalikeSuppliers,
+} from "@/lib/core/supplierRisk";
+import {
+  openRiderBag,
+  assignToRider,
+  recordAttempt,
+  closeRiderBag,
+  ridersHolding,
+  buyerReliability,
+  codPicture,
+} from "@/lib/core/cod";
+import {
+  saveWorkSite,
+  listWorkSites,
+  saveShift,
+  listShifts,
+  unfilledShifts,
+  labourForecast,
+  signOnsToCheck,
+  shiftAdherence,
+} from "@/lib/core/workforce";
+import {
+  saveFieldWorker,
+  listFieldWorkers,
+  logWork,
+  approveWork,
+  markPaid,
+  whatIsOwed,
+  casualLabourCost,
+} from "@/lib/core/casualPay";
+import {
+  saveOutlet,
+  listOutlets,
+  saveRoute,
+  listRoutes,
+  todaysCalls,
+  startVisit,
+  endVisit,
+  coverage as outletCoverage,
+  outletsGoneQuiet,
+} from "@/lib/core/outlets";
+import {
+  penetration,
+  mustStockGaps,
+  droppedLines,
+  channelMix as outletChannelMix,
+} from "@/lib/core/distribution";
+import {
+  saveRecipe,
+  deleteRecipe,
+  plateCost,
+  menuMargins,
+} from "@/lib/core/recipes";
+import {
+  recordCreditSale,
+  recordRepayment,
+  theBook,
+  customerPage as creditCustomerPage,
+  reminderText,
+} from "@/lib/core/khata";
+import {
+  loyaltySummary,
+  topMembers,
+  lapsedMembers,
+  memberHistory,
+  findMemberByPhone,
+  enrolMember,
+  redeemPoints,
+  adjustPoints,
+  saveLoyaltyProgram,
+} from "@/lib/core/loyalty";
 
 export interface OpsToolDef {
   capability?: Capability;
@@ -177,6 +270,740 @@ export interface OpsToolDef {
 // ------------------------------------------------------------------ reading
 
 export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
+  // Expiry beats location, and the walk is one pass through the building.
+  pickList: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Where to walk and in what order to pick a set of lines. Within one product the batch " +
+          "that expires first is sent even when it is further to walk; across products the whole " +
+          "list is ordered by the walking sequence. Says plainly what it is short rather than " +
+          "quietly picking less.",
+        inputSchema: z.object({
+          lines: z.array(z.object({ itemId: z.string(), quantity: z.number().int().positive() })).min(1),
+        }),
+        execute: async ({ lines }) => {
+          const list = await buildPickList({ tenantId: ctx.tenantId, lines });
+          return {
+            summary: list.summary,
+            walk: list.instructions.map((i) => ({
+              bin: i.binCode,
+              binId: i.binId,
+              item: i.itemName,
+              itemId: i.itemId,
+              take: i.quantity,
+              expiresAt: i.expiresAt,
+            })),
+            short: list.short,
+          };
+        },
+      }),
+  },
+
+  warehouseLayout: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The bins in the warehouse, in walking order, and where the headline stock figure and " +
+          "the bins disagree. The disagreement is normal — stock arrives and is not put away — " +
+          "and it is the list a cycle count should work through, biggest gap first.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [bins, gaps] = await Promise.all([listBins(ctx.tenantId), unplacedStock(ctx.tenantId)]);
+          return {
+            bins: bins.slice(0, 100).map((b) => ({
+              binId: b.id,
+              code: b.code,
+              walkOrder: b.pickSequence,
+              pickable: b.isPickable,
+              distinctItems: b._count.placements,
+            })),
+            notPlacedInAnyBin: gaps.slice(0, 40),
+          };
+        },
+      }),
+  },
+
+  // The misses are the product: a fake carries a code that is not in the
+  // database, so a system that only records hits sees nothing.
+  counterfeitPicture: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Product authentication: how many codes have been checked, how many hit nothing, and " +
+          "roughly where the failures cluster. Locations are reported to about eleven kilometres " +
+          "on purpose — enough to say there is a problem in an area, never enough to accuse a " +
+          "particular shop on the evidence of some failed scans.",
+        inputSchema: z.object({ sinceDays: z.number().optional() }),
+        execute: async ({ sinceDays }) => {
+          const picture = await authenticityPicture(ctx.tenantId, sinceDays ?? 30);
+          return {
+            summary: picture.summary,
+            checks: picture.checksLast30,
+            codesNotOurs: picture.unknownLast30,
+            percentNotOurs: picture.unknownPercent,
+            areasOfConcern: picture.clusters,
+            mostCheckedCodes: picture.mostCheckedCodes,
+          };
+        },
+      }),
+  },
+
+  // Price intelligence without scraping anybody: what comparable businesses
+  // actually pay, from their own purchase records, under the benchmark
+  // opt-in and a floor of five contributors.
+  whatOthersPay: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What this business pays for things against what comparable businesses actually pay, " +
+          "and what buying at the middle instead would be worth over a year. Also returns the " +
+          "same product bought from different suppliers inside this business, which usually has " +
+          "a saving available today. Requires the workspace to have opted into benchmarking; if " +
+          "it has not, say so rather than implying there is no data.",
+        inputSchema: z.object({ sinceDays: z.number().optional() }),
+        execute: async ({ sinceDays }) => {
+          const [bench, spread] = await Promise.all([
+            priceBenchmarks(ctx.tenantId, { sinceDays }),
+            supplierSpread(ctx.tenantId, {}),
+          ]);
+          return {
+            optedIntoBenchmarking: bench.optedIn,
+            summary: bench.summary,
+            couldSaveAYear: bench.totalCouldSaveCentsPerYear / 100,
+            lines: bench.rows.slice(0, 30).map((r) => ({
+              name: r.name,
+              youPay: r.yoursCents / 100,
+              othersPayMiddle: r.medianCents / 100,
+              differencePercent: r.differencePercent,
+              businessesCompared: r.cohort,
+              couldSaveAYear: r.couldSaveCentsPerYear / 100,
+            })),
+            notEnoughDataFor: bench.notEnoughData.slice(0, 15),
+            sameThingDifferentSuppliers: spread.slice(0, 20).map((s) => ({
+              item: s.itemName,
+              cheapest: s.suppliers[0].supplierName,
+              cheapestPrice: s.bestCents / 100,
+              dearestPrice: s.worstCents / 100,
+              spreadPercent: s.spreadPercent,
+            })),
+          };
+        },
+      }),
+  },
+
+  // The questions a careful finance person would ask on every bill if they
+  // had time. Never findings, always questions.
+  checkBillsBeforePaying: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Look over everything waiting to be paid and return the questions worth asking first: " +
+          "a supplier whose bank account changed recently, two suppliers with almost the same " +
+          "name, an invoice number seen before, the same amount twice in a fortnight, a bill " +
+          "stopping just short of needing approval. These are QUESTIONS, never accusations — " +
+          "suppliers do change banks and duplicate invoice numbers are usually bookkeeping. " +
+          "Pass on the question and the fact behind it, and let a person decide.",
+        inputSchema: z.object({
+          approvalThreshold: z
+            .number()
+            .optional()
+            .describe("the amount above which a bill needs a second signature, in currency"),
+        }),
+        execute: async ({ approvalThreshold }) => {
+          const result = await screenBills({
+            tenantId: ctx.tenantId,
+            approvalThresholdCents:
+              approvalThreshold == null ? undefined : Math.round(approvalThreshold * 100),
+          });
+          return {
+            summary: result.summary,
+            billsChecked: result.billsChecked,
+            questions: result.flags.map((f) => ({
+              billId: f.billId,
+              supplier: f.supplierName,
+              amount: f.amountCents / 100,
+              ask: f.question,
+              because: f.because,
+            })),
+          };
+        },
+      }),
+  },
+
+  duplicateSuppliers: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Suppliers on file whose names are nearly the same. Most are duplicate records " +
+          "quietly splitting one supplier's spend across two rows, which makes every supplier " +
+          "report wrong. Also returns one supplier's banking history when a supplierId is given.",
+        inputSchema: z.object({ supplierId: z.string().optional() }),
+        execute: async ({ supplierId }) => {
+          if (supplierId) {
+            const history = await bankDetailHistory(ctx.tenantId, supplierId);
+            return {
+              bankChanges: history.map((h) => ({
+                at: h.changedAt,
+                fromAccount: h.fromAccountNumber,
+                toAccount: h.toAccountNumber,
+                fromBank: h.fromBankName,
+                toBank: h.toBankName,
+              })),
+            };
+          }
+          return { pairs: await lookalikeSuppliers(ctx.tenantId) };
+        },
+      }),
+  },
+
+  // The two numbers that decide whether a delivery business survives here,
+  // and neither appears anywhere in a normal set of books.
+  deliveryMoney: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Cash on delivery: how much of the business's money is in riders' bags right now, how " +
+          "many parcels needed more than one trip, the rejection rate, and how much has come " +
+          "back short. Use when asked about COD, riders, cash on the road, failed deliveries or " +
+          "why delivery is not making money.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const [picture, holding] = await Promise.all([
+            codPicture(ctx.tenantId),
+            ridersHolding(ctx.tenantId),
+          ]);
+          return {
+            summary: picture.summary,
+            onTheRoad: picture.outOnTheRoadCents / 100,
+            ridersOut: picture.ridersOut,
+            awaitingDelivery: picture.awaitingDelivery,
+            parcelsNeedingASecondTrip: picture.redeliveries,
+            rejectionPercent: picture.rejectionPercent,
+            cameBackShort: picture.shortSettlementsCents / 100,
+            riders: holding.map((h) => ({
+              settlementId: h.settlementId,
+              name: h.riderName,
+              holding: h.holdingCents / 100,
+              parcelsOut: h.parcelsOut,
+              parcelsDelivered: h.parcelsDelivered,
+              hoursOut: h.hoursOpen,
+            })),
+          };
+        },
+      }),
+  },
+
+  buyerReliability: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Which customers actually take what they order, worst first: how many parcels landed, " +
+          "how many were refused at the door, and how many trips each parcel took. Only from " +
+          "this workspace's own history, and only for customers with enough of it to mean " +
+          "anything. Never present this as a blacklist — it is this business's experience of " +
+          "this customer, nobody else's.",
+        inputSchema: z.object({ sinceDays: z.number().optional() }),
+        execute: async ({ sinceDays }) => ({
+          buyers: (await buyerReliability(ctx.tenantId, { sinceDays })).slice(0, 40),
+        }),
+      }),
+  },
+
+  // A gap nobody noticed until the client phoned is the roster's real
+  // failure mode, so an open shift is a first-class thing here.
+  rosterStatus: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The roster: shifts with nobody on them (soonest first), what the rostered hours will " +
+          "cost before anybody works them, and who turned up for what they were booked on. Use " +
+          "when asked about staffing, cover, gaps, rosters or labour cost.",
+        inputSchema: z.object({ days: z.number().optional() }),
+        execute: async ({ days }) => {
+          const window = days ?? 14;
+          const from = new Date();
+          const to = new Date(from.getTime() + window * 86_400_000);
+          const [gaps, forecast, adherence] = await Promise.all([
+            unfilledShifts(ctx.tenantId, window),
+            labourForecast({ tenantId: ctx.tenantId, from, to }),
+            shiftAdherence({
+              tenantId: ctx.tenantId,
+              from: new Date(from.getTime() - 30 * 86_400_000),
+              to: from,
+            }),
+          ]);
+          return {
+            summary: forecast.summary,
+            hoursRostered: forecast.hours,
+            costToCome: forecast.costCents / 100,
+            shiftsWithNoRate: forecast.shiftsWithoutRate,
+            gaps: gaps.slice(0, 40).map((g) => ({
+              shiftId: g.shiftId,
+              site: g.siteName,
+              role: g.role,
+              startsAt: g.startsAt,
+              hoursUntil: g.hoursUntil,
+            })),
+            turnedUpLast30Days: adherence,
+          };
+        },
+      }),
+  },
+
+  // Reported with a distance and a reason, never as an accusation: every one
+  // of these has an innocent version.
+  signOnsToCheck: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Sign-ons that could not be placed at the site, with how far away the phone was and " +
+          "why it could not be confirmed. This is a list for a supervisor to LOOK AT, not proof " +
+          "anybody cheated — pins get recorded wrong and a phone indoors may have no fix at all. " +
+          "Report the distance and the reason; never say somebody lied.",
+        inputSchema: z.object({ sinceDays: z.number().optional() }),
+        execute: async ({ sinceDays }) => ({
+          toCheck: await signOnsToCheck(ctx.tenantId, sinceDays ?? 7),
+        }),
+      }),
+  },
+
+  workSitesAndShifts: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The places work happens and what is rostered at them over a window. Sites carry a " +
+          "geofence radius and landmark directions.",
+        inputSchema: z.object({ days: z.number().optional() }),
+        execute: async ({ days }) => {
+          const from = new Date();
+          const to = new Date(from.getTime() + (days ?? 7) * 86_400_000);
+          const [sites, shifts] = await Promise.all([
+            listWorkSites(ctx.tenantId),
+            listShifts({ tenantId: ctx.tenantId, from, to }),
+          ]);
+          return {
+            sites: sites.map((s) => ({
+              siteId: s.id,
+              name: s.name,
+              client: s.party?.name ?? null,
+              radiusMetres: s.radiusMetres,
+              findItBy: s.landmark,
+              hasPin: s.lat !== null && s.lng !== null,
+            })),
+            shifts: shifts.slice(0, 100).map((sh) => ({
+              shiftId: sh.id,
+              site: sh.workSite?.name ?? null,
+              role: sh.role,
+              startsAt: sh.startsAt,
+              endsAt: sh.endsAt,
+              filled: sh.membershipId !== null,
+            })),
+          };
+        },
+      }),
+  },
+
+  casualLabour: {
+    build: (ctx) =>
+      tool({
+        description:
+          "People who work here and have no login — farm labour, guards, cleaners, packers paid " +
+          "daily, by the piece or by the hour. Returns who is owed money right now (approved and " +
+          "unpaid), what casual labour has cost over a window, and how much is still waiting for " +
+          "approval.",
+        inputSchema: z.object({ sinceDays: z.number().optional() }),
+        execute: async ({ sinceDays }) => {
+          const to = new Date();
+          const from = new Date(to.getTime() - (sinceDays ?? 30) * 86_400_000);
+          const [owed, cost, workers] = await Promise.all([
+            whatIsOwed(ctx.tenantId),
+            casualLabourCost({ tenantId: ctx.tenantId, from, to }),
+            listFieldWorkers(ctx.tenantId),
+          ]);
+          return {
+            summary: owed.summary,
+            owedNow: owed.totalCents / 100,
+            waitingToBePaid: owed.rows.map((r) => ({
+              workerId: r.fieldWorkerId,
+              name: r.name,
+              payTo: r.payoutNumber ?? r.phone,
+              days: r.days,
+              amount: r.amountCents / 100,
+            })),
+            costOverWindow: cost.amountCents / 100,
+            stillAwaitingApproval: cost.awaitingApprovalCents / 100,
+            bySite: cost.bySite.map((b) => ({ site: b.siteName, amount: b.amountCents / 100 })),
+            workersOnFile: workers.length,
+          };
+        },
+      }),
+  },
+
+  // What a rep should do today. Overdue beats route day, because a route
+  // rained off should not mean a shop waits another week.
+  callsToday: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The shops due to be called on today — the ones on a route scheduled for today plus " +
+          "any past their own visit cadence, overdue first and best shops first within that. " +
+          "Includes the landmark directions, which is how anybody actually finds the place. Pass " +
+          "a repId to get one person's day rather than everybody's.",
+        inputSchema: z.object({ repId: z.string().optional() }),
+        execute: async ({ repId }) => {
+          const calls = await todaysCalls({ tenantId: ctx.tenantId, membershipId: repId });
+          return {
+            due: calls.length,
+            calls: calls.slice(0, 60).map((c) => ({
+              outletId: c.outletId,
+              customerId: c.partyId,
+              name: c.name,
+              code: c.code,
+              channel: c.channel,
+              tier: c.tier,
+              findItBy: c.landmark,
+              daysSinceVisit: c.daysSinceVisit,
+              overdue: c.overdue,
+            })),
+          };
+        },
+      }),
+  },
+
+  outletCoverage: {
+    build: (ctx) =>
+      tool({
+        description:
+          "How the field team is doing: how many outlets were called on, each rep's strike rate " +
+          "(visits that ended in an order, which is the number worth managing), and how many " +
+          "visits could not be placed at the shop. Also returns outlets that have stopped " +
+          "ordering, which is a different problem from outlets nobody visits.",
+        inputSchema: z.object({ sinceDays: z.number().optional() }),
+        execute: async ({ sinceDays }) => {
+          const [report, quiet] = await Promise.all([
+            outletCoverage(ctx.tenantId, sinceDays ?? 30),
+            outletsGoneQuiet(ctx.tenantId),
+          ]);
+          return {
+            summary: report.summary,
+            coveragePercent: report.coveragePercent,
+            outletsActive: report.outletsActive,
+            outletsVisited: report.outletsVisited,
+            reps: report.rows,
+            stoppedOrdering: quiet.slice(0, 30).map((q) => ({
+              customerId: q.partyId,
+              name: q.name,
+              channel: q.channel,
+              daysSinceOrder: q.daysSinceOrder,
+              daysSinceVisit: q.daysSinceVisit,
+            })),
+          };
+        },
+      }),
+  },
+
+  // The number a brand asks for first and no African distributor can produce.
+  distributionPicture: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What moved past the warehouse: for each line, how many of the outlets that bought " +
+          "anything take it (penetration), the units and value moved, and where the volume goes " +
+          "by kind of shop. Use when asked about distribution, which lines are selling, coverage " +
+          "of a product, or channel performance.",
+        inputSchema: z.object({ sinceDays: z.number().optional() }),
+        execute: async ({ sinceDays }) => {
+          const days = sinceDays ?? 90;
+          const [pen, mix] = await Promise.all([
+            penetration(ctx.tenantId, days),
+            outletChannelMix(ctx.tenantId, days),
+          ]);
+          return {
+            summary: pen.summary,
+            outletsBuying: pen.outletsBuying,
+            lines: pen.rows.slice(0, 40).map((r) => ({
+              itemId: r.itemId,
+              name: r.name,
+              outletsBuying: r.outletsBuying,
+              penetrationPercent: r.penetrationPercent,
+              unitsMoved: r.unitsMoved,
+              value: r.valueCents / 100,
+            })),
+            channels: mix.map((c) => ({
+              channel: c.channel,
+              outlets: c.outlets,
+              value: c.valueCents / 100,
+              sharePercent: c.sharePercent,
+            })),
+          };
+        },
+      }),
+  },
+
+  rangeGaps: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Two lists a rep works from tomorrow. Gaps: outlets not carrying a line that most " +
+          "comparable shops in the same channel do carry. Dropped: outlets that used to take " +
+          "something on a regular rhythm and have stopped, which is a listing lost to a " +
+          "competitor and reads as nothing in a revenue report.",
+        inputSchema: z.object({
+          carriedByAtLeastPercent: z.number().optional(),
+        }),
+        execute: async ({ carriedByAtLeastPercent }) => {
+          const [gaps, dropped] = await Promise.all([
+            mustStockGaps(ctx.tenantId, { carriedByAtLeastPercent }),
+            droppedLines(ctx.tenantId, {}),
+          ]);
+          return {
+            gaps: gaps.slice(0, 30).map((g) => ({
+              customerId: g.partyId,
+              outlet: g.outletName,
+              channel: g.channel,
+              missing: g.missing,
+            })),
+            dropped: dropped.slice(0, 30).map((d) => ({
+              customerId: d.partyId,
+              outlet: d.outletName,
+              line: d.itemName,
+              daysSince: d.daysSince,
+              usuallyEveryDays: d.typicalGapDays,
+            })),
+          };
+        },
+      }),
+  },
+
+  listOutlets: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The shops on the trade map, with their channel, grade, landmark directions and when " +
+          "each was last called on. Filter by route or by channel.",
+        inputSchema: z.object({
+          routeId: z.string().optional(),
+          channel: z.string().optional(),
+        }),
+        execute: async ({ routeId, channel }) => {
+          const [outlets, routes] = await Promise.all([
+            listOutlets(ctx.tenantId, { routeId, channel }),
+            listRoutes(ctx.tenantId),
+          ]);
+          return {
+            routes: routes.map((r) => ({
+              routeId: r.id,
+              name: r.name,
+              dayOfWeek: r.dayOfWeek,
+              outlets: r._count.outlets,
+            })),
+            outlets: outlets.slice(0, 100).map((o) => ({
+              outletId: o.id,
+              customerId: o.partyId,
+              name: o.party.name,
+              code: o.code,
+              channel: o.channel,
+              tier: o.tier,
+              findItBy: o.landmark,
+              visitEveryDays: o.visitFrequencyDays,
+              lastVisitAt: o.lastVisitAt,
+            })),
+          };
+        },
+      }),
+  },
+
+  // A menu priced against a cost nobody recomputed is the food version of the
+  // repricing problem: both halves are right and only the comparison is news.
+  menuCosts: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What every dish with a recipe actually costs to make, and the margin being earned on " +
+          "it, worst first. Pass a dishId for the ingredient-by-ingredient breakdown of one. " +
+          "Use when asked about food cost, plate cost, menu margins, or which dishes are worth " +
+          "selling.",
+        inputSchema: z.object({ dishId: z.string().optional() }),
+        execute: async ({ dishId }) => {
+          if (dishId) {
+            const cost = await plateCost(ctx.tenantId, dishId);
+            if (!cost) return { hasRecipe: false };
+            return {
+              hasRecipe: true,
+              dish: cost.dishName,
+              sellingFor: cost.sellingCents / 100,
+              costsToMake: cost.costCents / 100,
+              marginPercent: cost.marginPercent,
+              ingredientsWithNoCost: cost.missingCosts,
+              ingredients: cost.lines.map((l) => ({
+                name: l.name,
+                amountPerPortion: l.quantityThousandths / 1000,
+                unit: l.unit,
+                costs: l.lineCostCents / 100,
+              })),
+            };
+          }
+          const rows = await menuMargins(ctx.tenantId);
+          return {
+            dishes: rows.map((r) => ({
+              dishId: r.dishItemId,
+              name: r.dishName,
+              sellingFor: r.sellingCents / 100,
+              costsToMake: r.costCents / 100,
+              marginPercent: r.marginPercent,
+              ingredientsWithNoCost: r.missingCosts,
+            })),
+          };
+        },
+      }),
+  },
+
+  // The credit book. Ordered by age rather than amount, because a big debt
+  // from yesterday is trade and a small one from four months ago is a
+  // customer who is not coming back.
+  creditBook: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Who owes the business money on credit, oldest debt first, with how long each one has " +
+          "been sitting and how much has aged past two months. Use when asked who owes money, " +
+          "what is outstanding, how the book looks, or what has gone bad.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const book = await theBook(ctx.tenantId);
+          return {
+            summary: book.summary,
+            totalOwed: book.totalOwedCents / 100,
+            goneBad: book.goneBadCents / 100,
+            people: book.rows.slice(0, 40).map((r) => ({
+              customerId: r.partyId,
+              name: r.name,
+              phone: r.phone,
+              owes: r.owesCents / 100,
+              oldestDays: r.oldestDays,
+            })),
+          };
+        },
+      }),
+  },
+
+  creditBookCustomer: {
+    build: (ctx) =>
+      tool({
+        description:
+          "One customer's page in the credit book: everything they took, everything they paid, " +
+          "and what is left. Also drafts the reminder message to send them — drafts only, it " +
+          "sends nothing. Use when asked about one person's account or how to chase them.",
+        inputSchema: z.object({
+          customerId: z.string(),
+          draftReminder: z.boolean().optional(),
+        }),
+        execute: async ({ customerId, draftReminder }) => {
+          const page = await creditCustomerPage(ctx.tenantId, customerId);
+          if (!page) return { found: false };
+
+          const tenant = await prisma.tenant.findUnique({
+            where: { id: ctx.tenantId },
+            select: { name: true },
+          });
+          const book = draftReminder ? await theBook(ctx.tenantId) : null;
+          const row = book?.rows.find((r) => r.partyId === customerId);
+
+          return {
+            found: true,
+            name: page.name,
+            phone: page.phone,
+            balance: page.balanceCents / 100,
+            entries: page.entries.slice(0, 40).map((e) => ({
+              what: e.description,
+              kind: e.kind,
+              amount: e.amountCents / 100,
+              at: e.at,
+            })),
+            draftedReminder: draftReminder
+              ? reminderText({
+                  customerName: page.name,
+                  owesCents: page.balanceCents,
+                  oldestDays: row?.oldestDays ?? null,
+                  shopName: tenant?.name ?? "the shop",
+                })
+              : undefined,
+          };
+        },
+      }),
+  },
+
+  // The list a retailer wants before it spends anything on marketing: who
+  // has stopped coming, ranked by what they used to be worth.
+  rewardsMembers: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The rewards programme: how many members, how many points are outstanding, what those " +
+          "points would cost if everybody redeemed, and who has stopped coming. Pass lapsed to " +
+          "get the customers who have not been back, best to get the biggest spenders, or a " +
+          "phone number to look one person up at the counter. Use when asked about loyalty, " +
+          "rewards, points, repeat customers, or who has gone quiet.",
+        inputSchema: z.object({
+          view: z.enum(["summary", "best", "lapsed"]).optional(),
+          phone: z.string().optional().describe("look one member up by the number they read out"),
+          afterDays: z.number().optional().describe("how quiet counts as lapsed. Defaults to 60."),
+        }),
+        execute: async ({ view, phone, afterDays }) => {
+          if (phone) {
+            const found = await findMemberByPhone(ctx.tenantId, phone);
+            if (!found) return { found: false, note: "Nobody on that number." };
+            return {
+              found: true,
+              name: found.party.name,
+              isMember: found.account !== null,
+              pointsBalance: found.account?.pointsBalance ?? 0,
+            };
+          }
+          const summary = await loyaltySummary(ctx.tenantId);
+          if (view === "best") {
+            return { summary: summary.summary, members: await topMembers(ctx.tenantId, 25) };
+          }
+          if (view === "lapsed") {
+            return {
+              summary: summary.summary,
+              lapsed: await lapsedMembers(ctx.tenantId, afterDays ?? 60, 50),
+            };
+          }
+          return summary;
+        },
+      }),
+  },
+
+  rewardsHistory: {
+    build: (ctx) =>
+      tool({
+        description:
+          "The statement behind one member's points balance — every time they earned, spent, " +
+          "were adjusted or expired. Use when a customer queries their points, which is the " +
+          "moment a business has to be able to show its working.",
+        inputSchema: z.object({ customerId: z.string() }),
+        execute: async ({ customerId }) => {
+          const history = await memberHistory(ctx.tenantId, customerId);
+          if (!history) return { isMember: false };
+          return {
+            isMember: true,
+            name: history.name,
+            pointsBalance: history.pointsBalance,
+            lifetimeSpend: history.lifetimeSpendCents / 100,
+            joinedAt: history.joinedAt,
+            entries: history.entries.map((e) => ({
+              kind: e.kind,
+              points: e.points,
+              note: e.note,
+              at: e.createdAt,
+            })),
+          };
+        },
+      }),
+  },
+
   // The single most valuable read in the product for a business that is
   // otherwise fine. Everything here is a date somebody already agreed to;
   // what the agent adds is noticing before it is a crisis, and being able
@@ -2010,6 +2837,29 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
       }),
   },
 
+  skynatGoSales: {
+    build: (ctx) =>
+      tool({
+        description:
+          "What this business sold through Skynat Go, the delivery platform, over a period — how many orders came through " +
+          "it and what they were worth. Only meaningful for a workspace whose Skynat Go store is connected.",
+        inputSchema: z.object({
+          days: z.number().int().positive().max(365).optional(),
+        }),
+        execute: async (input) => {
+          const days = input.days ?? 30;
+          const result = await platformFees(ctx.tenantId, new Date(Date.now() - days * 86_400_000));
+
+          return {
+            period: `last ${days} days`,
+            orders: result.orders,
+            sold: formatMoney(result.grossCents, ctx.currency),
+            note: result.orders === 0 ? "Nothing has come through Skynat Go in this period." : undefined,
+          };
+        },
+      }),
+  },
+
   parcelAdvice: {
     build: () =>
       tool({
@@ -2514,6 +3364,795 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
 // ------------------------------------------------------------------ writing
 
 export const OPS_WRITE_TOOLS: Record<string, OpsToolDef> = {
+  saveWarehouseBin: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Add or change a bin — a place in the warehouse a thing can be. The walking sequence " +
+          "is the order a picker passes it. Set pickable to false for quarantine, damaged stock " +
+          "or returns, and nothing will ever be picked from it.",
+        inputSchema: z.object({
+          binId: z.string().optional(),
+          code: z.string().describe("the label on the rack, e.g. A-12-3"),
+          walkOrder: z.number().int().optional(),
+          pickable: z.boolean().optional(),
+          note: z.string().optional(),
+        }),
+        execute: async ({ binId, code, walkOrder, pickable, note }) => {
+          const bin = await saveBin({
+            tenantId: ctx.tenantId,
+            binId,
+            code,
+            pickSequence: walkOrder,
+            isPickable: pickable,
+            note,
+          });
+          return { binId: bin.id, code: bin.code, walkOrder: bin.pickSequence };
+        },
+      }),
+  },
+
+  moveStockInWarehouse: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Put stock into a bin, move it between bins, or take it off after picking. Putting " +
+          "away adds to what is already there. A move that cannot be filled moves nothing at all.",
+        inputSchema: z.object({
+          action: z.enum(["putAway", "move", "picked"]),
+          itemId: z.string(),
+          quantity: z.number().int().positive(),
+          binId: z.string().describe("the bin for putAway and picked, the destination for move"),
+          fromBinId: z.string().optional().describe("required for move"),
+          batchId: z.string().optional(),
+        }),
+        execute: async ({ action, itemId, quantity, binId, fromBinId, batchId }) => {
+          if (action === "move") {
+            if (!fromBinId) return { error: "A move needs a bin to move from." };
+            return moveStock({
+              tenantId: ctx.tenantId,
+              fromBinId,
+              toBinId: binId,
+              itemId,
+              quantity,
+              batchId,
+            });
+          }
+          if (action === "picked") {
+            const placement = await confirmPick({ tenantId: ctx.tenantId, binId, itemId, quantity, batchId });
+            return { leftInBin: placement.quantity };
+          }
+          const placement = await putAway({ tenantId: ctx.tenantId, binId, itemId, quantity, batchId });
+          return { nowInBin: placement.quantity };
+        },
+      }),
+  },
+
+  countWarehouseBin: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Count one bin and set it to what was counted. Returns only what CHANGED, which is the " +
+          "point — the value of counting one bin a week instead of the whole warehouse once a " +
+          "year is finding out which bin drifts.",
+        inputSchema: z.object({
+          binId: z.string(),
+          counts: z.array(
+            z.object({
+              itemId: z.string(),
+              countedQty: z.number().int().min(0),
+              batchId: z.string().optional(),
+            })
+          ).min(1),
+        }),
+        execute: async ({ binId, counts }) => ({
+          changed: await countBin({ tenantId: ctx.tenantId, binId, counts }),
+        }),
+      }),
+  },
+
+  issueProductCodes: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Create authentication codes for a product, so a buyer can check whether what they are " +
+          "holding is real. Codes already in use are reported rather than duplicated.",
+        inputSchema: z.object({
+          itemId: z.string(),
+          codes: z.array(z.string()).min(1).max(5000),
+          batchId: z.string().optional(),
+        }),
+        execute: async ({ itemId, codes, batchId }) =>
+          issueSerials({ tenantId: ctx.tenantId, itemId, codes, batchId }),
+      }),
+  },
+
+  checkProductCode: {
+    build: (ctx) =>
+      tool({
+        description:
+          "Check one authentication code and get back what to tell the person holding the item. " +
+          "Pass the message on as written: a code that matches nothing is NOT proof of a fake — " +
+          "codes get mistyped and scratch panels get damaged — and a second check is usually " +
+          "somebody checking twice. Never accuse a seller.",
+        inputSchema: z.object({
+          code: z.string(),
+          lat: z.number().optional(),
+          lng: z.number().optional(),
+        }),
+        execute: async ({ code, lat, lng }) => checkCode({ tenantId: ctx.tenantId, code, lat, lng }),
+      }),
+  },
+
+  withdrawProductCode: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Withdraw an authentication code — recalled, destroyed, or known compromised. The " +
+          "reason is required because the buyer is shown it when they check.",
+        inputSchema: z.object({ code: z.string(), reason: z.string() }),
+        execute: async ({ code, reason }) => voidSerial({ tenantId: ctx.tenantId, code, reason }),
+      }),
+  },
+
+  setSupplierBankDetails: {
+    capability: "payment:record",
+    build: (ctx) =>
+      tool({
+        description:
+          "Record where a supplier gets paid. What it was before is kept, so a later change can " +
+          "be seen. If somebody asks you to change a supplier's banking details because of an " +
+          "email or an invoice, say plainly that the change should be confirmed by ringing the " +
+          "number the business already had for them — never a number on the new document.",
+        inputSchema: z.object({
+          supplierId: z.string(),
+          bankName: z.string().optional(),
+          accountHolder: z.string().optional(),
+          accountNumber: z.string().optional(),
+        }),
+        execute: async ({ supplierId, bankName, accountHolder, accountNumber }) => {
+          if (!ctx.membershipId) return { error: "Only somebody on the team can change this." };
+          const result = await setSupplierBankDetails({
+            tenantId: ctx.tenantId,
+            partyId: supplierId,
+            bankName,
+            bankAccountHolder: accountHolder,
+            bankAccountNumber: accountNumber,
+            changedById: ctx.membershipId,
+          });
+          return result;
+        },
+      }),
+  },
+
+  openRiderBag: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description:
+          "Open a rider's cash bag for the run, with the float they are given. Parcels can only " +
+          "be handed to a rider who has a bag open.",
+        inputSchema: z.object({
+          riderId: z.string().describe("their membership id"),
+          float: z.number().optional().describe("in the workspace currency, not cents"),
+        }),
+        execute: async ({ riderId, float }) => {
+          const bag = await openRiderBag({
+            tenantId: ctx.tenantId,
+            riderMembershipId: riderId,
+            openingFloatCents: float == null ? 0 : Math.round(float * 100),
+          });
+          return { settlementId: bag.id, float: bag.openingFloatCents / 100 };
+        },
+      }),
+  },
+
+  handParcelToRider: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description:
+          "Hand a delivery note to a rider, with the money to collect at the door. Leave the " +
+          "amount out for a parcel that is already paid for.",
+        inputSchema: z.object({
+          deliveryNoteId: z.string(),
+          riderId: z.string(),
+          collectAtDoor: z.number().optional().describe("in the workspace currency, not cents"),
+        }),
+        execute: async ({ deliveryNoteId, riderId, collectAtDoor }) => {
+          const note = await assignToRider({
+            tenantId: ctx.tenantId,
+            deliveryNoteId,
+            riderMembershipId: riderId,
+            codAmountCents: collectAtDoor == null ? null : Math.round(collectAtDoor * 100),
+          });
+          return { deliveryNoteId: note.id, collectAtDoor: (note.codAmountCents ?? 0) / 100 };
+        },
+      }),
+  },
+
+  recordDeliveryAttempt: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description:
+          "Record somebody trying to deliver a parcel — whether it landed, was refused, nobody " +
+          "was home, the address was wrong, or it was cancelled. Every try is recorded, " +
+          "including the failed ones, because the failed ones are the cost nobody counts. Money " +
+          "can only be collected on a delivery that actually happened.",
+        inputSchema: z.object({
+          deliveryNoteId: z.string(),
+          outcome: z.enum(["DELIVERED", "REFUSED", "NOT_HOME", "WRONG_ADDRESS", "CANCELLED"]),
+          collected: z.number().optional().describe("in the workspace currency, not cents"),
+          note: z.string().optional(),
+        }),
+        execute: async ({ deliveryNoteId, outcome, collected, note }) => {
+          const result = await recordAttempt({
+            tenantId: ctx.tenantId,
+            deliveryNoteId,
+            outcome,
+            collectedCents: collected == null ? 0 : Math.round(collected * 100),
+            note,
+          });
+          return {
+            attemptNumber: result.attemptNumber,
+            outcome: result.outcome,
+            collected: result.collectedCents / 100,
+            says: result.note,
+          };
+        },
+      }),
+  },
+
+  closeRiderBag: {
+    capability: "payment:record",
+    build: (ctx) =>
+      tool({
+        description:
+          "Count a rider's bag back in and settle it. What is expected is the float plus what " +
+          "they actually collected — never what a refusing customer failed to pay. The variance " +
+          "is surfaced rather than absorbed.",
+        inputSchema: z.object({
+          settlementId: z.string(),
+          counted: z.number().describe("what was physically counted, in the workspace currency"),
+        }),
+        execute: async ({ settlementId, counted }) => {
+          if (!ctx.membershipId) return { error: "Only somebody on the team can settle a bag." };
+          const result = await closeRiderBag({
+            tenantId: ctx.tenantId,
+            settlementId,
+            countedCents: Math.round(counted * 100),
+            closedById: ctx.membershipId,
+          });
+          return {
+            expected: result.expectedCents / 100,
+            counted: result.countedCents / 100,
+            variance: result.varianceCents / 100,
+            parcels: result.parcels,
+            says: result.note,
+          };
+        },
+      }),
+  },
+
+  saveWorkSite: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Add or change a place work happens, with the fence around it. The radius is how close " +
+          "somebody has to be for a sign-on to count as being there; it will not go below 50m, " +
+          "because a tighter fence flags honest people on ordinary phones.",
+        inputSchema: z.object({
+          siteId: z.string().optional(),
+          name: z.string(),
+          clientId: z.string().optional().describe("the customer whose site it is, if any"),
+          lat: z.number().optional(),
+          lng: z.number().optional(),
+          radiusMetres: z.number().int().optional(),
+          landmark: z.string().optional(),
+        }),
+        execute: async (input) => {
+          const site = await saveWorkSite({
+            tenantId: ctx.tenantId,
+            siteId: input.siteId,
+            name: input.name,
+            partyId: input.clientId,
+            lat: input.lat,
+            lng: input.lng,
+            radiusMetres: input.radiusMetres,
+            landmark: input.landmark,
+          });
+          return { siteId: site.id, name: site.name, radiusMetres: site.radiusMetres };
+        },
+      }),
+  },
+
+  rosterShift: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Put a line on the roster, or change one. Leave the person off to create an open shift " +
+          "that shows up as a gap. Refuses to book one person onto two shifts that overlap.",
+        inputSchema: z.object({
+          shiftId: z.string().optional(),
+          siteId: z.string().optional(),
+          personId: z.string().optional().describe("their membership id; leave off for an open shift"),
+          startsAt: z.string().describe("ISO datetime"),
+          endsAt: z.string().describe("ISO datetime"),
+          role: z.string().optional(),
+          ratePerHour: z.number().optional().describe("in the workspace currency, not cents"),
+          note: z.string().optional(),
+        }),
+        execute: async (input) => {
+          const shift = await saveShift({
+            tenantId: ctx.tenantId,
+            shiftId: input.shiftId,
+            workSiteId: input.siteId,
+            membershipId: input.personId,
+            startsAt: new Date(input.startsAt),
+            endsAt: new Date(input.endsAt),
+            role: input.role,
+            ratePerHourCents: input.ratePerHour == null ? null : Math.round(input.ratePerHour * 100),
+            note: input.note,
+          });
+          return { shiftId: shift.id, status: shift.status, startsAt: shift.startsAt };
+        },
+      }),
+  },
+
+  saveCasualWorker: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Add or update somebody who works here and has no login — daily, piece or hourly rate, " +
+          "and the number they are paid into. The rate set here is what future work is priced at; " +
+          "work already logged keeps the rate it was logged at.",
+        inputSchema: z.object({
+          workerId: z.string().optional(),
+          name: z.string(),
+          phone: z.string().optional(),
+          idNumber: z.string().optional(),
+          payKind: z.enum(["DAILY", "PIECE", "HOURLY"]).optional(),
+          rate: z.number().optional().describe("per day, piece or hour, in the workspace currency"),
+          payoutNumber: z.string().optional(),
+        }),
+        execute: async (input) => {
+          const worker = await saveFieldWorker({
+            tenantId: ctx.tenantId,
+            workerId: input.workerId,
+            name: input.name,
+            phone: input.phone,
+            idNumber: input.idNumber,
+            payKind: input.payKind,
+            rateCents: input.rate == null ? undefined : Math.round(input.rate * 100),
+            payoutNumber: input.payoutNumber,
+          });
+          return { workerId: worker.id, name: worker.name, rate: worker.rateCents / 100 };
+        },
+      }),
+  },
+
+  logCasualWork: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Record a day of work by somebody with no login. workedOn is the day they WORKED, not " +
+          "today — a clipboard gets typed up late and the date has to be the real one. Priced at " +
+          "the rate in force at the moment it is logged, which is then fixed. It still has to be " +
+          "approved before anybody can be paid.",
+        inputSchema: z.object({
+          workerId: z.string(),
+          workedOn: z.string().describe("ISO date of the day worked"),
+          units: z.number().positive().describe("days, pieces or hours by their pay kind"),
+          siteId: z.string().optional(),
+          note: z.string().optional(),
+        }),
+        execute: async ({ workerId, workedOn, units, siteId, note }) => {
+          const result = await logWork({
+            tenantId: ctx.tenantId,
+            fieldWorkerId: workerId,
+            workedOn: new Date(workedOn),
+            units,
+            workSiteId: siteId,
+            note,
+          });
+          return {
+            workLogId: result.workLogId,
+            worker: result.workerName,
+            earned: result.amountCents / 100,
+          };
+        },
+      }),
+  },
+
+  approveCasualWork: {
+    capability: "payment:record",
+    build: (ctx) =>
+      tool({
+        description:
+          "Approve logged casual work so it can be paid. The gate exists because the person " +
+          "writing up the clipboard and the person handing out money are usually the same one.",
+        inputSchema: z.object({ workLogIds: z.array(z.string()).min(1) }),
+        execute: async ({ workLogIds }) => {
+          if (!ctx.membershipId) return { error: "Only somebody on the team can approve work." };
+          return {
+            approved: await approveWork({
+              tenantId: ctx.tenantId,
+              workLogIds,
+              approvedById: ctx.membershipId,
+            }),
+          };
+        },
+      }),
+  },
+
+  markCasualWorkPaid: {
+    capability: "payment:record",
+    build: (ctx) =>
+      tool({
+        description:
+          "Mark approved casual work as paid, after the money has actually gone. This records " +
+          "only — it moves no money — and it refuses anything that was not approved first.",
+        inputSchema: z.object({ workLogIds: z.array(z.string()).min(1) }),
+        execute: async ({ workLogIds }) => markPaid({ tenantId: ctx.tenantId, workLogIds }),
+      }),
+  },
+
+  mapOutlet: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Put a customer on the trade map, or change their details on it: what kind of shop it " +
+          "is, its grade, where it is, how often it should be called on, and the landmark " +
+          "directions somebody needs to find it. The customer record stays the identity — this " +
+          "is the trade layer on top of it.",
+        inputSchema: z.object({
+          customerId: z.string(),
+          code: z.string().optional(),
+          channel: z.string().optional().describe("spaza, supermarket, forecourt, tavern, pharmacy"),
+          tier: z.string().optional().describe("A, B or C by volume"),
+          lat: z.number().optional(),
+          lng: z.number().optional(),
+          landmark: z.string().optional().describe("how somebody actually finds it"),
+          visitEveryDays: z.number().int().optional(),
+          routeId: z.string().optional(),
+        }),
+        execute: async (input) => {
+          const outlet = await saveOutlet({
+            tenantId: ctx.tenantId,
+            partyId: input.customerId,
+            code: input.code,
+            channel: input.channel,
+            tier: input.tier,
+            lat: input.lat,
+            lng: input.lng,
+            landmark: input.landmark,
+            visitFrequencyDays: input.visitEveryDays,
+            routeId: input.routeId,
+          });
+          return { outletId: outlet.id, channel: outlet.channel, tier: outlet.tier };
+        },
+      }),
+  },
+
+  saveSalesRoute: {
+    capability: "task:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Create or change a journey plan — the shops one rep walks on one day. dayOfWeek is 1 " +
+          "for Monday through 7 for Sunday; leave it out for a route with no fixed day.",
+        inputSchema: z.object({
+          routeId: z.string().optional(),
+          name: z.string(),
+          repId: z.string().optional(),
+          dayOfWeek: z.number().int().min(1).max(7).optional(),
+        }),
+        execute: async ({ routeId, name, repId, dayOfWeek }) => {
+          const route = await saveRoute({
+            tenantId: ctx.tenantId,
+            routeId,
+            name,
+            membershipId: repId,
+            dayOfWeek,
+          });
+          return { routeId: route.id, name: route.name, dayOfWeek: route.dayOfWeek };
+        },
+      }),
+  },
+
+  recordOutletArrival: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description:
+          "Record arriving at a shop. Pass the phone's coordinates and it checks them against " +
+          "the shop's recorded pin. A visit outside the radius is flagged for somebody to look " +
+          "at — it is NOT proof anybody lied, because pins get recorded wrong and a shop inside " +
+          "a building may have no usable signal. Say the distance, never an accusation.",
+        inputSchema: z.object({
+          outletId: z.string(),
+          lat: z.number().optional(),
+          lng: z.number().optional(),
+        }),
+        execute: async ({ outletId, lat, lng }) => {
+          if (!ctx.membershipId) return { error: "Only somebody on the team can record a visit." };
+          const visit = await startVisit({
+            tenantId: ctx.tenantId,
+            outletId,
+            membershipId: ctx.membershipId,
+            lat,
+            lng,
+          });
+          return visit;
+        },
+      }),
+  },
+
+  recordOutletOutcome: {
+    capability: "delivery:log",
+    build: (ctx) =>
+      tool({
+        description:
+          "Close off a shop visit: whether it produced an order, produced nothing, the shop was " +
+          "shut, or could not be found. Attach the order's invoice id if one was taken.",
+        inputSchema: z.object({
+          visitId: z.string(),
+          outcome: z.enum(["ORDER", "NO_ORDER", "CLOSED", "NOT_FOUND"]),
+          invoiceId: z.string().optional(),
+          note: z.string().optional(),
+        }),
+        execute: async ({ visitId, outcome, invoiceId, note }) => {
+          const visit = await endVisit({
+            tenantId: ctx.tenantId,
+            visitId,
+            outcome,
+            transactionId: invoiceId,
+            note,
+          });
+          return { visitId: visit.id, outcome: visit.outcome, closedAt: visit.departedAt };
+        },
+      }),
+  },
+
+  // Recipes are setup data. Getting one wrong costs a wrong stock number
+  // that a count corrects, so this is reversible rather than held.
+  setDishRecipe: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Say what a dish is made of, so selling it takes the ingredients off the shelf. " +
+          "Amounts are in the ingredient's own stock unit — 0.2 of an onion, 1 patty, 0.15 of a " +
+          "kilogram of flour. Replaces the whole recipe, so send every ingredient each time. " +
+          "Use yieldPortions for a batch that makes several servings.",
+        inputSchema: z.object({
+          dishId: z.string(),
+          yieldPortions: z.number().int().min(1).optional(),
+          note: z.string().optional(),
+          ingredients: z.array(
+            z.object({
+              itemId: z.string(),
+              amount: z.number().positive().describe("in the ingredient's own stock unit"),
+            })
+          ),
+        }),
+        execute: async ({ dishId, yieldPortions, note, ingredients }) => {
+          await saveRecipe({
+            tenantId: ctx.tenantId,
+            dishItemId: dishId,
+            yieldQty: yieldPortions,
+            note,
+            components: ingredients.map((i) => ({
+              componentItemId: i.itemId,
+              quantityThousandths: Math.round(i.amount * 1000),
+            })),
+          });
+          const cost = await plateCost(ctx.tenantId, dishId);
+          return {
+            dish: cost?.dishName,
+            costsToMake: cost ? cost.costCents / 100 : null,
+            marginPercent: cost?.marginPercent ?? null,
+            ingredientsWithNoCost: cost?.missingCosts ?? [],
+          };
+        },
+      }),
+  },
+
+  removeDishRecipe: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Remove a dish's recipe. Selling it stops taking anything off the shelf. The dish " +
+          "itself stays in the catalogue.",
+        inputSchema: z.object({ dishId: z.string() }),
+        execute: async ({ dishId }) => ({
+          removed: await deleteRecipe(ctx.tenantId, dishId),
+        }),
+      }),
+  },
+
+  // The credit book is a capture mode over the real ledger, not a second
+  // one: an entry here is an unpaid invoice and shows up everywhere an
+  // invoice does.
+  recordCreditEntry: {
+    capability: "invoice:create",
+    build: (ctx) =>
+      tool({
+        description:
+          "Write something into the credit book — a customer took goods and will pay later. " +
+          "Give the customer's name (and number if you have it) or their id, what they took in " +
+          "their own words, and the amount. Creates the customer if they are new. This is a real " +
+          "debt on their account, not a note.",
+        inputSchema: z.object({
+          customerId: z.string().optional(),
+          customerName: z.string().optional(),
+          phone: z.string().optional(),
+          description: z.string().describe("what they took, in plain words"),
+          amount: z.number().positive().describe("in the workspace currency, not cents"),
+        }),
+        execute: async ({ customerId, customerName, phone, description, amount }) => {
+          const result = await recordCreditSale({
+            tenantId: ctx.tenantId,
+            partyId: customerId,
+            customerName,
+            phone,
+            description,
+            amountCents: Math.round(amount * 100),
+          });
+          return {
+            customerId: result.partyId,
+            name: result.customerName,
+            customerAdded: result.customerAdded,
+            entered: result.amountCents / 100,
+            nowOwes: result.balanceCents / 100,
+          };
+        },
+      }),
+  },
+
+  recordCreditRepayment: {
+    capability: "payment:record",
+    build: (ctx) =>
+      tool({
+        description:
+          "A customer has paid something off their credit account. Allocated oldest debt first, " +
+          "which is the rule to state if anybody asks. Anything they overpaid is reported back " +
+          "rather than held somewhere.",
+        inputSchema: z.object({
+          customerId: z.string(),
+          amount: z.number().positive().describe("in the workspace currency, not cents"),
+        }),
+        execute: async ({ customerId, amount }) => {
+          const result = await recordRepayment({
+            tenantId: ctx.tenantId,
+            partyId: customerId,
+            amountCents: Math.round(amount * 100),
+          });
+          return {
+            name: result.customerName,
+            applied: result.paidCents / 100,
+            couldNotAllocate: result.unallocatedCents / 100,
+            stillOwes: result.balanceCents / 100,
+            entriesSettled: result.settled.length,
+          };
+        },
+      }),
+  },
+
+  joinRewards: {
+    capability: "product:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Sign a customer up to the rewards programme. Safe to call twice — an existing member " +
+          "keeps their balance. The walk-in record is shared by every anonymous sale and cannot " +
+          "be a member.",
+        inputSchema: z.object({ customerId: z.string() }),
+        execute: async ({ customerId }) => {
+          const account = await enrolMember({ tenantId: ctx.tenantId, partyId: customerId });
+          return { name: account.party.name, pointsBalance: account.pointsBalance };
+        },
+      }),
+  },
+
+  // Spending points changes what a customer pays, so it is a money-shaped
+  // action even though no money moves here: the discount it returns is
+  // applied by whoever asked for it.
+  redeemRewardPoints: {
+    capability: "payment:record",
+    build: (ctx) =>
+      tool({
+        description:
+          "Spend a member's points and get back the discount they are worth in money. This does " +
+          "NOT change any document — hand the discount to whoever is building the sale. Refuses " +
+          "below the programme's minimum and refuses more points than they hold.",
+        inputSchema: z.object({
+          customerId: z.string(),
+          points: z.number().int().min(1),
+        }),
+        execute: async ({ customerId, points }) => {
+          const result = await redeemPoints({ tenantId: ctx.tenantId, partyId: customerId, points });
+          return {
+            ok: result.ok,
+            error: result.error,
+            pointsUsed: result.pointsUsed,
+            discount: result.discountCents / 100,
+            balanceLeft: result.balance,
+          };
+        },
+      }),
+  },
+
+  adjustRewardPoints: {
+    capability: "payment:record",
+    build: (ctx) =>
+      tool({
+        description:
+          "Add or take away points by hand, with a reason — a goodwill gesture after a bad " +
+          "order, or correcting a mistake. The reason is required and is kept on the member's " +
+          "statement. Cannot push a balance below zero.",
+        inputSchema: z.object({
+          customerId: z.string(),
+          points: z.number().int().describe("negative to take points away"),
+          reason: z.string(),
+        }),
+        execute: async ({ customerId, points, reason }) => {
+          const account = await adjustPoints({
+            tenantId: ctx.tenantId,
+            partyId: customerId,
+            points,
+            note: reason,
+          });
+          return { pointsBalance: account.pointsBalance };
+        },
+      }),
+  },
+
+  setUpRewards: {
+    capability: "staff:manage",
+    build: (ctx) =>
+      tool({
+        description:
+          "Create or change the rewards programme: how many points a customer earns per unit of " +
+          "currency spent, what a point is worth when redeemed, the smallest redemption allowed, " +
+          "whether customers are enrolled automatically at the till, and whether points go stale. " +
+          "Changing the redeem rate does not reprice points already earned.",
+        inputSchema: z.object({
+          name: z.string().optional(),
+          isActive: z.boolean().optional(),
+          earnPointsPerUnit: z.number().int().min(0).optional(),
+          redeemCentsPerPoint: z.number().int().min(1).optional(),
+          minRedeemPoints: z.number().int().min(0).optional(),
+          expireAfterDays: z.number().int().nullable().optional(),
+          autoEnrol: z.boolean().optional(),
+        }),
+        execute: async (input) => {
+          const program = await saveLoyaltyProgram(ctx.tenantId, input);
+          return {
+            name: program.name,
+            active: program.isActive,
+            earnPointsPerUnit: program.earnPointsPerUnit,
+            pointWorth: program.redeemCentsPerPoint / 100,
+            minRedeemPoints: program.minRedeemPoints,
+            autoEnrol: program.autoEnrol,
+            expireAfterDays: program.expireAfterDays,
+          };
+        },
+      }),
+  },
+
   // The "just type it" path. Someone pastes a customer and a list of items
   // and says send them a quote; this reads the list, finds or adds the
   // customer, matches the products, and builds the document. It composes
