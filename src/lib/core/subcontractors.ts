@@ -21,6 +21,7 @@ import { prisma } from "@/lib/db";
 import { getOrCreatePortalToken } from "./parties";
 import { formatMoney } from "@/lib/format/money";
 import { tenantCurrency } from "./currency";
+import { baseUrlWithoutRequest } from "@/lib/appUrl";
 
 export interface HandoverResult {
   jobCardId: string;
@@ -65,7 +66,7 @@ export async function handOver(params: {
   });
 
   const token = await getOrCreatePortalToken(party.id);
-  const base = process.env.NEXT_PUBLIC_APP_URL || "";
+  const base = baseUrlWithoutRequest();
 
   return {
     jobCardId: job.id,

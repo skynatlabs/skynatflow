@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { gatewaysForRegion } from "@/lib/payments/registry";
 import { connectPaymentGatewayAction, disconnectPaymentGatewayAction } from "./actions";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
+import { baseUrl } from "@/lib/appUrl";
 
 const inputClass =
   "flex-1 rounded-md border border-[var(--kb-panel-border)] bg-[var(--kb-bg)] p-2 text-sm text-[var(--kb-text)]";
@@ -12,7 +13,7 @@ export default async function PaymentGatewaysPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const appUrl = await baseUrl();
   const connected = await prisma.paymentGateway.findMany({ where: { tenantId } });
   const connectedByProvider = new Map(connected.map((c) => [c.provider, c]));
 

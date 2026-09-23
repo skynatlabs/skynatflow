@@ -19,6 +19,7 @@ import {
   setQuoteReminderAction,
   clearQuoteReminderAction,
 } from "./actions";
+import { baseUrl } from "@/lib/appUrl";
 
 const LOCKED_STATUSES = new Set(["ACCEPTED", "DECLINED", "CANCELLED"]);
 
@@ -82,7 +83,7 @@ export default async function QuoteDetailPage({
                 tenantName: tenant.name,
                 customerName: quote.party.name,
                 amountLabel: money(quote.amountCents),
-                viewUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com"}/portal/${portalToken}/quotes/${id}`,
+                viewUrl: `${await baseUrl()}/portal/${portalToken}/quotes/${id}`,
               })}
               markSentAction={sendQuoteViaWhatsAppAction.bind(null, tenantId, id)}
             />

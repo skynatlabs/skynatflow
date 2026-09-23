@@ -11,6 +11,7 @@ import { getBranding, readableOn, WHITE_LABEL_POSTURE } from "@/lib/core/whiteLa
 import { snippetFor, widgetReadiness } from "@/lib/core/embeds";
 import { SubmitButton } from "@/components/dashboard/SubmitButton";
 import { saveBrandingAction, saveDomainAction, saveEmbedHostsAction } from "./actions";
+import { baseUrl } from "@/lib/appUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export default async function BrandPage({ params }: { params: Promise<{ tenantId
     prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { embedAllowedHosts: true } }),
   ]);
 
-  const origin = process.env.NEXT_PUBLIC_APP_URL || "";
+  const origin = await baseUrl();
   const accent = branding.accent ?? "#1d4ed8";
 
   return (

@@ -11,6 +11,7 @@ import { currencySymbol, formatMoney } from "@/lib/format/money";
 import { PageHeader } from "../../PageHeader";
 import { ClauseEditor } from "./ClauseEditor";
 import { deleteAgreementAction, reviseAgreementAction, saveAgreementAction, sendAgreementAction } from "../actions";
+import { baseUrl } from "@/lib/appUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +64,7 @@ export default async function AgreementPage({
   const currency = agreement.currency ?? tenant?.currency ?? "ZAR";
   const signed = agreement.status === "SIGNED";
   const intact = signatureStillMatches(agreement);
-  const base = process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com";
+  const base = await baseUrl();
   const signingUrl = `${base}/portal/${portalToken}/agreements/${agreement.id}`;
 
   return (

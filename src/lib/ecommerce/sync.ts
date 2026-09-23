@@ -11,6 +11,7 @@ import { decryptSecret } from "@/lib/crypto";
 import { getOrCreatePortalToken } from "@/lib/core/parties";
 import { sendEmail } from "@/lib/email/client";
 import { fetchWooProducts, wooPriceToCents, type WooOrder } from "./woocommerce";
+import { baseUrlWithoutRequest } from "@/lib/appUrl";
 
 export async function syncWooProducts(integrationId: string) {
   const integration = await prisma.ecommerceIntegration.findUniqueOrThrow({
@@ -144,7 +145,7 @@ export async function processWooOrder(integrationId: string, order: WooOrder) {
 
   if (order.billing.email) {
     const token = await getOrCreatePortalToken(party.id);
-    const base = process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com";
+    const base = baseUrlWithoutRequest();
     const amountFormatted = (amountCents / 100).toLocaleString(undefined, {
       style: "currency",
       currency: order.currency || "ZAR",

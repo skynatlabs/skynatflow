@@ -18,6 +18,7 @@ import {
   setInvoiceReminderAction,
   clearInvoiceReminderAction,
 } from "./actions";
+import { baseUrl } from "@/lib/appUrl";
 
 const LOCKED_STATUSES = new Set(["PAID", "PARTIALLY_PAID", "CANCELLED"]);
 
@@ -79,7 +80,7 @@ export default async function InvoiceDetailPage({
                 tenantName: tenant.name,
                 customerName: invoice.party.name,
                 amountLabel: money(invoice.amountCents),
-                viewUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com"}/portal/${portalToken}/invoices/${id}`,
+                viewUrl: `${await baseUrl()}/portal/${portalToken}/invoices/${id}`,
               })}
             />
             <a href={`/portal/${portalToken}/invoices/${id}/pdf`} target="_blank" className="kb-pill kb-pill-ghost text-xs">PDF</a>

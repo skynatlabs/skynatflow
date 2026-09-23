@@ -5,6 +5,7 @@ import { PaymentGatewayProvider } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { findPartyByPortalToken } from "@/lib/core/parties";
 import { PAYMENT_GATEWAYS } from "@/lib/payments/registry";
+import { baseUrl } from "@/lib/appUrl";
 
 export async function startPortalCheckoutAction(formData: FormData) {
   const token = String(formData.get("token") ?? "");
@@ -33,7 +34,7 @@ export async function startPortalCheckoutAction(formData: FormData) {
     },
   });
 
-  const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const base = await baseUrl();
   const returnUrl = `${base}/portal/${token}/invoices/${invoiceId}/pay/confirm?checkoutId=${checkout.id}`;
   const cancelUrl = `${base}/portal/${token}/invoices/${invoiceId}`;
   // Where the provider POSTs the signed outcome. This, not returnUrl, is

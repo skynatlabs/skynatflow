@@ -28,6 +28,7 @@ import {
   toggleRecurringInvoiceAction,
   logPhotoEventAction,
 } from "./actions";
+import { baseUrl } from "@/lib/appUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,7 @@ export default async function CustomerHistoryPage({
   ]);
   const margin = margins.find((m) => m.partyId === id);
   const cur = tenantRow?.currency ?? "ZAR";
-  const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com"}/portal/${portalToken}`;
+  const portalUrl = `${await baseUrl()}/portal/${portalToken}`;
 
   // Everything that has ever happened with these people, in order — the
   // question anybody actually has before picking up the phone, and until now

@@ -58,6 +58,7 @@ import {
   signatureStillMatches,
 } from "@/lib/core/agreements";
 import { draftAgreement, kindFromDraft, withDisclaimer } from "@/lib/ai/agreement";
+import { baseUrlWithoutRequest } from "@/lib/appUrl";
 import { SYSTEM_BY_KEY, addSystem, listSystems, switchover } from "@/lib/core/systems";
 import { kpiBoard } from "@/lib/core/kpis";
 import { undo, undoable, undoHealth, undoRun } from "@/lib/agent/undo";
@@ -2303,7 +2304,7 @@ export const EXTRA_WRITE_TOOLS: Record<string, ExtraToolDef> = {
             intro: intro ?? null,
             autoReply: autoReply ?? null,
           });
-          const base = process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com";
+          const base = baseUrlWithoutRequest();
           return { ok: true, formId: form.id, link: `${base}/enquire/${ctx.tenantId}/${form.slug}` };
         },
       }),
@@ -2524,7 +2525,7 @@ export const EXTRA_WRITE_TOOLS: Record<string, ExtraToolDef> = {
           if (!candidate.rung) return { skip: "It is not far enough past its date for the next message yet." };
 
           const party = await prisma.party.findUnique({ where: { id: candidate.partyId }, select: { portalToken: true } });
-          const base = process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com";
+          const base = baseUrlWithoutRequest();
           const draft = draftChase({
             candidate,
             businessName: tenant.name,

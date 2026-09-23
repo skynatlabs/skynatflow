@@ -58,6 +58,7 @@ import { find } from "@/lib/core/find";
 import { firstAudit } from "@/lib/agent/arrival";
 import { listConnectionsForTenant } from "@/lib/core/connections";
 import { listThreadsForMember, sendMessage, listMessages } from "@/lib/core/messaging";
+import { baseUrlWithoutRequest } from "@/lib/appUrl";
 import {
   listProposalTemplates,
   createProposalTemplate,
@@ -2660,7 +2661,7 @@ export const OPS_READ_TOOLS: Record<string, OpsToolDef> = {
           "which of them are ready, and the snippet to paste in.",
         inputSchema: z.object({}),
         execute: async () => {
-          const origin = process.env.NEXT_PUBLIC_APP_URL || "";
+          const origin = baseUrlWithoutRequest();
           const rows = await widgetReadiness(ctx.tenantId);
           return rows.map((row) => ({
             what: row.label,

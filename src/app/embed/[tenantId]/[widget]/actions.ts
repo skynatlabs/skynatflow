@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { getOrCreatePortalToken } from "@/lib/core/parties";
+import { baseUrl } from "@/lib/appUrl";
 
 /**
  * "I want to pay my invoice."
@@ -69,7 +70,7 @@ export async function lookUpInvoiceAction(formData: FormData): Promise<{ url: st
   }
 
   const token = await getOrCreatePortalToken(match.party.id);
-  const base = process.env.NEXT_PUBLIC_APP_URL || "";
+  const base = await baseUrl();
   return {
     url: `${base}/portal/${token}/invoices/${match.id}`,
     amount: (match.amountCents / 100).toFixed(2),

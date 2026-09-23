@@ -8,6 +8,7 @@ import { assertCan } from "@/lib/core/access";
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import { syncWooProducts } from "@/lib/ecommerce/sync";
 import { registerWooOrderWebhook } from "@/lib/ecommerce/woocommerce";
+import { baseUrl } from "@/lib/appUrl";
 
 export async function connectWooCommerceAction(formData: FormData) {
   const tenantId = String(formData.get("tenantId") ?? "");
@@ -55,7 +56,7 @@ export async function connectWooCommerceAction(formData: FormData) {
   // webhook registration), it just means orders won't auto-invoice until
   // fixed, same graceful-degradation posture as the rest of this app.
   if (integration.consumerKey && consumerSecretRaw) {
-    const base = process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com";
+    const base = await baseUrl();
     await registerWooOrderWebhook({
       storeUrl,
       consumerKey: integration.consumerKey,

@@ -21,6 +21,7 @@ import { PageHeader } from "../PageHeader";
 import { BreakdownBarChart } from "@/components/dashboard/MiniCharts";
 import { Pagination } from "@/components/dashboard/Pagination";
 import { applyLateFeeAction, recordChaseAction } from "./actions";
+import { baseUrl } from "@/lib/appUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -87,7 +88,7 @@ export default async function OverduePage({
           candidate: drafting,
           businessName: tenant.name,
           currency: tenant.currency,
-          portalUrl: portalToken ? `${process.env.NEXT_PUBLIC_APP_URL || "https://skynatflow.com"}/portal/${portalToken}` : null,
+          portalUrl: portalToken ? `${await baseUrl()}/portal/${portalToken}` : null,
         })
       : null;
 
